@@ -178,7 +178,7 @@
     const FRICTION = 170;
     const MAX_PULL = 150;
     const MIN_PULL = 22;
-    const MAX_SPEED = 460;
+    const MAX_SPEED = 540;
     const BACK = 0.22;
     const STOP_SPEED = 8;
     const CURL = 120;
@@ -653,22 +653,22 @@
       ctx.ellipse(0, 8, 14, 6, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#161616";
-      ctx.fillRect(-13, -12, 7, 4);
-      ctx.fillRect(5, -12, 7, 4);
-      ctx.fillRect(-13, 8, 7, 4);
-      ctx.fillRect(5, 8, 7, 4);
-      roundRect(-16, -9, 32, 18, 5);
+      ctx.fillRect(-13, -14, 7, 4);
+      ctx.fillRect(5, -14, 7, 4);
+      ctx.fillRect(-13, 10, 7, 4);
+      ctx.fillRect(5, 10, 7, 4);
+      roundRect(-17, -11, 34, 22, 6);
       ctx.fillStyle = c.color;
       ctx.fill();
       ctx.strokeStyle = "rgba(0,0,0,0.4)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
-      roundRect(2, -6, 8, 12, 2);
+      roundRect(2, -7, 8, 14, 2);
       ctx.fillStyle = "rgba(232,246,255,0.95)";
       ctx.fill();
       ctx.fillStyle = "#fff3bf";
-      ctx.fillRect(14, -6, 3, 3);
-      ctx.fillRect(14, 3, 3, 3);
+      ctx.fillRect(14, -7, 3, 4);
+      ctx.fillRect(14, 3, 3, 4);
       ctx.restore();
 
       if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {

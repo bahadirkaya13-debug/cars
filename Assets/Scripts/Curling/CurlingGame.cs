@@ -335,7 +335,7 @@ public class CurlingGame : MonoBehaviour
                 return;
             }
 
-            Vector2 impulse = pull.normalized * mag * 7.15f;
+            Vector2 impulse = pull.normalized * mag * 8.35f;
             activeCar.Launch(impulse);
             hintText.text = "Kaymasını izle — ustalık ortada durdurmak";
         }
