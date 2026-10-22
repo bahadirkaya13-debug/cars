@@ -101,6 +101,11 @@
       place-items: center;
       background: rgba(8, 12, 18, 0.5);
     }
+    #menu.panel {
+      place-items: start center;
+      padding-top: 10px;
+      background: rgba(8, 12, 18, 0.22);
+    }
     .panel.hidden { display: none; }
     .card {
       width: min(86%, 420px);
@@ -113,10 +118,15 @@
       text-align: center;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     }
+    #menu .card {
+      max-height: 46%;
+      padding: 12px 14px 10px;
+    }
     h1 {
       margin: 0 0 8px;
       font-size: 28px;
     }
+    #menu h1 { font-size: 22px; margin: 0 0 4px; }
     .card p, .card li {
       color: #d5dee8;
       line-height: 1.45;
@@ -236,7 +246,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 7 · Oyunda müzik · Gerçek araba fotoğrafı</p>
+        <p id="build-tag" style="margin:0 0 6px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8 · Fotoğraf arabalar</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Araba</p>
@@ -320,26 +330,45 @@
     const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b", "#fa8cbd", "#f2f2f2"];
     const PLAYER_NAMES = ["Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"];
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
-    const CAR_LEN = 112;
-    const CAR_WIDE = 62;
+    const CAR_LEN = 168;
+    const CAR_WIDE = 78;
     const carSheets = [null, null, null];
-    function punchCrop(img) {
+    function canvasFromImage(img, w, h) {
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const x = c.getContext("2d");
+      x.imageSmoothingEnabled = true;
+      x.imageSmoothingQuality = "high";
+      x.drawImage(img, 0, 0, w, h);
+      return c;
+    }
+    function rotCanvas(src, deg) {
+      const rad = deg * Math.PI / 180;
+      const swap = deg % 180 !== 0;
+      const c = document.createElement("canvas");
+      c.width = swap ? src.height : src.width;
+      c.height = swap ? src.width : src.height;
+      const x = c.getContext("2d");
+      x.translate(c.width / 2, c.height / 2);
+      x.rotate(rad);
+      x.drawImage(src, -src.width / 2, -src.height / 2);
+      return c;
+    }
+    function prepareSheet(img, noseLeft) {
       const w = img.naturalWidth;
       const h = img.naturalHeight;
-      const src = document.createElement("canvas");
-      src.width = w; src.height = h;
+      const src = canvasFromImage(img, w, h);
       const s = src.getContext("2d");
-      s.drawImage(img, 0, 0);
       const data = s.getImageData(0, 0, w, h);
       const d = data.data;
       let minX = w, minY = h, maxX = 0, maxY = 0;
       for (let i = 0; i < d.length; i += 4) {
         const r = d[i], g = d[i + 1], b = d[i + 2];
         const avg = (r + g + b) / 3;
-        const gray = Math.abs(r - g) < 14 && Math.abs(g - b) < 14;
-        if (gray && avg > 232) d[i + 3] = 0;
-        else if (gray && avg > 200) d[i + 3] = Math.max(0, 255 - (avg - 190) * 6);
-        if (d[i + 3] > 32) {
+        const gray = Math.abs(r - g) < 18 && Math.abs(g - b) < 18;
+        if (gray && avg > 228) d[i + 3] = 0;
+        else if (gray && avg > 195) d[i + 3] = Math.max(0, 255 - (avg - 185) * 7);
+        if (d[i + 3] > 28) {
           const p = i / 4;
           const px = p % w;
           const py = (p / w) | 0;
@@ -351,24 +380,27 @@
       }
       s.putImageData(data, 0, 0);
       if (maxX <= minX) return src;
-      const pad = 6;
+      const pad = 8;
       const x0 = Math.max(0, minX - pad);
       const y0 = Math.max(0, minY - pad);
       const cw = Math.min(w, maxX + pad) - x0;
       const ch = Math.min(h, maxY + pad) - y0;
-      const out = document.createElement("canvas");
-      out.width = cw; out.height = ch;
-      out.getContext("2d").drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
-      return out;
+      let cut = document.createElement("canvas");
+      cut.width = cw; cut.height = ch;
+      cut.getContext("2d").drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
+      if (cut.height > cut.width * 1.12) cut = rotCanvas(cut, 90);
+      if (noseLeft) cut = rotCanvas(cut, 180);
+      const scale = Math.max(4, Math.ceil(560 / Math.max(cut.width, cut.height)));
+      return canvasFromImage(cut, cut.width * scale, cut.height * scale);
     }
-    ["muscle.jpg", "hatch.jpg"].forEach((src, i) => {
+    [["muscle.jpg", true], ["hatch.jpg", false]].forEach((item, i) => {
       const im = new Image();
       im.onload = () => {
-        const sheet = punchCrop(im);
+        const sheet = prepareSheet(im, item[1]);
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=7";
+      im.src = item[0] + "?v=8";
     });
 
     const canvas = document.getElementById("c");
@@ -730,7 +762,7 @@
         homeY: SPAWN.y,
         vx: 0,
         vy: 0,
-        r: 26,
+        r: 34,
         color: palette[idx % palette.length],
         angle: -Math.PI / 2,
         curl: 0,
@@ -1250,7 +1282,7 @@
     function drawCar(c) {
       const m = c.body == null ? bodyStyle : c.body;
       const sheet = carSheets[m] || carSheets[1] || carSheets[0];
-      const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08);
+      const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08) * (c.scale || 1);
       const wide = sheet ? len * (sheet.height / sheet.width) : CAR_WIDE * (m === 1 ? 0.86 : 0.80);
       const halfL = len * 0.5;
       const halfW = wide * 0.5;
@@ -1258,9 +1290,9 @@
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
       if (sheet) {
-        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.fillStyle = "rgba(0,0,0,0.38)";
         ctx.beginPath();
-        ctx.ellipse(2, 8, halfL * 0.88, halfW * 0.55, 0, 0, Math.PI * 2);
+        ctx.ellipse(6, 14, halfL * 0.92, halfW * 0.62, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.drawImage(sheet, -halfL, -halfW, len, wide);
         ctx.restore();
@@ -1487,13 +1519,14 @@
       if (state === "menu" || state === "collection") {
         drawCar({
           x: SPAWN.x,
-          y: SPAWN.y,
+          y: 820,
           angle: -Math.PI / 2,
           color: PLAYER_COLORS[selectedSkin % PLAYER_COLORS.length],
           vx: 0,
           vy: 0,
           launched: false,
           body: bodyStyle,
+          scale: 2.15,
         });
       } else {
         if (state === "aim" && current && !botTurn) drawAim();
