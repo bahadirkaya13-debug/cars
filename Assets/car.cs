@@ -18,7 +18,11 @@ public class car : MonoBehaviour
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int CarsPerSide = 4;
+    const int KnockBase = 75;
+    const int BullseyeBonus = 100;
     const string BestKey = "halka-arabalari-best";
+    const string UnlockKey = "halka-arabalari-unlocks";
+    const string SkinKey = "halka-arabalari-skin";
 
     Vector2 House = new Vector2(0f, 0.35f);
     Vector2 Spawn = new Vector2(0f, -2.55f);
@@ -39,6 +43,10 @@ public class car : MonoBehaviour
         new Color(0.95f, 0.48f, 0.10f),
         new Color(0.96f, 0.82f, 0.12f),
         new Color(0.90f, 0.30f, 0.45f),
+        new Color(0.55f, 0.20f, 0.85f),
+        new Color(0.15f, 0.78f, 0.42f),
+        new Color(0.98f, 0.55f, 0.75f),
+        new Color(0.95f, 0.95f, 0.95f),
     };
     static readonly Color[] BotColors =
     {
@@ -49,6 +57,7 @@ public class car : MonoBehaviour
     };
 
     enum Phase { Aim, Slide, Over }
+    enum PowerUp { None, Ice, Magnet }
 
     class Stone
     {
@@ -60,6 +69,16 @@ public class car : MonoBehaviour
         public float angle;
         public bool launched;
         public bool bot;
+        public float frictionMul = 1f;
+        public bool magnet;
+    }
+
+    class Pop
+    {
+        public string text;
+        public Vector2 world;
+        public float life;
+        public Color color;
     }
 
     Camera cam;
@@ -80,12 +99,19 @@ public class car : MonoBehaviour
     int botThrown;
     bool botTurn;
     int best;
+    int unlockCount = 2;
+    int selectedSkin;
+    int playerBonus;
+    int comboStreak;
+    PowerUp activePower;
     float calm;
     float botThinkAt;
     bool pulling;
     Vector2 pressPos;
     Vector2 pull;
     string reason = "";
+    string unlockFlash = "";
+    readonly List<Pop> pops = new List<Pop>();
     GUIStyle label;
     GUIStyle hintStyle;
     GUIStyle hudStyle;
@@ -102,6 +128,8 @@ public class car : MonoBehaviour
     void Awake()
     {
         best = PlayerPrefs.GetInt(BestKey, 0);
+        unlockCount = Mathf.Clamp(PlayerPrefs.GetInt(UnlockKey, 2), 2, PlayerColors.Length);
+        selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
         pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
         pixel.SetPixel(0, 0, Color.white);
         pixel.Apply();
@@ -250,6 +278,11 @@ public class car : MonoBehaviour
         playerThrown = 0;
         botThrown = 0;
         botTurn = false;
+        playerBonus = 0;
+        comboStreak = 0;
+        activePower = PowerUp.None;
+        unlockFlash = "";
+        pops.Clear();
         calm = 0f;
         pulling = false;
         pull = Vector2.zero;
@@ -283,7 +316,14 @@ public class car : MonoBehaviour
             }
         }
 
-        int idx = forBot ? botThrown : playerThrown;
+        if (!forBot)
+        {
+            selectedSkin = selectedSkin % unlockCount;
+            RollPowerUp();
+        }
+        else activePower = PowerUp.None;
+
+        int idx = forBot ? botThrown % botSprites.Length : selectedSkin;
         var sprites = forBot ? botSprites : playerSprites;
         var stone = new Stone
         {
@@ -292,6 +332,8 @@ public class car : MonoBehaviour
             angle = Mathf.PI * 0.5f,
             launched = false,
             bot = forBot,
+            frictionMul = 1f,
+            magnet = false,
         };
         stone.view = new GameObject(forBot ? "BotAraba" : "Araba");
         stone.view.transform.SetParent(transform, false);
@@ -304,6 +346,20 @@ public class car : MonoBehaviour
         botTurn = forBot;
         phase = Phase.Aim;
         if (forBot) botThinkAt = Time.time + 0.75f;
+    }
+
+    void RollPowerUp()
+    {
+        activePower = PowerUp.None;
+        if (Random.value > 0.30f) return;
+        activePower = Random.value < 0.5f ? PowerUp.Ice : PowerUp.Magnet;
+        string msg = activePower == PowerUp.Ice ? "BUZ!  Daha kaygan" : "MIKNATIS!  Merkeze çeker";
+        AddPop(msg, Spawn + Vector2.up * 0.55f, new Color(0.55f, 0.90f, 1f));
+    }
+
+    void AddPop(string text, Vector2 world, Color color)
+    {
+        pops.Add(new Pop { text = text, world = world, life = 1.15f, color = color });
     }
 
     void Update()
@@ -323,6 +379,13 @@ public class car : MonoBehaviour
 
         if (phase == Phase.Aim && current != null && !botTurn) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
+
+        for (int i = pops.Count - 1; i >= 0; i--)
+        {
+            pops[i].life -= dt;
+            pops[i].world += Vector2.up * (0.45f * dt);
+            if (pops[i].life <= 0f) pops.RemoveAt(i);
+        }
 
         SyncStones();
         SyncDots();
@@ -390,6 +453,8 @@ public class car : MonoBehaviour
         }
 
         ApplyShot(current, pull);
+        current.frictionMul = activePower == PowerUp.Ice ? 0.55f : 1f;
+        current.magnet = activePower == PowerUp.Magnet;
         current.launched = true;
         pull = Vector2.zero;
         phase = Phase.Slide;
@@ -489,14 +554,28 @@ public class car : MonoBehaviour
         }
 
         body.angle = Mathf.Atan2(body.vel.y, body.vel.x);
-        float drop = Friction * dt;
-        if (drop >= sp)
+        if (body.magnet)
+        {
+            Vector2 toHouse = House - body.pos;
+            if (toHouse.sqrMagnitude > 0.0001f)
+                body.vel += toHouse.normalized * (1.35f * dt);
+        }
+
+        float drop = Friction * Mathf.Max(0.35f, body.frictionMul) * dt;
+        float spNow = body.vel.magnitude;
+        if (spNow <= StopSpeed)
         {
             body.vel = Vector2.zero;
             return false;
         }
 
-        body.vel -= body.vel / sp * drop;
+        if (drop >= spNow)
+        {
+            body.vel = Vector2.zero;
+            return false;
+        }
+
+        body.vel -= body.vel / spNow * drop;
         float sp2 = body.vel.magnitude;
         if (sp2 > 0f && Mathf.Abs(body.curl) > 0.0001f)
         {
@@ -551,23 +630,70 @@ public class car : MonoBehaviour
 
     void Settle()
     {
-        int knocked = RemoveOutCars();
-        if (current != null && current.bot) botThrown += 1;
+        bool shooterBot = current != null && current.bot;
+        var threatened = new List<Stone>();
+        for (int i = 0; i < stones.Count; i++)
+        {
+            Stone s = stones[i];
+            if (!s.launched || s == current) continue;
+            if (s.bot == shooterBot) continue;
+            if (PointsAt(s.pos) > 0) threatened.Add(s);
+        }
+
+        RemoveOutCars();
+
+        int knocks = 0;
+        for (int i = 0; i < threatened.Count; i++)
+        {
+            if (!stones.Contains(threatened[i])) knocks++;
+        }
+
+        if (!shooterBot)
+        {
+            if (knocks > 0)
+            {
+                for (int k = 0; k < knocks; k++)
+                {
+                    comboStreak++;
+                    int bonus = KnockBase + (comboStreak - 1) * 25;
+                    playerBonus += bonus;
+                    Vector2 at = current != null ? current.pos : House;
+                    AddPop("+" + bonus + " VURUŞ!", at + Vector2.up * (0.2f + k * 0.2f), new Color(1f, 0.75f, 0.2f));
+                }
+            }
+            else comboStreak = 0;
+
+            if (current != null && stones.Contains(current) && PointsAt(current.pos) >= RingPoints[RingPoints.Length - 1])
+            {
+                playerBonus += BullseyeBonus;
+                AddPop("+" + BullseyeBonus + " BULLSEYE!", current.pos + Vector2.up * 0.5f, new Color(0.45f, 1f, 0.65f));
+            }
+        }
+
+        activePower = PowerUp.None;
+        if (current != null)
+        {
+            current.frictionMul = 1f;
+            current.magnet = false;
+        }
+
+        if (shooterBot) botThrown += 1;
         else playerThrown += 1;
 
         if (playerThrown >= CarsPerSide && botThrown >= CarsPerSide)
         {
             int you = TeamScore(false);
             int bot = TeamScore(true);
-            if (you > bot) End("Sen kazandın!  " + you + " - " + bot);
-            else if (bot > you) End("Bot kazandı.  " + you + " - " + bot);
-            else End("Berabere.  " + you + " - " + bot);
+            if (you > bot) End("Sen kazandın!  " + you + " - " + bot, true);
+            else if (bot > you) End("Bot kazandı.  " + you + " - " + bot, false);
+            else End("Berabere.  " + you + " - " + bot, false);
             return;
         }
 
         bool nextBot = !botTurn;
         if (nextBot && botThrown >= CarsPerSide) nextBot = false;
         if (!nextBot && playerThrown >= CarsPerSide) nextBot = true;
+        if (!nextBot) selectedSkin = (selectedSkin + 1) % unlockCount;
         SpawnStone(nextBot);
     }
 
@@ -621,6 +747,8 @@ public class car : MonoBehaviour
         Vector2 drag = -dir * (t * MaxPull);
         drag.x += Random.Range(-0.10f, 0.10f) * MaxPull;
         ApplyShot(current, drag);
+        current.frictionMul = 1f;
+        current.magnet = false;
         current.launched = true;
         phase = Phase.Slide;
         calm = 0f;
@@ -629,7 +757,7 @@ public class car : MonoBehaviour
         pulling = false;
     }
 
-    void End(string why)
+    void End(string why, bool playerWon)
     {
         phase = Phase.Over;
         pulling = false;
@@ -640,6 +768,21 @@ public class car : MonoBehaviour
         {
             best = score;
             PlayerPrefs.SetInt(BestKey, best);
+        }
+
+        unlockFlash = "";
+        if (playerWon && unlockCount < PlayerColors.Length)
+        {
+            unlockCount++;
+            selectedSkin = unlockCount - 1;
+            PlayerPrefs.SetInt(UnlockKey, unlockCount);
+            PlayerPrefs.SetInt(SkinKey, selectedSkin);
+            unlockFlash = "Yeni araba açıldı! (" + unlockCount + "/" + PlayerColors.Length + ")";
+            AddPop("YENİ ARABA!", House, new Color(1f, 0.85f, 0.3f));
+        }
+        else
+        {
+            PlayerPrefs.SetInt(SkinKey, selectedSkin % unlockCount);
         }
     }
 
@@ -665,6 +808,7 @@ public class car : MonoBehaviour
             sum += PointsAt(stone.pos);
         }
 
+        if (!bot) sum += playerBonus;
         return sum;
     }
 
@@ -766,7 +910,7 @@ public class car : MonoBehaviour
     {
         Rect safe = SafeScreen();
         float w = Mathf.Min(420f, safe.width - 24f);
-        float h = 260f;
+        float h = 300f;
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
@@ -777,6 +921,7 @@ public class car : MonoBehaviour
         if (phase == Phase.Over) DrawEnd();
         else DrawBar();
         DrawWorldTexts();
+        DrawPops();
     }
 
     void DrawHud()
@@ -797,20 +942,31 @@ public class car : MonoBehaviour
         if (phase == Phase.Slide) turnHint = "Kayıyor…";
         if (phase != Phase.Over)
             DrawPill(new Rect(safe.x + (safe.width - 140f) * 0.5f, y + h + 6f, 140f, h), turnHint);
+        float y2 = y + h + 36f;
+        DrawPill(new Rect(safe.x + pad, y2, 110f, h), "Arabalar " + unlockCount + "/" + PlayerColors.Length);
+        if (comboStreak > 0)
+            DrawPill(new Rect(safe.x + pad + 118f, y2, 90f, h), "Kombo x" + comboStreak);
+        if (!botTurn && activePower != PowerUp.None && phase == Phase.Aim)
+        {
+            string p = activePower == PowerUp.Ice ? "Power: BUZ" : "Power: MIKNATIS";
+            DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
+        }
     }
 
     void DrawBar()
     {
         if (botTurn)
         {
-            Rect safe = SafeScreen();
-            GUI.Label(new Rect(safe.x, safe.yMax - 48f, safe.width, 22f), "Bot nişan alıyor…", hintStyle);
+            Rect safeBot = SafeScreen();
+            GUI.Label(new Rect(safeBot.x, safeBot.yMax - 48f, safeBot.width, 22f), "Bot nişan alıyor…", hintStyle);
             return;
         }
 
         float len = pull.magnitude;
         int band = phase == Phase.Aim && pulling ? PowerBand(len) : 0;
         string hint = "Geri çek, bırak";
+        if (activePower == PowerUp.Ice) hint = "BUZ hazır — çek bırak";
+        else if (activePower == PowerUp.Magnet) hint = "MIKNATIS hazır — çek bırak";
         if (phase == Phase.Slide) hint = "Kayıyor…";
         else if (band == 1) hint = "Hafif";
         else if (band == 2) hint = "Az";
@@ -850,7 +1006,9 @@ public class car : MonoBehaviour
         GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Tur bitti", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 52f, card.width - 32f, 28f), reason, hintStyle);
         GUI.Label(new Rect(card.x, card.y + 88f, card.width, 28f), "Sen " + TeamScore(false) + "   Bot " + TeamScore(true), label);
-        GUI.Label(new Rect(card.x, card.y + 120f, card.width, 24f), "Rekor " + best, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 118f, card.width, 22f), "Bonus " + playerBonus + "   Rekor " + best, hintStyle);
+        if (!string.IsNullOrEmpty(unlockFlash))
+            GUI.Label(new Rect(card.x + 12f, card.y + 144f, card.width - 24f, 28f), unlockFlash, hintStyle);
         Rect button = AgainRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(button, pixel);
@@ -867,6 +1025,24 @@ public class car : MonoBehaviour
             Stone stone = stones[i];
             if (!stone.launched || stone.vel.magnitude > StopSpeed) continue;
             PlaceWorldLabel(stone.pos + new Vector2(0f, 0.36f), PointsAt(stone.pos).ToString(), rects);
+        }
+    }
+
+    void DrawPops()
+    {
+        for (int i = 0; i < pops.Count; i++)
+        {
+            Pop p = pops[i];
+            if (cam == null) continue;
+            Vector3 screen = cam.WorldToScreenPoint(p.world);
+            if (screen.z < 0f) continue;
+            float a = Mathf.Clamp01(p.life);
+            var rect = new Rect(screen.x - 70f, Screen.height - screen.y - 14f, 140f, 28f);
+            Color c = p.color;
+            c.a = a;
+            GUI.color = c;
+            GUI.Label(rect, p.text, label);
+            GUI.color = Color.white;
         }
     }
 

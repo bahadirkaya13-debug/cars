@@ -148,10 +148,10 @@
       <div class="card">
         <h1>Halka Arabaları</h1>
         <ol>
-          <li>Sen kırmızı, bot mavi — sıra sıra atarsınız.</li>
-          <li>Puan: dış 50 → içe 100 / 200 / 400. Rekor senin en iyi skorun.</li>
-          <li>Rakibin arabasını vurup halkadan çıkarabilirsin.</li>
-          <li>Halka dışında kalan arabalar silinir.</li>
+          <li>Vuruş ve bullseye bonus / kombo puanı verir.</li>
+          <li>Kazanırsan yeni araba rengi açılır (koleksiyon).</li>
+          <li>Nadir power-up: BUZ (kaygan) veya MIKNATIS (merkeze çeker).</li>
+          <li>Rakibi halkadan çıkar, 50→400 puan topla.</li>
         </ol>
         <p id="menu-best"></p>
         <button id="start" type="button">Bota karşı oyna</button>
@@ -189,8 +189,12 @@
     const CURL = 70;
     const POWER_STEPS = 5;
     const CARS_PER_SIDE = 4;
+    const KNOCK_BASE = 75;
+    const BULLSEYE_BONUS = 100;
     const BEST_KEY = "halka-arabalari-best";
-    const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73"];
+    const UNLOCK_KEY = "halka-arabalari-unlocks";
+    const SKIN_KEY = "halka-arabalari-skin";
+    const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b", "#fa8cbd", "#f2f2f2"];
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
     const CAR_LEN = 82;
     const CAR_WIDE = 48;
@@ -226,9 +230,17 @@
       len: 28 + Math.random() * 70,
     }));
 
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
     let best = 0;
+    let unlockCount = 2;
+    let selectedSkin = 0;
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
-    menuBestEl.textContent = best > 0 ? "Rekor " + best : "Bota karşı ilk turun seni bekliyor.";
+    try { unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || 2, 2, PLAYER_COLORS.length); } catch (e) { unlockCount = 2; }
+    try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
+    menuBestEl.textContent = best > 0
+      ? ("Rekor " + best + " · Arabalar " + unlockCount + "/" + PLAYER_COLORS.length)
+      : "Bota karşı ilk turun seni bekliyor.";
 
     let cars = [];
     let current = null;
@@ -237,13 +249,15 @@
     let botThrown = 0;
     let botTurn = false;
     let botThinkAt = 0;
+    let playerBonus = 0;
+    let comboStreak = 0;
+    let activePower = "none"; // none | ice | magnet
+    let unlockFlash = "";
     let calm = 0;
     let actx = null;
     let lastHit = 0;
     const pops = [];
     const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
-
-    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
     function pointsAt(x, y) {
       const d = Math.hypot(x - HOUSE.x, y - HOUSE.y);
@@ -260,7 +274,19 @@
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
         s += pointsAt(c.x, c.y);
       }
+      if (!isBot) s += playerBonus;
       return s;
+    }
+
+    function addPop(text, x, y, color) {
+      pops.push({ text, x, y, life: 1.15, color: color || "#f0a202" });
+    }
+
+    function rollPowerUp() {
+      activePower = "none";
+      if (Math.random() > 0.30) return;
+      activePower = Math.random() < 0.5 ? "ice" : "magnet";
+      addPop(activePower === "ice" ? "BUZ! Daha kaygan" : "MIKNATIS! Merkeze çeker", SPAWN.x, SPAWN.y - 50, "#8ce7ff");
     }
 
     function totalScore() { return teamScore(false); }
@@ -317,7 +343,12 @@
         const blocked = cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < c.r * 2 + 8);
         if (!blocked) { x = tx; break; }
       }
-      const idx = forBot ? botThrown : playerThrown;
+      if (!forBot) {
+        selectedSkin = selectedSkin % unlockCount;
+        rollPowerUp();
+      } else activePower = "none";
+
+      const idx = forBot ? botThrown % BOT_COLORS.length : selectedSkin;
       const palette = forBot ? BOT_COLORS : PLAYER_COLORS;
       const car = {
         x: x,
@@ -332,6 +363,8 @@
         curl: 0,
         launched: false,
         bot: !!forBot,
+        frictionMul: 1,
+        magnet: false,
       };
       cars.push(car);
       current = car;
@@ -345,6 +378,10 @@
       playerThrown = 0;
       botThrown = 0;
       botTurn = false;
+      playerBonus = 0;
+      comboStreak = 0;
+      activePower = "none";
+      unlockFlash = "";
       calm = 0;
       pops.length = 0;
       pull.active = false;
@@ -366,9 +403,22 @@
         best = s;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
-      reasonEl.textContent = reason;
+      unlockFlash = "";
+      if (win && unlockCount < PLAYER_COLORS.length) {
+        unlockCount++;
+        selectedSkin = unlockCount - 1;
+        try {
+          localStorage.setItem(UNLOCK_KEY, String(unlockCount));
+          localStorage.setItem(SKIN_KEY, String(selectedSkin));
+        } catch (e) { /* yoksay */ }
+        unlockFlash = "Yeni araba açıldı! (" + unlockCount + "/" + PLAYER_COLORS.length + ")";
+        addPop("YENİ ARABA!", HOUSE.x, HOUSE.y, "#ffd76a");
+      } else {
+        try { localStorage.setItem(SKIN_KEY, String(selectedSkin % unlockCount)); } catch (e) { /* yoksay */ }
+      }
+      reasonEl.textContent = reason + (unlockFlash ? "  " + unlockFlash : "");
       finalEl.textContent = "Sen " + s + "   Bot " + b;
-      bestOutEl.textContent = "Rekor " + best;
+      bestOutEl.textContent = "Bonus " + playerBonus + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + PLAYER_COLORS.length;
       overEl.classList.remove("hidden");
       tone(win ? 560 : 120, 0.2);
     }
@@ -383,13 +433,43 @@
         cars.splice(i, 1);
         removed++;
       }
-      if (removed) pops.push({ text: "Çıktı ×" + removed, x: W / 2, y: 90, life: 0.9 });
       return removed;
     }
 
     function settle() {
+      const shooterBot = !!(current && current.bot);
+      const threatened = cars.filter((c) => c.launched && c !== current && c.bot !== shooterBot && pointsAt(c.x, c.y) > 0);
       removeOutCars();
-      if (current && current.bot) botThrown += 1;
+      let knocks = 0;
+      for (const t of threatened) {
+        if (!cars.includes(t)) knocks++;
+      }
+
+      if (!shooterBot) {
+        if (knocks > 0) {
+          for (let k = 0; k < knocks; k++) {
+            comboStreak++;
+            const bonus = KNOCK_BASE + (comboStreak - 1) * 25;
+            playerBonus += bonus;
+            addPop("+" + bonus + " VURUŞ!", (current ? current.x : HOUSE.x), (current ? current.y : HOUSE.y) - 20 - k * 22, "#ffc14d");
+            tone(420 + k * 40, 0.08);
+          }
+        } else comboStreak = 0;
+
+        if (current && cars.includes(current) && pointsAt(current.x, current.y) >= 400) {
+          playerBonus += BULLSEYE_BONUS;
+          addPop("+" + BULLSEYE_BONUS + " BULLSEYE!", current.x, current.y - 40, "#7dff9a");
+          tone(620, 0.12);
+        }
+      }
+
+      activePower = "none";
+      if (current) {
+        current.frictionMul = 1;
+        current.magnet = false;
+      }
+
+      if (shooterBot) botThrown += 1;
       else playerThrown += 1;
 
       if (playerThrown >= CARS_PER_SIDE && botThrown >= CARS_PER_SIDE) {
@@ -404,6 +484,7 @@
       let nextBot = !botTurn;
       if (nextBot && botThrown >= CARS_PER_SIDE) nextBot = false;
       if (!nextBot && playerThrown >= CARS_PER_SIDE) nextBot = true;
+      if (!nextBot) selectedSkin = (selectedSkin + 1) % unlockCount;
       spawnCar(nextBot);
     }
 
@@ -436,6 +517,8 @@
       current.vy = shot.vy;
       current.curl = shot.curl;
       current.angle = Math.atan2(current.vy, current.vx);
+      current.frictionMul = 1;
+      current.magnet = false;
       current.launched = true;
       state = "slide";
       calm = 0;
@@ -487,6 +570,8 @@
       current.vy = shot.vy;
       current.curl = shot.curl;
       current.angle = Math.atan2(current.vy, current.vx);
+      current.frictionMul = activePower === "ice" ? 0.55 : 1;
+      current.magnet = activePower === "magnet";
       current.launched = true;
       pull.x = 0;
       pull.y = 0;
@@ -586,14 +671,22 @@
     }
 
     function glide(body, dt) {
-      const sp = Math.hypot(body.vx, body.vy);
+      let sp = Math.hypot(body.vx, body.vy);
       if (sp <= STOP_SPEED) {
         body.vx = 0;
         body.vy = 0;
         return false;
       }
       body.angle = Math.atan2(body.vy, body.vx);
-      const drop = FRICTION * dt;
+      if (body.magnet) {
+        const dx = HOUSE.x - body.x;
+        const dy = HOUSE.y - body.y;
+        const d = Math.hypot(dx, dy) || 1;
+        body.vx += (dx / d) * 135 * dt;
+        body.vy += (dy / d) * 135 * dt;
+      }
+      sp = Math.hypot(body.vx, body.vy);
+      const drop = FRICTION * Math.max(0.35, body.frictionMul || 1) * dt;
       if (drop >= sp) {
         body.vx = 0;
         body.vy = 0;
@@ -650,7 +743,7 @@
       }
       for (let i = pops.length - 1; i >= 0; i--) {
         pops[i].life -= dt;
-        pops[i].y -= 16 * dt;
+        pops[i].y -= 28 * dt;
         if (pops[i].life <= 0) pops.splice(i, 1);
       }
     }
@@ -851,7 +944,7 @@
         ctx.lineWidth = 4;
         ctx.strokeStyle = "rgba(0,0,0,0.45)";
         ctx.strokeText(p.text, p.x, p.y);
-        ctx.fillStyle = "#f0a202";
+        ctx.fillStyle = p.color || "#f0a202";
         ctx.fillText(p.text, p.x, p.y);
       }
       ctx.globalAlpha = 1;
@@ -861,15 +954,21 @@
       youEl.textContent = "Sen " + teamScore(false);
       scoreEl.textContent = "Bot " + teamScore(true);
       const turn = clamp(Math.max(playerThrown, botThrown) + (state === "over" ? 0 : 1), 1, CARS_PER_SIDE);
-      carEl.textContent = "Tur " + turn + "/" + CARS_PER_SIDE;
+      let mid = "Tur " + turn + "/" + CARS_PER_SIDE;
+      if (comboStreak > 0) mid += " · x" + comboStreak;
+      if (!botTurn && activePower === "ice" && state === "aim") mid = "BUZ";
+      if (!botTurn && activePower === "magnet" && state === "aim") mid = "MIKNATIS";
+      carEl.textContent = mid;
       const len = Math.hypot(pull.x, pull.y);
       const band = state === "aim" && pull.active && !botTurn ? powerBand(len) : 0;
       const bandHints = ["Geri çek, bırak", "Hafif", "Az", "Orta", "Güçlü", "Tam güç"];
       let hint = bandHints[0];
       if (botTurn && state === "aim") hint = "Bot nişan alıyor…";
       else if (state === "slide") hint = "Kayıyor…";
+      else if (activePower === "ice" && state === "aim") hint = "BUZ hazır — çek bırak";
+      else if (activePower === "magnet" && state === "aim") hint = "MIKNATIS hazır — çek bırak";
       else if (band > 0) hint = bandHints[band];
-      else if (!botTurn && state === "aim") hint = "Senin sıran — geri çek";
+      else if (!botTurn && state === "aim") hint = "Senin sıran · Araba " + (selectedSkin + 1) + "/" + unlockCount;
       hintEl.textContent = hint;
       const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
       for (let i = 0; i < powerCells.length; i++) {
