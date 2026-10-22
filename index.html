@@ -2,193 +2,485 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Halka Arabaları</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #523016; color: #f4ece3; font-family: "Segoe UI", sans-serif; }
-    body { display: grid; place-items: center; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #2a180c;
+      color: #eef3f8;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
     .stage {
       position: relative;
       width: min(96vw, calc(96vh * 9 / 16));
       aspect-ratio: 9 / 16;
-      border-radius: 18px;
+      border-radius: 20px;
       overflow: hidden;
       box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
       user-select: none;
       touch-action: none;
     }
-    canvas { width: 100%; height: 100%; display: block; }
-    .hud {
-      position: absolute; left: 10px; right: 10px; top: max(8px, env(safe-area-inset-top));
-      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; pointer-events: none;
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
-    .hud span {
-      background: rgba(32, 16, 8, 0.82); border-radius: 999px; padding: 6px 8px;
-      font-size: 13px; font-weight: 700; text-align: center;
+    .top, .bottom {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      pointer-events: none;
+    }
+    .top {
+      top: 12px;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .top span {
+      background: rgba(8, 12, 18, 0.62);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 700;
     }
     .bottom {
-      position: absolute; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
-      display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
+      bottom: 14px;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
     .bottom[hidden] { display: none; }
-    .bottom p { margin: 0; font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px #000; }
-    .power { width: min(72%, 260px); display: flex; gap: 4px; }
-    .power i { flex: 1; height: 16px; border-radius: 3px; background: rgba(18, 10, 6, 0.9); }
-    .power i.on:nth-child(1) { background: #59d173; }
-    .power i.on:nth-child(2) { background: #8cc84a; }
-    .power i.on:nth-child(3) { background: #e2c13a; }
-    .power i.on:nth-child(4) { background: #e98332; }
-    .power i.on:nth-child(5) { background: #f25938; }
-    .panel { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(28, 14, 6, 0.48); }
+    .stage[data-state="aim"] canvas { cursor: grab; }
+    .bottom p {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+    }
+    .power {
+      width: min(72%, 320px);
+      height: 16px;
+      display: flex;
+      gap: 4px;
+    }
+    .power span {
+      flex: 1;
+      border-radius: 4px;
+      background: rgba(18, 10, 5, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .power span.on {
+      border-color: transparent;
+    }
+    .panel {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(8, 12, 18, 0.5);
+    }
     .panel.hidden { display: none; }
     .card {
-      width: min(86%, 420px); background: rgba(28, 16, 10, 0.94);
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 22px 24px; text-align: center;
+      width: min(86%, 420px);
+      background: rgba(16, 24, 34, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 26px 28px 22px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     }
-    h1 { margin: 0 0 8px; font-size: 24px; }
-    .card p, .card li { color: #ead9c8; line-height: 1.4; }
-    .paints { display: flex; justify-content: center; gap: 12px; margin: 14px 0; }
-    .paints button { width: 44px; height: 44px; border-radius: 10px; border: 3px solid transparent; padding: 0; }
-    .paints button.sel { border-color: #fff; }
-    .models { display: flex; justify-content: center; gap: 8px; margin: 10px 0; }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .card p, .card li {
+      color: #d5dee8;
+      line-height: 1.45;
+    }
+    ol {
+      text-align: left;
+      margin: 12px 0 16px;
+      padding-left: 18px;
+    }
+    button {
+      font: inherit;
+      font-weight: 800;
+      background: #f0a202;
+      color: #1a1203;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 28px;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.06); }
+    #reason { margin: 0 0 6px; }
+    #final {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+    }
+    #best-out { margin: 4px 0 16px; }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    button.ghost {
+      background: transparent;
+      color: #f0e6d8;
+      border: 2px solid rgba(255,255,255,0.28);
+    }
+    .card.wide { width: min(92%, 460px); }
+    .coll-meta {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #f0a202;
+    }
+    .coll-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+    .coll-item {
+      appearance: none;
+      border: 2px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.55);
+      color: #eef3f8;
+      padding: 10px 6px 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .coll-item .swatch {
+      width: 42px;
+      height: 28px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+    }
+    .coll-item.locked {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.85);
+    }
+    .coll-item.selected {
+      border-color: #f0a202;
+      box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
+    }
+    .coll-item .tag { font-size: 11px; color: #c5d0dc; font-weight: 600; }
+    .models { display: flex; gap: 8px; margin: 0 0 12px; }
     .models button {
       flex: 1; font: inherit; font-size: 12px; font-weight: 800; padding: 8px 4px;
-      border-radius: 10px; border: 0; background: #3a2112; color: #f4ece3;
+      border-radius: 10px; background: #243040; color: #eef3f8;
     }
     .models button.sel { background: #f0a202; color: #1a1203; }
-    button.main {
-      font: inherit; font-weight: 800; background: #f0a202; color: #1a1203;
-      border: 0; border-radius: 999px; padding: 12px 28px; cursor: pointer;
-    }
-    #final { margin: 0; font-size: 26px; font-weight: 800; }
   </style>
 </head>
 <body>
   <div class="stage" id="stage">
     <canvas id="c" width="720" height="1280"></canvas>
-    <header class="hud" id="hud" hidden>
-      <span id="round">Tur 1/3</span>
-      <span id="car">Araba 1/5</span>
-      <span id="score">Skor 0</span>
-      <span id="daily">Bugün 0/20</span>
+    <header class="top">
+      <span id="you">Sen 0</span>
+      <span id="car">Tur 1/4</span>
+      <span id="score">Bot 0</span>
     </header>
     <footer class="bottom" id="bottom" hidden>
-      <p id="hint">Üst halkaya at</p>
-      <div class="power" id="power"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="power" id="power" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <p id="hint">Geri çek ve bırak</p>
     </footer>
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 4 · Lüks modeller + Müzik + Patlama</p>
+        <ol>
+          <li>Vuruş ve bullseye bonus / kombo puanı verir.</li>
+          <li>Kazanırsan yeni araba rengi açılır (koleksiyon).</li>
+          <li>Nadir power-up: BUZ (kaygan) veya MIKNATIS (merkeze çeker).</li>
+          <li>Rakibi halkadan çıkar, 50→400 puan topla.</li>
+        </ol>
         <p id="menu-best"></p>
-        <p>3 tur · lüks model ve renk seç</p>
-        <div class="models">
-          <button type="button" data-model="0">Sport GT</button>
-          <button type="button" data-model="1" class="sel">Lüks Sedan</button>
-          <button type="button" data-model="2">Limuzin</button>
+        <div class="models" id="models">
+          <button type="button" data-body="0">Sport GT</button>
+          <button type="button" data-body="1" class="sel">Lüks Sedan</button>
+          <button type="button" data-body="2">Limuzin</button>
         </div>
-        <div class="paints">
-          <button type="button" data-paint="0" style="background:#db2e2e" class="sel"></button>
-          <button type="button" data-paint="1" style="background:#296be0"></button>
-          <button type="button" data-paint="2" style="background:#f5d11f"></button>
+        <div class="btn-row">
+          <button id="start" type="button">Bota karşı oyna</button>
+          <button id="open-collection" class="ghost" type="button">Koleksiyon</button>
         </div>
-        <button class="main" id="start" type="button">Başla</button>
+      </div>
+    </section>
+    <section class="panel hidden" id="collection">
+      <div class="card wide">
+        <h1>Koleksiyon</h1>
+        <p class="coll-meta" id="coll-meta">0/8 araba</p>
+        <div class="coll-grid" id="coll-grid"></div>
+        <p id="coll-hint">Açık arabaya dokunarak seç.</p>
+        <div class="btn-row">
+          <button id="coll-play" type="button">Bu arabayla oyna</button>
+          <button id="coll-back" class="ghost" type="button">Geri</button>
+        </div>
       </div>
     </section>
     <section class="panel hidden" id="over">
       <div class="card">
-        <h1 id="over-title">Tur bitti</h1>
+        <h1>Tur bitti</h1>
         <p id="reason"></p>
         <p id="final">Skor 0</p>
         <p id="best-out"></p>
-        <button class="main" id="again" type="button">Sonraki tur</button>
+        <div class="btn-row">
+          <button id="again" type="button">Tekrar oyna</button>
+          <button id="over-collection" class="ghost" type="button">Koleksiyon</button>
+        </div>
       </div>
     </section>
   </div>
   <script>
-    const W = 720, H = 1280, VIEW_H = 6.4, VIEW_W = VIEW_H * 9 / 16;
-    const HOUSE = { x: 0, y: 0.34 * VIEW_H };
-    const SPAWN = { x: 0, y: -0.36 * VIEW_H };
-    const OUTER = 0.090 * VIEW_H;
-    const RING_R = [OUTER, OUTER * 0.73, OUTER * 0.51, OUTER * 0.19];
-    const RING_PTS = [1, 2, 3, 4];
-    const RING_COL = ["#1e73db", "#b87538", "#d12929", "#1a6bd1"];
-    const FRICTION = 1.70, MAX_PULL = 1.50, MIN_PULL = 0.22, MAX_SPEED = 4.60;
-    const BACK = 0.22, STOP = 0.08, CURL = 1.20, STEPS = 5, CAR_R = 0.14;
-    const CAR_LEN = 0.44, CAR_WIDE = 0.22, LANE = 0.30 * VIEW_W;
-    const CARS = 5, ROUNDS = 3, GOAL = 20;
-    const COLORS = ["#db2e2e", "#296be0", "#f5d11f"];
-    const BEST_KEY = "halka-best", PAINT_KEY = "halka-paint", MODEL_KEY = "halka-model";
-    const DAY_KEY = "halka-day", DAILY_KEY = "halka-daily";
+    const W = 720;
+    const H = 1280;
+    const INSET = 24;
+    // Unity car.cs ile aynı kurallar (1 birim ≈ 100 px)
+    const HOUSE = { x: 360, y: 280 };
+    const SPAWN = { x: 360, y: 1080 };
+    const RINGS = [
+      { r: 168, points: 50, color: "#1f73db" },
+      { r: 120, points: 100, color: "#b87538" },
+      { r: 78, points: 200, color: "#d12929" },
+      { r: 36, points: 400, color: "#1a6bd1" },
+    ];
+    const FRICTION = 160;
+    const MAX_PULL = 150;
+    const MIN_PULL = 22;
+    const MAX_SPEED = 740;
+    const BACK = 0.22;
+    const STOP_SPEED = 8;
+    const CURL = 70;
+    const POWER_STEPS = 5;
+    const CARS_PER_SIDE = 4;
+    const KNOCK_BASE = 75;
+    const BULLSEYE_BONUS = 100;
+    const BEST_KEY = "halka-arabalari-best";
+    const UNLOCK_KEY = "halka-arabalari-unlocks";
+    const SKIN_KEY = "halka-arabalari-skin";
+    const BODY_KEY = "halka-arabalari-body";
+    const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b", "#fa8cbd", "#f2f2f2"];
+    const PLAYER_NAMES = ["Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"];
+    const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
+    const CAR_LEN = 82;
+    const CAR_WIDE = 48;
 
     const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d");
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = W * dpr; canvas.height = H * dpr;
+    const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const board = new Image();
-    board.src = "masa.jpg";
-    let boardReady = false;
-    board.onload = () => { boardReady = true; };
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
+    const stage = document.getElementById("stage");
     const menuEl = document.getElementById("menu");
+    const collectionEl = document.getElementById("collection");
     const overEl = document.getElementById("over");
-    const hudEl = document.getElementById("hud");
     const bottomEl = document.getElementById("bottom");
-    const powerCells = [...document.querySelectorAll("#power i")];
+    const powerEl = document.getElementById("power");
+    const powerCells = powerEl ? Array.from(powerEl.querySelectorAll("span")) : [];
+    const hintEl = document.getElementById("hint");
+    const scoreEl = document.getElementById("score");
+    const youEl = document.getElementById("you");
+    const carEl = document.getElementById("car");
+    const reasonEl = document.getElementById("reason");
+    const finalEl = document.getElementById("final");
+    const bestOutEl = document.getElementById("best-out");
+    const menuBestEl = document.getElementById("menu-best");
+    const collGrid = document.getElementById("coll-grid");
+    const collMeta = document.getElementById("coll-meta");
+    const collHint = document.getElementById("coll-hint");
 
-    let best = Number(localStorage.getItem(BEST_KEY) || 0);
-    let paint = Number(localStorage.getItem(PAINT_KEY) || 0);
-    let model = Number(localStorage.getItem(MODEL_KEY) || 1);
-    let daily = 0, day = localStorage.getItem(DAY_KEY) || "";
-    const today = new Date().toISOString().slice(0, 10);
-    if (day !== today) { day = today; daily = 0; localStorage.setItem(DAY_KEY, day); localStorage.setItem(DAILY_KEY, "0"); }
-    else daily = Number(localStorage.getItem(DAILY_KEY) || 0);
-    paint = Math.max(0, Math.min(2, paint));
-    model = Math.max(0, Math.min(2, model));
-    document.getElementById("menu-best").textContent = "En iyi " + best + "   Bugün " + daily + "/" + GOAL;
-    document.querySelectorAll(".models button").forEach((b) => {
-      b.classList.toggle("sel", Number(b.dataset.model) === model);
-      b.onclick = () => {
-        model = Number(b.dataset.model);
-        localStorage.setItem(MODEL_KEY, String(model));
-        document.querySelectorAll(".models button").forEach((x) => x.classList.toggle("sel", x === b));
-        tone(210, 0.06);
-      };
-    });
-    document.querySelectorAll(".paints button").forEach((b) => {
-      b.classList.toggle("sel", Number(b.dataset.paint) === paint);
-      b.onclick = () => {
-        paint = Number(b.dataset.paint);
-        localStorage.setItem(PAINT_KEY, String(paint));
-        document.querySelectorAll(".paints button").forEach((x) => x.classList.toggle("sel", x === b));
-        tone(210, 0.06);
-      };
-    });
-
-    let cars = [], current = null, state = "menu";
-    let thrown = 0, matchRound = 1, matchScore = 0, streak = 0, matchOver = false;
-    let calm = 0, devam = 0, shotFric = FRICTION, lastBand = 0;
-    let pickup = null;
-    const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
-    let actx = null, musicOn = false;
-    const pops = [], bits = [];
+    const scratches = Array.from({ length: 16 }, () => ({
+      x: 50 + Math.random() * 620,
+      y: 70 + Math.random() * 1140,
+      a: Math.random() * Math.PI,
+      len: 28 + Math.random() * 70,
+    }));
 
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-    function toPx(x, y) { return { x: W * 0.5 + (x / VIEW_W) * W, y: H * 0.5 - (y / VIEW_H) * H }; }
-    function toWorld(px, py) { return { x: (px - W * 0.5) / W * VIEW_W, y: (H * 0.5 - py) / H * VIEW_H }; }
-    function pxR(r) { return r / VIEW_H * H; }
-    function buzz() { try { navigator.vibrate && navigator.vibrate(35); } catch (e) {} }
+
+    let best = 0;
+    let unlockCount = 2;
+    let selectedSkin = 0;
+    try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
+    try { unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || 2, 2, PLAYER_COLORS.length); } catch (e) { unlockCount = 2; }
+    try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
+    function refreshMenuBest() {
+      const name = PLAYER_NAMES[selectedSkin] || "Kızıl";
+      menuBestEl.textContent = best > 0
+        ? ("Rekor " + best + " · Koleksiyon " + unlockCount + "/" + PLAYER_COLORS.length + " · Seçili: " + name)
+        : ("Koleksiyon " + unlockCount + "/" + PLAYER_COLORS.length + " · Seçili: " + name);
+    }
+    refreshMenuBest();
+
+    function renderCollection() {
+      collGrid.innerHTML = "";
+      collMeta.textContent = unlockCount + "/" + PLAYER_COLORS.length + " araba açık";
+      for (let i = 0; i < PLAYER_COLORS.length; i++) {
+        const unlocked = i < unlockCount;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "coll-item" + (unlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
+        btn.innerHTML = '<span class="swatch" style="background:' + PLAYER_COLORS[i] + '"></span>'
+          + '<span>' + (unlocked ? PLAYER_NAMES[i] : "???") + '</span>'
+          + '<span class="tag">' + (unlocked ? (i === selectedSkin ? "Seçili" : "Açık") : "Kilitli") + '</span>';
+        if (unlocked) {
+          btn.addEventListener("click", () => {
+            selectedSkin = i;
+            try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
+            renderCollection();
+            refreshMenuBest();
+            collHint.textContent = PLAYER_NAMES[i] + " seçildi. Bu arabayla oyna!";
+          });
+        } else {
+          btn.addEventListener("click", () => {
+            collHint.textContent = "Botu yenerek aç: " + PLAYER_NAMES[i];
+          });
+        }
+        collGrid.appendChild(btn);
+      }
+      const sel = PLAYER_NAMES[selectedSkin] || "";
+      collHint.textContent = "Seçili: " + sel + " — açık arabaya dokunarak değiştir.";
+    }
+
+    function showCollection() {
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      collectionEl.classList.remove("hidden");
+      state = "collection";
+      renderCollection();
+    }
+
+    function hideCollectionToMenu() {
+      collectionEl.classList.add("hidden");
+      menuEl.classList.remove("hidden");
+      state = "menu";
+      refreshMenuBest();
+    }
+
+    let cars = [];
+    let current = null;
+    let state = "menu";
+    let playerThrown = 0;
+    let botThrown = 0;
+    let botTurn = false;
+    let botThinkAt = 0;
+    let playerBonus = 0;
+    let comboStreak = 0;
+    let activePower = "none"; // none | ice | magnet
+    let unlockFlash = "";
+    let calm = 0;
+    let actx = null;
+    let lastHit = 0;
+    const pops = [];
+    const bits = [];
+    let bodyStyle = 1;
+    let musicOn = false;
+    try { bodyStyle = clamp(Number(localStorage.getItem(BODY_KEY)) || 1, 0, 2); } catch (e) { bodyStyle = 1; }
+    document.querySelectorAll("#models button").forEach((b) => {
+      b.classList.toggle("sel", Number(b.dataset.body) === bodyStyle);
+      b.onclick = () => {
+        bodyStyle = Number(b.dataset.body);
+        try { localStorage.setItem(BODY_KEY, String(bodyStyle)); } catch (e) {}
+        document.querySelectorAll("#models button").forEach((x) => x.classList.toggle("sel", x === b));
+        tone(210, 0.06);
+      };
+    });
+    const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
+
+    function pointsAt(x, y) {
+      const d = Math.hypot(x - HOUSE.x, y - HOUSE.y);
+      for (let i = RINGS.length - 1; i >= 0; i--) {
+        if (d <= RINGS[i].r) return RINGS[i].points;
+      }
+      return 0;
+    }
+
+    function teamScore(isBot) {
+      let s = 0;
+      for (const c of cars) {
+        if (!c.launched || c.bot !== isBot) continue;
+        if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
+        s += pointsAt(c.x, c.y);
+      }
+      if (!isBot) s += playerBonus;
+      return s;
+    }
+
+    function addPop(text, x, y, color, boom) {
+      pops.push({ text, x, y, life: 1.15, max: 1.15, color: color || "#f0a202", boom: !!boom });
+      if (!boom) return;
+      const n = 16;
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * Math.PI * 2;
+        const sp = 90 + Math.random() * 80;
+        bits.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0.45 + Math.random() * 0.25, gold: i % 2 === 0 });
+      }
+    }
+
+    function rollPowerUp() {
+      activePower = "none";
+      if (Math.random() > 0.30) return;
+      activePower = Math.random() < 0.5 ? "ice" : "magnet";
+      addPop(activePower === "ice" ? "BUZ! Daha kaygan" : "MIKNATIS! Merkeze çeker", SPAWN.x, SPAWN.y - 50, "#8ce7ff");
+    }
+
+    function totalScore() { return teamScore(false); }
+
+    function boardLimits(r) {
+      return {
+        left: INSET + r,
+        right: W - INSET - r,
+        top: INSET + r,
+        bot: H - INSET - r,
+      };
+    }
+
     function tone(freq, dur) {
       try {
         if (!actx) actx = new AudioContext();
         if (actx.state === "suspended") actx.resume();
-        const o = actx.createOscillator(), g = actx.createGain();
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = "sine";
         o.frequency.setValueAtTime(freq, actx.currentTime);
-        g.gain.setValueAtTime(0.08, actx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(Math.max(48, freq * 0.55), actx.currentTime + dur);
+        g.gain.setValueAtTime(0.07, actx.currentTime);
         g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
-        o.connect(g); g.connect(actx.destination);
-        o.start(); o.stop(actx.currentTime + dur);
-      } catch (e) {}
+        o.connect(g);
+        g.connect(actx.destination);
+        o.start();
+        o.stop(actx.currentTime + dur);
+      } catch (e) { /* sessiz kal */ }
     }
     function startMusic() {
       if (musicOn) return;
@@ -219,351 +511,742 @@
         musicOn = true;
       } catch (e) {}
     }
-    function pointsAt(x, y) {
-      const d = Math.hypot(x - HOUSE.x, y - HOUSE.y);
-      for (let i = RING_R.length - 1; i >= 0; i--) if (d <= RING_R[i]) return RING_PTS[i];
-      return 0;
-    }
-    function scoreRound() {
-      let s = 0;
-      for (const c of cars) {
-        if (!c.launched || c.round !== matchRound) continue;
-        if (Math.hypot(c.vx, c.vy) > STOP) continue;
-        s += pointsAt(c.x, c.y);
-      }
-      return s;
-    }
-    function liveScore() { return matchScore + (state === "over" ? 0 : scoreRound()); }
-    function band(len) {
-      if (len < MIN_PULL) return 0;
-      return clamp(Math.ceil(clamp(len / MAX_PULL, 0, 1) * STEPS), 1, STEPS);
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
     }
 
-    function spawnCar() {
+    function shade(hex, t) {
+      const n = hex.replace("#", "");
+      const r = parseInt(n.slice(0, 2), 16);
+      const g = parseInt(n.slice(2, 4), 16);
+      const b = parseInt(n.slice(4, 6), 16);
+      return `rgb(${clamp((r * t) | 0, 0, 255)},${clamp((g * t) | 0, 0, 255)},${clamp((b * t) | 0, 0, 255)})`;
+    }
+
+    function spawnCar(forBot) {
       let x = SPAWN.x;
       for (let i = 0; i < 7; i++) {
-        const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * CAR_R * 2.2);
-        if (!cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < CAR_R * 2 + 0.08)) { x = tx; break; }
+        const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 64);
+        const blocked = cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < c.r * 2 + 8);
+        if (!blocked) { x = tx; break; }
       }
-      current = {
-        x, y: SPAWN.y, homeX: x, homeY: SPAWN.y, vx: 0, vy: 0, r: CAR_R,
-        color: COLORS[paint], angle: Math.PI / 2, curl: 0, launched: false, round: matchRound, model
+      if (!forBot) {
+        selectedSkin = selectedSkin % unlockCount;
+        rollPowerUp();
+      } else activePower = "none";
+
+      const idx = forBot ? botThrown % BOT_COLORS.length : selectedSkin;
+      const palette = forBot ? BOT_COLORS : PLAYER_COLORS;
+      const car = {
+        x: x,
+        y: SPAWN.y,
+        homeX: x,
+        homeY: SPAWN.y,
+        vx: 0,
+        vy: 0,
+        r: 26,
+        color: palette[idx % palette.length],
+        angle: -Math.PI / 2,
+        curl: 0,
+        launched: false,
+        bot: !!forBot,
+        frictionMul: 1,
+        magnet: false,
+        body: forBot ? 1 : bodyStyle,
       };
-      cars.push(current);
+      cars.push(car);
+      current = car;
+      botTurn = !!forBot;
       state = "aim";
+      if (forBot) botThinkAt = performance.now() + 750;
     }
-    function placePickup() {
-      pickup = null;
-      if (Math.random() > 0.28) return;
-      pickup = {
-        kind: Math.random() < 0.5 ? "boost" : "traction",
-        x: (Math.random() * 2 - 1) * LANE * 0.45,
-        y: SPAWN.y + 0.9 + Math.random() * Math.max(0.4, HOUSE.y - SPAWN.y - 1.3)
-      };
-    }
+
     function startRound() {
-      thrown = 0; calm = 0; devam = 0; shotFric = FRICTION; pull.active = false; pull.x = 0; pull.y = 0;
-      matchOver = false;
-      placePickup();
-      spawnCar();
-      overEl.classList.add("hidden");
-    }
-    function burstScore(x, y, pts) {
-      pops.push({ x, y, text: "+" + pts, life: 0.9, max: 0.9, gold: pts >= 4 });
-      const n = 8 + pts * 7;
-      for (let i = 0; i < n; i++) {
-        const ang = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
-        const sp = 1.2 + Math.random() * (2.2 + pts);
-        bits.push({
-          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
-          life: 0.35 + Math.random() * 0.35, gold: i % 2 === 0
-        });
-      }
-    }
-    function startMatch() {
-      startMusic();
-      cars = []; matchRound = 1; matchScore = 0; streak = 0;
+      cars = [];
+      playerThrown = 0;
+      botThrown = 0;
+      botTurn = false;
+      playerBonus = 0;
+      comboStreak = 0;
+      activePower = "none";
+      unlockFlash = "";
+      calm = 0;
+      pops.length = 0;
+      pull.active = false;
+      pull.x = 0;
+      pull.y = 0;
       menuEl.classList.add("hidden");
-      startRound();
+      overEl.classList.add("hidden");
+      collectionEl.classList.add("hidden");
+      bits.length = 0;
+      startMusic();
+      try { if (actx && actx.state === "suspended") actx.resume(); } catch (e) { /* yoksay */ }
+      spawnCar(false);
     }
-    function addDaily(n) {
-      if (localStorage.getItem(DAY_KEY) !== today) { daily = 0; localStorage.setItem(DAY_KEY, today); }
-      daily += n;
-      localStorage.setItem(DAILY_KEY, String(daily));
-    }
-    function endRound(why) {
-      const now = scoreRound();
-      matchScore += now;
-      addDaily(now);
-      if (matchScore > best) { best = matchScore; localStorage.setItem(BEST_KEY, String(best)); }
-      pickup = null;
+
+    function showOver(reason, win) {
       state = "over";
       pull.active = false;
-      if (matchRound >= ROUNDS) {
-        matchOver = true;
-        document.getElementById("over-title").textContent = "Maç bitti";
-        document.getElementById("reason").textContent = why + " Maç bitti.";
-        document.getElementById("again").textContent = "Tekrar";
-      } else {
-        matchOver = false;
-        matchRound += 1;
-        document.getElementById("over-title").textContent = "Tur bitti";
-        document.getElementById("reason").textContent = why;
-        document.getElementById("again").textContent = "Sonraki tur";
+      botTurn = false;
+      const s = teamScore(false);
+      const b = teamScore(true);
+      if (s > best) {
+        best = s;
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
-      document.getElementById("final").textContent = "Maç " + matchScore;
-      document.getElementById("best-out").textContent = "En iyi " + best + "   Bugün " + daily + "/" + GOAL;
+      unlockFlash = "";
+      if (win && unlockCount < PLAYER_COLORS.length) {
+        unlockCount++;
+        selectedSkin = unlockCount - 1;
+        try {
+          localStorage.setItem(UNLOCK_KEY, String(unlockCount));
+          localStorage.setItem(SKIN_KEY, String(selectedSkin));
+        } catch (e) { /* yoksay */ }
+        unlockFlash = "Yeni araba açıldı! (" + unlockCount + "/" + PLAYER_COLORS.length + ")";
+        addPop("YENİ ARABA!", HOUSE.x, HOUSE.y, "#ffd76a");
+      } else {
+        try { localStorage.setItem(SKIN_KEY, String(selectedSkin % unlockCount)); } catch (e) { /* yoksay */ }
+      }
+      reasonEl.textContent = reason + (unlockFlash ? "  " + unlockFlash : "");
+      finalEl.textContent = "Sen " + s + "   Bot " + b;
+      bestOutEl.textContent = "Bonus " + playerBonus + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + PLAYER_COLORS.length;
       overEl.classList.remove("hidden");
+      tone(win ? 560 : 120, 0.2);
     }
+
+    function removeOutCars() {
+      let removed = 0;
+      for (let i = cars.length - 1; i >= 0; i--) {
+        const c = cars[i];
+        if (!c.launched) continue;
+        if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
+        if (pointsAt(c.x, c.y) > 0) continue;
+        cars.splice(i, 1);
+        removed++;
+      }
+      return removed;
+    }
+
     function settle() {
-      thrown += 1;
-      if (pointsAt(current.x, current.y) <= 0) { streak = 0; tone(120, 0.18); endRound("Araba halkanın dışında durdu."); return; }
-      streak += 1;
-      burstScore(current.x, current.y, pointsAt(current.x, current.y));
-      tone(560, 0.16); buzz();
-      if (thrown >= CARS) { endRound("Beş araba da halkada."); return; }
-      shotFric = FRICTION; devam = 0.9; spawnCar();
+      const shooterBot = !!(current && current.bot);
+      const threatened = cars.filter((c) => c.launched && c !== current && c.bot !== shooterBot && pointsAt(c.x, c.y) > 0);
+      removeOutCars();
+      let knocks = 0;
+      for (const t of threatened) {
+        if (!cars.includes(t)) knocks++;
+      }
+
+      if (!shooterBot) {
+        if (knocks > 0) {
+          for (let k = 0; k < knocks; k++) {
+            comboStreak++;
+            const bonus = KNOCK_BASE + (comboStreak - 1) * 25;
+            playerBonus += bonus;
+            addPop("+" + bonus + " VURUŞ!", (current ? current.x : HOUSE.x), (current ? current.y : HOUSE.y) - 20 - k * 22, "#ffc14d");
+            tone(420 + k * 40, 0.08);
+          }
+        } else comboStreak = 0;
+
+        if (current && cars.includes(current)) {
+          const pts = pointsAt(current.x, current.y);
+          if (pts > 0) addPop("+" + pts, current.x, current.y - 36, pts >= 400 ? "#ffe566" : "#fff4c2", true);
+          if (pts >= 400) {
+            playerBonus += BULLSEYE_BONUS;
+            addPop("+" + BULLSEYE_BONUS + " BULLSEYE!", current.x, current.y - 58, "#7dff9a", true);
+            tone(620, 0.12);
+          }
+        }
+      }
+
+      activePower = "none";
+      if (current) {
+        current.frictionMul = 1;
+        current.magnet = false;
+      }
+
+      if (shooterBot) botThrown += 1;
+      else playerThrown += 1;
+
+      if (playerThrown >= CARS_PER_SIDE && botThrown >= CARS_PER_SIDE) {
+        const you = teamScore(false);
+        const bot = teamScore(true);
+        if (you > bot) showOver("Sen kazandın!  " + you + " - " + bot, true);
+        else if (bot > you) showOver("Bot kazandı.  " + you + " - " + bot, false);
+        else showOver("Berabere.  " + you + " - " + bot, false);
+        return;
+      }
+
+      let nextBot = !botTurn;
+      if (nextBot && botThrown >= CARS_PER_SIDE) nextBot = false;
+      if (!nextBot && playerThrown >= CARS_PER_SIDE) nextBot = true;
+      spawnCar(nextBot);
+    }
+
+    function botShoot() {
+      if (!current || state !== "aim" || !botTurn) return;
+      let target = { x: HOUSE.x + (Math.random() - 0.5) * 36, y: HOUSE.y + (Math.random() - 0.5) * 36 };
+      let hit = null;
+      let bestD = 1e9;
+      for (const c of cars) {
+        if (c.bot || !c.launched || c === current) continue;
+        const d = Math.hypot(c.x - HOUSE.x, c.y - HOUSE.y);
+        if (d <= RINGS[0].r && d < bestD) { bestD = d; hit = c; }
+      }
+      if (hit && Math.random() < 0.7) {
+        let ox = hit.x - HOUSE.x;
+        let oy = hit.y - HOUSE.y;
+        const ol = Math.hypot(ox, oy) || 1;
+        target = { x: hit.x + (ox / ol) * 10, y: hit.y + (oy / ol) * 10 };
+      }
+      const dx = target.x - current.homeX;
+      const dy = target.y - current.homeY;
+      const dist = Math.max(40, Math.hypot(dx, dy));
+      const need = Math.sqrt(2 * FRICTION * dist) * (0.92 + Math.random() * 0.2);
+      const t = clamp(need / MAX_SPEED, 0.38, 0.98);
+      const len = Math.hypot(dx, dy) || 1;
+      const px = -(dx / len) * t * MAX_PULL + (Math.random() - 0.5) * 0.2 * MAX_PULL;
+      const py = -(dy / len) * t * MAX_PULL;
+      const shot = shotFromPull(current.x, current.y, px, py);
+      current.vx = shot.vx;
+      current.vy = shot.vy;
+      current.curl = shot.curl;
+      current.angle = Math.atan2(current.vy, current.vx);
+      current.frictionMul = 1;
+      current.magnet = false;
+      current.launched = true;
+      state = "slide";
+      calm = 0;
+      pull.active = false;
+      pull.x = 0;
+      pull.y = 0;
+      tone(150, 0.1);
     }
 
     function canvasPoint(e) {
-      const r = canvas.getBoundingClientRect();
-      return { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (W / rect.width),
+        y: (e.clientY - rect.top) * (H / rect.height),
+      };
     }
+
     function onDown(e) {
-      if (state !== "aim" || !current) return;
+      if (state !== "aim" || !current || botTurn) return;
       pull.active = true;
-      const p = toWorld(canvasPoint(e).x, canvasPoint(e).y);
-      pull.sx = p.x; pull.sy = p.y; pull.x = 0; pull.y = 0;
+      const p = canvasPoint(e);
+      pull.sx = p.x;
+      pull.sy = p.y;
+      pull.x = 0;
+      pull.y = 0;
     }
+
     function onMove(e) {
       if (!pull.active || state !== "aim") return;
-      const p = toWorld(canvasPoint(e).x, canvasPoint(e).y);
-      pull.x = p.x - pull.sx; pull.y = p.y - pull.sy;
+      const p = canvasPoint(e);
+      pull.x = p.x - pull.sx;
+      pull.y = p.y - pull.sy;
     }
+
     function launch() {
       const len = Math.hypot(pull.x, pull.y);
       pull.active = false;
-      if (!current || state !== "aim") return;
+      if (!current || state !== "aim" || botTurn) return;
       if (len < MIN_PULL) {
-        pull.x = 0; pull.y = 0; current.x = current.homeX; current.y = current.homeY; current.angle = Math.PI / 2;
+        pull.x = 0;
+        pull.y = 0;
+        current.x = current.homeX;
+        current.y = current.homeY;
+        current.angle = -Math.PI / 2;
         return;
       }
-      const speed = band(len) / STEPS * MAX_SPEED;
-      current.vx = (-pull.x / len) * speed;
-      current.vy = (-pull.y / len) * speed;
-      current.curl = clamp(-pull.x / MAX_PULL, -1, 1) * CURL;
+      const shot = shotFromPull(current.x, current.y, pull.x, pull.y);
+      current.vx = shot.vx;
+      current.vy = shot.vy;
+      current.curl = shot.curl;
       current.angle = Math.atan2(current.vy, current.vx);
+      current.frictionMul = activePower === "ice" ? 0.55 : 1;
+      current.magnet = activePower === "magnet";
       current.launched = true;
-      pull.x = 0; pull.y = 0; state = "slide"; calm = 0; lastBand = 0;
+      pull.x = 0;
+      pull.y = 0;
+      state = "slide";
+      calm = 0;
       tone(170, 0.12);
     }
+
+    function onUp() {
+      if (!pull.active) return;
+      launch();
+    }
+
     canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); onDown(e); }, { passive: false });
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", () => { if (pull.active) launch(); });
-    window.addEventListener("pointercancel", () => { if (pull.active) launch(); });
-    document.getElementById("start").onclick = startMatch;
-    document.getElementById("again").onclick = () => { if (matchOver) startMatch(); else startRound(); };
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    document.getElementById("start").addEventListener("click", startRound);
+    document.getElementById("again").addEventListener("click", startRound);
+    document.getElementById("open-collection").addEventListener("click", showCollection);
+    document.getElementById("over-collection").addEventListener("click", showCollection);
+    document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
+    document.getElementById("coll-play").addEventListener("click", startRound);
+    window.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === "r" || e.key === "R") && (state === "menu" || state === "over")) {
+        startRound();
+      }
+    });
 
     function applyAim() {
       const len = Math.hypot(pull.x, pull.y);
-      if (pull.active && len > 0.001) {
+      if (pull.active && len > 0) {
         const back = Math.min(len, MAX_PULL) * BACK;
         current.x = current.homeX + (pull.x / len) * back;
         current.y = current.homeY + (pull.y / len) * back;
         current.angle = Math.atan2(-pull.y, -pull.x);
-        const b = band(len);
-        if (b !== lastBand) { lastBand = b; if (b > 0) tone(210, 0.05); }
-      } else { current.x = current.homeX; current.y = current.homeY; current.angle = Math.PI / 2; }
+      } else {
+        current.x = current.homeX;
+        current.y = current.homeY;
+        current.angle = -Math.PI / 2;
+      }
     }
+
     function stopAtBoard(c) {
-      const minX = -LANE + CAR_R, maxX = LANE - CAR_R;
-      const minY = SPAWN.y - 0.4, maxY = HOUSE.y + RING_R[0] + 0.55;
-      if (c.x < minX) { c.x = minX; c.vx = 0; }
-      if (c.x > maxX) { c.x = maxX; c.vx = 0; }
-      if (c.y < minY) { c.y = minY; c.vy = 0; }
-      if (c.y > maxY) { c.y = maxY; c.vy = 0; }
+      const b = boardLimits(c.r);
+      if (c.x < b.left) { c.x = b.left; c.vx = 0; }
+      if (c.x > b.right) { c.x = b.right; c.vx = 0; }
+      if (c.y < b.top) { c.y = b.top; c.vy = 0; }
+      if (c.y > b.bot) { c.y = b.bot; c.vy = 0; }
     }
+
+    function resolve(a, b) {
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      let dist = Math.hypot(dx, dy);
+      const min = a.r + b.r;
+      if (dist === 0) { dx = 1; dy = 0; dist = 1; }
+      if (dist >= min) return;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const overlap = min - dist;
+      a.x -= nx * overlap * 0.5;
+      a.y -= ny * overlap * 0.5;
+      b.x += nx * overlap * 0.5;
+      b.y += ny * overlap * 0.5;
+      const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (rv >= 0) return;
+      if (rv < -50) {
+        const now = performance.now();
+        if (now - lastHit > 90) {
+          lastHit = now;
+          tone(380, 0.05);
+        }
+      }
+      const j = -(1 + 0.96) * rv / 2;
+      a.vx -= j * nx;
+      a.vy -= j * ny;
+      b.vx += j * nx;
+      b.vy += j * ny;
+      a.curl *= 0.35;
+      b.curl *= 0.35;
+    }
+
+    function powerBand(len) {
+      if (len < MIN_PULL) return 0;
+      const t = clamp(len / MAX_PULL, 0, 1);
+      return clamp(Math.ceil(t * POWER_STEPS), 1, POWER_STEPS);
+    }
+
+    function shotFromPull(x, y, px, py) {
+      const len = Math.hypot(px, py) || 1;
+      const t = clamp(len / MAX_PULL, 0, 1);
+      const speed = t * MAX_SPEED;
+      return {
+        x: x,
+        y: y,
+        vx: (-px / len) * speed,
+        vy: (-py / len) * speed,
+        curl: clamp(-px / MAX_PULL, -1, 1) * CURL,
+      };
+    }
+
     function glide(body, dt) {
-      const sp = Math.hypot(body.vx, body.vy);
-      if (sp <= STOP) { body.vx = 0; body.vy = 0; return false; }
+      let sp = Math.hypot(body.vx, body.vy);
+      if (sp <= STOP_SPEED) {
+        body.vx = 0;
+        body.vy = 0;
+        return false;
+      }
       body.angle = Math.atan2(body.vy, body.vx);
-      const drop = ((body === current) ? shotFric : FRICTION) * dt;
-      if (drop >= sp) { body.vx = 0; body.vy = 0; return false; }
-      body.vx -= (body.vx / sp) * drop; body.vy -= (body.vy / sp) * drop;
+      if (body.magnet) {
+        const dx = HOUSE.x - body.x;
+        const dy = HOUSE.y - body.y;
+        const d = Math.hypot(dx, dy) || 1;
+        body.vx += (dx / d) * 135 * dt;
+        body.vy += (dy / d) * 135 * dt;
+      }
+      sp = Math.hypot(body.vx, body.vy);
+      const drop = FRICTION * Math.max(0.35, body.frictionMul || 1) * dt;
+      if (drop >= sp) {
+        body.vx = 0;
+        body.vy = 0;
+        return false;
+      }
+      body.vx -= (body.vx / sp) * drop;
+      body.vy -= (body.vy / sp) * drop;
       const sp2 = Math.hypot(body.vx, body.vy);
       if (sp2 > 0 && body.curl) {
         const slow = 1 - Math.min(1, sp2 / MAX_SPEED);
-        const ang = Math.atan2(body.vy, body.vx) + (body.curl / 0.70) * slow * slow * dt;
-        body.vx = Math.cos(ang) * sp2; body.vy = Math.sin(ang) * sp2;
+        const omega = (body.curl / 70) * slow * slow;
+        const ang = Math.atan2(body.vy, body.vx) + omega * dt;
+        body.vx = Math.cos(ang) * sp2;
+        body.vy = Math.sin(ang) * sp2;
       }
-      body.x += body.vx * dt; body.y += body.vy * dt; stopAtBoard(body);
-      return Math.hypot(body.vx, body.vy) > STOP;
+      body.x += body.vx * dt;
+      body.y += body.vy * dt;
+      const b = boardLimits(body.r || 16);
+      let blocked = false;
+      if (body.x < b.left) { body.x = b.left; body.vx = 0; blocked = true; }
+      if (body.x > b.right) { body.x = b.right; body.vx = 0; blocked = true; }
+      if (body.y < b.top) { body.y = b.top; body.vy = 0; blocked = true; }
+      if (body.y > b.bot) { body.y = b.bot; body.vy = 0; blocked = true; }
+      return !blocked && Math.hypot(body.vx, body.vy) > STOP_SPEED;
     }
-    function resolve(a, b) {
-      let dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy);
-      const min = a.r + b.r;
-      if (dist === 0) { dx = 1; dist = 1; }
-      if (dist >= min) return;
-      const nx = dx / dist, ny = dy / dist, ov = min - dist;
-      a.x -= nx * ov * 0.5; a.y -= ny * ov * 0.5;
-      b.x += nx * ov * 0.5; b.y += ny * ov * 0.5;
-      const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-      if (rv >= 0) return;
-      const j = -(1 + 0.88) * rv / 2;
-      a.vx -= j * nx; a.vy -= j * ny; b.vx += j * nx; b.vy += j * ny;
-      a.curl *= 0.35; b.curl *= 0.35;
-      if (rv < -0.35) { tone(380, 0.05); buzz(); }
-    }
-    function update(dt) {
-      if (devam > 0) devam -= dt;
-      if (state === "aim" && current) applyAim();
-      else if (state === "slide") {
-        for (const c of cars) if (c.launched) glide(c, dt);
-        for (let n = 0; n < 5; n++)
-          for (let i = 0; i < cars.length; i++)
-            for (let j = i + 1; j < cars.length; j++)
-              if (cars[i].launched && cars[j].launched) resolve(cars[i], cars[j]);
-        for (const c of cars) if (c.launched) stopAtBoard(c);
-        if (pickup && current && current.launched && Math.hypot(current.x - pickup.x, current.y - pickup.y) < CAR_R + 0.16) {
-          shotFric = pickup.kind === "boost" ? FRICTION * 0.55 : FRICTION * 1.85;
-          tone(440, 0.1); buzz(); pickup = null;
+
+    function stepPhysics(dt) {
+      for (const c of cars) {
+        if (!c.launched) continue;
+        glide(c, dt);
+      }
+      for (let n = 0; n < 5; n++) {
+        for (let i = 0; i < cars.length; i++) {
+          for (let j = i + 1; j < cars.length; j++) {
+            if (!cars[i].launched || !cars[j].launched) continue;
+            resolve(cars[i], cars[j]);
+          }
         }
-        const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP);
-        if (moving) calm = 0; else { calm += dt; if (calm >= 0.18) settle(); }
+      }
+      for (const c of cars) if (c.launched) stopAtBoard(c);
+    }
+
+    function update(dt) {
+      if (state === "aim" && botTurn && performance.now() >= botThinkAt) botShoot();
+      else if (state === "aim" && current && !botTurn) applyAim();
+      else if (state === "slide") {
+        stepPhysics(dt);
+        const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP_SPEED);
+        if (moving) calm = 0;
+        else {
+          calm += dt;
+          if (calm >= 0.18) settle();
+        }
       }
       for (let i = pops.length - 1; i >= 0; i--) {
-        pops[i].life -= dt; pops[i].y += 1.1 * dt;
+        pops[i].life -= dt;
+        pops[i].y -= 42 * dt;
         if (pops[i].life <= 0) pops.splice(i, 1);
       }
       for (let i = bits.length - 1; i >= 0; i--) {
-        bits[i].life -= dt; bits[i].vx *= 0.92; bits[i].vy *= 0.92;
+        bits[i].life -= dt;
+        bits[i].vx *= 0.9; bits[i].vy *= 0.9;
         bits[i].x += bits[i].vx * dt; bits[i].y += bits[i].vy * dt;
         if (bits[i].life <= 0) bits.splice(i, 1);
       }
     }
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath(); ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-    }
-    function drawBoard() {
-      if (boardReady) ctx.drawImage(board, 0, 0, W, H);
-      else { ctx.fillStyle = "#8b5a2b"; ctx.fillRect(0, 0, W, H); }
-      const old = toPx(0, (0.548 - 0.5) * VIEW_H);
-      ctx.beginPath(); ctx.arc(old.x, old.y, 0.22 * H, 0, Math.PI * 2);
-      ctx.fillStyle = "#b37033"; ctx.fill();
-      const h = toPx(HOUSE.x, HOUSE.y);
-      for (let i = 0; i < RING_R.length; i++) {
-        ctx.beginPath(); ctx.arc(h.x, h.y, pxR(RING_R[i]), 0, Math.PI * 2);
-        ctx.fillStyle = RING_COL[i]; ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 2; ctx.stroke();
+
+    function previewPath() {
+      if (!current || !pull.active) return null;
+      const len = Math.hypot(pull.x, pull.y);
+      if (len < 8) return null;
+      const body = shotFromPull(current.x, current.y, pull.x, pull.y);
+      body.r = current.r;
+      const pts = [{ x: body.x, y: body.y }];
+      const dt = 1 / 60;
+      for (let i = 0; i < 260; i++) {
+        const moving = glide(body, dt);
+        if (i % 2 === 1) pts.push({ x: body.x, y: body.y });
+        if (!moving) break;
       }
-      ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(h.x - pxR(RING_R[0]) * 1.1, h.y); ctx.lineTo(h.x + pxR(RING_R[0]) * 1.1, h.y);
-      ctx.moveTo(h.x, h.y - pxR(RING_R[0]) * 1.1); ctx.lineTo(h.x, h.y + pxR(RING_R[0]) * 1.1);
+      pts.push({ x: body.x, y: body.y });
+      return pts;
+    }
+
+    function drawRink() {
+      ctx.fillStyle = "#24140a";
+      ctx.fillRect(0, 0, W, H);
+      roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
+      ctx.save();
+      ctx.clip();
+      const planks = 7;
+      const plankW = (W - INSET * 2) / planks;
+      for (let i = 0; i < planks; i++) {
+        const x = INSET + i * plankW;
+        const tone = 0.70 + 0.08 * (i % 3);
+        const g = ctx.createLinearGradient(x, 0, x + plankW, 0);
+        g.addColorStop(0, `rgb(${82 * tone | 0},${50 * tone | 0},${22 * tone | 0})`);
+        g.addColorStop(0.5, `rgb(${110 * tone | 0},${68 * tone | 0},${30 * tone | 0})`);
+        g.addColorStop(1, `rgb(${78 * tone | 0},${46 * tone | 0},${20 * tone | 0})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(x, INSET, plankW + 1, H - INSET * 2);
+        ctx.strokeStyle = "rgba(40,22,10,0.55)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, INSET);
+        ctx.lineTo(x + 0.5, H - INSET);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(255,220,160,0.08)";
+      ctx.lineWidth = 1.5;
+      for (const s of scratches) {
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
+        ctx.stroke();
+      }
+      ctx.restore();
+      roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
+      ctx.strokeStyle = "rgba(255, 210, 150, 0.28)";
+      ctx.lineWidth = 3;
       ctx.stroke();
-      if (pickup) {
-        const p = toPx(pickup.x, pickup.y);
-        ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
-        ctx.fillStyle = pickup.kind === "boost" ? "#40d873" : "#f28c26";
-        ctx.fill();
-      }
     }
+
+    function drawHouse() {
+      for (const ring of RINGS) {
+        ctx.beginPath();
+        ctx.arc(HOUSE.x, HOUSE.y, ring.r, 0, Math.PI * 2);
+        ctx.fillStyle = ring.color;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(HOUSE.x, HOUSE.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#1b2430";
+      ctx.fill();
+      const labels = [
+        { text: "50", x: HOUSE.x - 144, y: HOUSE.y, dark: false },
+        { text: "100", x: HOUSE.x - 98, y: HOUSE.y, dark: false },
+        { text: "200", x: HOUSE.x - 56, y: HOUSE.y, dark: false },
+        { text: "400", x: HOUSE.x, y: HOUSE.y - 14, dark: true },
+      ];
+      ctx.font = "700 14px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const lb of labels) {
+        if (lb.dark) {
+          ctx.fillStyle = "#1c2430";
+          ctx.fillText(lb.text, lb.x, lb.y);
+        } else {
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(0,0,0,0.45)";
+          ctx.strokeText(lb.text, lb.x, lb.y);
+          ctx.fillStyle = "#fff";
+          ctx.fillText(lb.text, lb.x, lb.y);
+        }
+      }
+      ctx.textBaseline = "alphabetic";
+      ctx.setLineDash([7, 10]);
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(HOUSE.x, HOUSE.y + RINGS[0].r + 16);
+      ctx.lineTo(SPAWN.x, SPAWN.y - 28);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     function drawCar(c) {
-      const p = toPx(c.x, c.y);
-      const m = c.model || 0;
-      const len = CAR_LEN / VIEW_W * W * (m === 2 ? 1.28 : m === 0 ? 1.08 : 1);
-      const wide = CAR_WIDE / VIEW_H * H * (m === 0 ? 0.86 : 1);
-      ctx.save(); ctx.globalAlpha = c.round < matchRound ? 0.55 : 1;
-      ctx.translate(p.x, p.y); ctx.rotate(-c.angle);
-      ctx.fillStyle = "#1f1f1f";
-      ctx.fillRect(-len * 0.32, -wide * 0.72, len * 0.64, wide * 0.22);
-      ctx.fillRect(-len * 0.32, wide * 0.50, len * 0.64, wide * 0.22);
-      roundRect(-len * (m === 2 ? 0.5 : 0.46), -wide * (m === 0 ? 0.34 : 0.42), len * (m === 2 ? 1 : 0.92), wide * (m === 0 ? 0.68 : 0.84), m === 0 ? 12 : 8);
-      ctx.fillStyle = c.color; ctx.fill();
+      const m = c.body == null ? bodyStyle : c.body;
+      const len = CAR_LEN * (m === 2 ? 1.28 : m === 0 ? 1.08 : 1);
+      const wide = CAR_WIDE * (m === 0 ? 0.82 : 1);
+      const halfL = len * 0.5;
+      const halfW = wide * 0.5;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.angle);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.beginPath();
+      ctx.ellipse(2, 6, halfL * 0.9, halfW * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      roundRect(-halfL, -halfW, len, wide, Math.min(halfL, halfW) * (m === 0 ? 0.55 : 0.45));
+      const body = ctx.createLinearGradient(0, -halfW, 0, halfW);
+      body.addColorStop(0, c.color);
+      body.addColorStop(0.5, shade(c.color, 0.92));
+      body.addColorStop(1, shade(c.color, 0.72));
+      ctx.fillStyle = body;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
       if (m === 2) {
         ctx.fillStyle = "#ebc04a";
-        ctx.fillRect(-len * 0.4, -2, len * 0.8, 4);
+        ctx.fillRect(-halfL * 0.7, -2, len * 0.75, 4);
         ctx.fillStyle = "rgba(180,220,245,0.95)";
-        roundRect(-len * 0.28, -wide * 0.22, len * 0.16, wide * 0.44, 4); ctx.fill();
-        roundRect(-len * 0.06, -wide * 0.22, len * 0.16, wide * 0.44, 4); ctx.fill();
-        roundRect(len * 0.14, -wide * 0.22, len * 0.16, wide * 0.44, 4); ctx.fill();
+        roundRect(-halfL * 0.45, -halfW * 0.42, halfL * 0.28, halfW * 0.84, 4); ctx.fill();
+        roundRect(-halfL * 0.08, -halfW * 0.42, halfL * 0.28, halfW * 0.84, 4); ctx.fill();
+        roundRect(halfL * 0.28, -halfW * 0.42, halfL * 0.28, halfW * 0.84, 4); ctx.fill();
       } else if (m === 0) {
         ctx.fillStyle = "#d8dde3";
-        ctx.beginPath(); ctx.moveTo(len * 0.18, -wide * 0.2); ctx.lineTo(len * 0.48, 0); ctx.lineTo(len * 0.18, wide * 0.2); ctx.fill();
-        roundRect(-len * 0.02, -wide * 0.2, len * 0.28, wide * 0.4, 5);
-        ctx.fillStyle = "rgba(180,220,245,0.95)"; ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(halfL * 0.15, -halfW * 0.35);
+        ctx.lineTo(halfL * 0.72, 0);
+        ctx.lineTo(halfL * 0.15, halfW * 0.35);
+        ctx.fill();
+        roundRect(-halfL * 0.05, -halfW * 0.38, halfL * 0.4, halfW * 0.76, 5);
+        ctx.fillStyle = "rgba(180,220,245,0.95)";
+        ctx.fill();
       } else {
-        ctx.fillStyle = "#cfd6dc";
-        ctx.fillRect(-len * 0.08, -2, len * 0.4, 3);
-        roundRect(-len * 0.06, -wide * 0.28, len * 0.36, wide * 0.56, 6);
-        ctx.fillStyle = "rgba(232,246,255,0.95)"; ctx.fill();
+        roundRect(halfL * 0.05, -halfW * 0.55, halfL * 0.42, halfW * 1.1, 5);
+        ctx.fillStyle = shade(c.color, 1.12);
+        ctx.fill();
+        roundRect(halfL * 0.22, -halfW * 0.42, halfL * 0.28, halfW * 0.84, 4);
+        ctx.fillStyle = "rgba(232,246,255,0.95)";
+        ctx.fill();
       }
-      ctx.fillStyle = "#ffe58a";
-      ctx.fillRect(len * 0.34, -wide * 0.22, 7, 7);
-      ctx.fillRect(len * 0.34, wide * 0.08, 7, 7);
+      ctx.fillStyle = "#fff3bf";
+      ctx.fillRect(halfL * 0.62, -halfW * 0.55, 5, 8);
+      ctx.fillRect(halfL * 0.62, halfW * 0.35, 5, 8);
       ctx.restore();
-      if (c.launched && Math.hypot(c.vx, c.vy) <= STOP) {
-        ctx.globalAlpha = 1;
-        ctx.font = "700 14px Segoe UI, sans-serif"; ctx.textAlign = "center";
-        ctx.lineWidth = 3; ctx.strokeStyle = "#000"; ctx.strokeText(String(pointsAt(c.x, c.y)), p.x, p.y - 28);
-        ctx.fillStyle = "#fff"; ctx.fillText(String(pointsAt(c.x, c.y)), p.x, p.y - 28);
-      }
-    }
-    function syncHud() {
-      const playing = state !== "menu";
-      hudEl.hidden = !playing;
-      bottomEl.hidden = state === "menu" || state === "over";
-      if (!playing) return;
-      const hudRound = (state === "over" && !matchOver) ? matchRound - 1 : matchRound;
-      document.getElementById("round").textContent = "Tur " + clamp(hudRound, 1, ROUNDS) + "/" + ROUNDS;
-      const n = state === "over" ? thrown : thrown + 1;
-      document.getElementById("car").textContent = "Araba " + clamp(n, 1, CARS) + "/" + CARS;
-      document.getElementById("score").textContent = "Skor " + liveScore();
-      document.getElementById("daily").textContent = "Bugün " + daily + "/" + GOAL;
-      const b = state === "aim" && pull.active ? band(Math.hypot(pull.x, pull.y)) : 0;
-      powerCells.forEach((el, i) => el.classList.toggle("on", i < b));
-      let hint = thrown === 0 && matchRound === 1 && !pull.active ? "Üst halkaya at" : "Geri çek, bırak";
-      if (state === "slide") hint = "Kayıyor…";
-      else if (shotFric < FRICTION * 0.9) hint = "Boost";
-      else if (shotFric > FRICTION * 1.1) hint = "Tutuş";
-      else if (b === 1) hint = "Hafif";
-      else if (b === 2) hint = "Az";
-      else if (b === 3) hint = "Orta";
-      else if (b === 4) hint = "Güçlü";
-      else if (b === 5) hint = "Tam güç";
-      if (devam > 0) hint = "Devam";
-      if (streak > 1) hint = "Seri " + streak;
-      document.getElementById("hint").textContent = hint;
-    }
-    function draw() {
-      drawBoard();
-      for (const c of cars) drawCar(c);
-      for (const b of bits) {
-        const p = toPx(b.x, b.y);
-        ctx.globalAlpha = Math.max(0, b.life / 0.5);
-        ctx.fillStyle = b.gold ? "#ffdc4a" : "#ff7a28";
-        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
-      }
-      for (const p of pops) {
-        const s = toPx(p.x, p.y);
-        const t = Math.max(0, p.life / p.max);
-        ctx.globalAlpha = t;
-        ctx.font = (22 + (1 - t) * 18) + "px Segoe UI, sans-serif";
+
+      if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
+        const pts = pointsAt(c.x, c.y);
+        ctx.font = "700 13px Segoe UI, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillStyle = p.gold ? "#ffe566" : "#fff4c2";
-        ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = 4;
-        ctx.strokeText(p.text, s.x, s.y);
-        ctx.fillText(p.text, s.x, s.y);
+        ctx.textBaseline = "alphabetic";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(0,0,0,0.65)";
+        ctx.strokeText(String(pts), c.x, c.y - 22);
+        ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
+        ctx.fillText(String(pts), c.x, c.y - 22);
+      }
+    }
+
+    function drawAim() {
+      const path = previewPath();
+      if (!path) {
+        if (playerThrown === 0 && botThrown === 0 && !pull.active && !botTurn) {
+          ctx.font = "700 15px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "rgba(0,0,0,0.55)";
+          ctx.lineWidth = 3;
+          ctx.strokeText("Aşağı çek", current.x, current.y - 28);
+          ctx.fillText("Aşağı çek", current.x, current.y - 28);
+        }
+        return;
+      }
+      const p = path[path.length - 1];
+      const pts = pointsAt(p.x, p.y);
+      ctx.save();
+      ctx.setLineDash([5, 7]);
+      ctx.strokeStyle = "rgba(255,255,255,0.8)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+      ctx.fillStyle = pts ? "rgba(128, 237, 153, 0.4)" : "rgba(239, 71, 111, 0.4)";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = pts ? "#80ed99" : "#ff8fa3";
+      ctx.stroke();
+      ctx.font = "700 12px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(String(pts), p.x, p.y);
+      ctx.restore();
+    }
+
+    function drawPops() {
+      for (const b of bits) {
+        ctx.globalAlpha = clamp(b.life / 0.5, 0, 1);
+        ctx.fillStyle = b.gold ? "#ffdc4a" : "#ff7a28";
+        ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const p of pops) {
+        const t = clamp(p.life / (p.max || 1.15), 0, 1);
+        ctx.globalAlpha = t;
+        ctx.font = (p.boom ? 28 + (1 - t) * 22 : 22) + "px Segoe UI, sans-serif";
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "rgba(0,0,0,0.5)";
+        ctx.strokeText(p.text, p.x, p.y);
+        ctx.fillStyle = p.color || "#f0a202";
+        ctx.fillText(p.text, p.x, p.y);
       }
       ctx.globalAlpha = 1;
+    }
+
+    function syncHud() {
+      youEl.textContent = "Sen " + teamScore(false);
+      scoreEl.textContent = "Bot " + teamScore(true);
+      const turn = clamp(Math.max(playerThrown, botThrown) + (state === "over" ? 0 : 1), 1, CARS_PER_SIDE);
+      let mid = "Tur " + turn + "/" + CARS_PER_SIDE;
+      if (comboStreak > 0) mid += " · x" + comboStreak;
+      if (!botTurn && activePower === "ice" && state === "aim") mid = "BUZ";
+      if (!botTurn && activePower === "magnet" && state === "aim") mid = "MIKNATIS";
+      carEl.textContent = mid;
+      const len = Math.hypot(pull.x, pull.y);
+      const band = state === "aim" && pull.active && !botTurn ? powerBand(len) : 0;
+      const bandHints = ["Geri çek, bırak", "Hafif", "Az", "Orta", "Güçlü", "Tam güç"];
+      let hint = bandHints[0];
+      if (botTurn && state === "aim") hint = "Bot nişan alıyor…";
+      else if (state === "slide") hint = "Kayıyor…";
+      else if (activePower === "ice" && state === "aim") hint = "BUZ hazır — çek bırak";
+      else if (activePower === "magnet" && state === "aim") hint = "MIKNATIS hazır — çek bırak";
+      else if (band > 0) hint = bandHints[band];
+      else if (!botTurn && state === "aim") hint = "Senin sıran · Araba " + (selectedSkin + 1) + "/" + unlockCount;
+      hintEl.textContent = hint;
+      const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
+      for (let i = 0; i < powerCells.length; i++) {
+        const on = i < band;
+        powerCells[i].classList.toggle("on", on);
+        powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
+      }
+      bottomEl.hidden = state === "menu" || state === "over" || state === "collection";
+      stage.dataset.state = botTurn ? "bot" : state;
+    }
+
+    function draw() {
+      drawRink();
+      drawHouse();
+      if (state === "menu" || state === "collection") {
+        drawCar({
+          x: SPAWN.x,
+          y: SPAWN.y,
+          angle: -Math.PI / 2,
+          color: PLAYER_COLORS[selectedSkin % PLAYER_COLORS.length],
+          vx: 0,
+          vy: 0,
+          launched: false,
+          body: bodyStyle,
+        });
+      } else {
+        if (state === "aim" && current && !botTurn) drawAim();
+        for (const c of cars) drawCar(c);
+        drawPops();
+      }
       syncHud();
     }
+
     let last = performance.now();
     function frame(now) {
       const dt = Math.min(0.033, (now - last) / 1000);
-      last = now; update(dt); draw(); requestAnimationFrame(frame);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   </script>

@@ -1,37 +1,37 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class car : MonoBehaviour
 {
-    const float Friction = 1.70f;
+    // Web (index.html) ile aynı ölçek: 1 birim ≈ 100 px
+    const float Friction = 1.60f;
     const float MaxPull = 1.50f;
     const float MinPull = 0.22f;
-    const float MaxSpeed = 4.60f;
+    const float MaxSpeed = 7.40f;
     const float Back = 0.22f;
     const float StopSpeed = 0.08f;
-    const float CurlPower = 1.20f;
-    const float CarRadius = 0.14f;
-    const float CarLen = 0.44f;
-    const float CarWide = 0.44f;
+    const float CurlPower = 0.70f;
+    const float CarRadius = 0.26f;
+    const float CarLen = 0.82f;
+    const float CarWide = 0.96f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
-    const int CarsPerRound = 5;
-    const int RoundsPerMatch = 3;
-    const int DailyGoal = 20;
+    const int CarsPerSide = 4;
+    const int KnockBase = 75;
+    const int BullseyeBonus = 100;
     const string BestKey = "halka-arabalari-best";
-    const string PaintKey = "halka-arabalari-paint";
-    const string ModelKey = "halka-arabalari-model";
-    static readonly string[] ModelNames = { "Sport GT", "Lüks Sedan", "Limuzin" };
-    const string DailyKey = "halka-arabalari-daily";
-    const string DailyDayKey = "halka-arabalari-daily-day";
+    const string UnlockKey = "halka-arabalari-unlocks";
+    const string SkinKey = "halka-arabalari-skin";
+    const string BodyKey = "halka-arabalari-body";
+    static readonly string[] BodyNames = { "Sport GT", "Lüks Sedan", "Limuzin" };
 
     Vector2 House = new Vector2(0f, 0.35f);
     Vector2 Spawn = new Vector2(0f, -2.55f);
     readonly float[] RingRadius = { 0.98f, 0.72f, 0.50f, 0.18f };
     float laneHalf = 1.38f;
-    static readonly int[] RingPoints = { 1, 2, 3, 4 };
+    // Dış → iç: 50, 100, 200, 400
+    static readonly int[] RingPoints = { 50, 100, 200, 400 };
     static readonly Color[] RingColors =
     {
         new Color(0.12f, 0.45f, 0.86f),
@@ -39,18 +39,31 @@ public class car : MonoBehaviour
         new Color(0.82f, 0.16f, 0.16f),
         new Color(0.10f, 0.42f, 0.82f),
     };
-    static readonly Color[] CarColors =
+    static readonly Color[] PlayerColors =
     {
         new Color(0.86f, 0.18f, 0.18f),
-        new Color(0.16f, 0.42f, 0.86f),
-        new Color(0.96f, 0.82f, 0.12f),
-        new Color(0.18f, 0.62f, 0.16f),
         new Color(0.95f, 0.48f, 0.10f),
+        new Color(0.96f, 0.82f, 0.12f),
+        new Color(0.90f, 0.30f, 0.45f),
+        new Color(0.55f, 0.20f, 0.85f),
+        new Color(0.15f, 0.78f, 0.42f),
+        new Color(0.98f, 0.55f, 0.75f),
+        new Color(0.95f, 0.95f, 0.95f),
+    };
+    static readonly Color[] BotColors =
+    {
+        new Color(0.16f, 0.42f, 0.86f),
         new Color(0.30f, 0.82f, 0.84f),
+        new Color(0.35f, 0.55f, 0.95f),
+        new Color(0.18f, 0.62f, 0.80f),
+    };
+    static readonly string[] PlayerNames =
+    {
+        "Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"
     };
 
-    enum Phase { Menu, Aim, Slide, Over }
-    enum PickupKind { None, Boost, Traction }
+    enum Phase { Menu, Collection, Aim, Slide, Over }
+    enum PowerUp { None, Ice, Magnet }
 
     class Stone
     {
@@ -61,53 +74,20 @@ public class car : MonoBehaviour
         public float curl;
         public float angle;
         public bool launched;
-        public int round;
-        public int paint;
-        public int model;
+        public bool bot;
+        public float frictionMul = 1f;
+        public bool magnet;
+        public int body;
     }
 
-    Camera cam;
-    SpriteRenderer board;
-    SpriteRenderer houseCover;
-    readonly List<SpriteRenderer> houseParts = new List<SpriteRenderer>();
-    Texture2D boardTex;
-    Texture2D pixel;
-    Sprite circleSprite;
-    Sprite[] carSprites;
-    readonly List<Stone> stones = new List<Stone>();
-    readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
-    readonly List<Vector2> preview = new List<Vector2>();
-    Stone current;
-    Phase phase;
-    int thrown;
-    int best;
-    int paintIndex;
-    int modelIndex;
-    int matchRound;
-    int streak;
-    int matchScore;
-    readonly int[] roundScores = new int[RoundsPerMatch];
-    int dailyScore;
-    string dailyDay = "";
-    float calm;
-    float devamUntil;
-    float shotFriction = Friction;
-    bool pulling;
-    Vector2 pressPos;
-    Vector2 pull;
-    string reason = "";
-    bool matchOver;
-    PickupKind pickupKind;
-    Vector2 pickupPos;
-    bool pickupAlive;
-    SpriteRenderer pickupView;
-    class ScorePop
+    class Pop
     {
-        public Vector2 world;
         public string text;
+        public Vector2 world;
         public float life;
         public float max;
         public Color color;
+        public bool boom;
     }
 
     class BurstBit
@@ -119,18 +99,41 @@ public class car : MonoBehaviour
         public float max;
     }
 
-    readonly List<ScorePop> pops = new List<ScorePop>();
+    Camera cam;
+    SpriteRenderer board;
+    SpriteRenderer houseCover;
+    readonly List<SpriteRenderer> houseParts = new List<SpriteRenderer>();
+    Texture2D boardTex;
+    Texture2D pixel;
+    Sprite circleSprite;
+    Sprite[] playerSprites;
+    Sprite[] botSprites;
+    readonly List<Stone> stones = new List<Stone>();
+    readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
+    readonly List<Vector2> preview = new List<Vector2>();
+    Stone current;
+    Phase phase;
+    int playerThrown;
+    int botThrown;
+    bool botTurn;
+    int best;
+    int unlockCount = 2;
+    int selectedSkin;
+    int bodyStyle;
+    int playerBonus;
+    int comboStreak;
+    PowerUp activePower;
+    float calm;
+    float botThinkAt;
+    bool pulling;
+    Vector2 pressPos;
+    Vector2 pull;
+    string reason = "";
+    string unlockFlash = "";
+    readonly List<Pop> pops = new List<Pop>();
     readonly List<BurstBit> bits = new List<BurstBit>();
-    GUIStyle popStyle;
-    AudioSource speaker;
     AudioSource music;
-    AudioClip sndPull;
-    AudioClip sndShot;
-    AudioClip sndHit;
-    AudioClip sndIn;
-    AudioClip sndOut;
-    AudioClip sndPick;
-    int lastBand;
+    GUIStyle popStyle;
     GUIStyle label;
     GUIStyle hintStyle;
     GUIStyle hudStyle;
@@ -147,26 +150,29 @@ public class car : MonoBehaviour
     void Awake()
     {
         best = PlayerPrefs.GetInt(BestKey, 0);
+        unlockCount = Mathf.Clamp(PlayerPrefs.GetInt(UnlockKey, 2), 2, PlayerColors.Length);
+        selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
+        bodyStyle = Mathf.Clamp(PlayerPrefs.GetInt(BodyKey, 1), 0, 2);
         pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
         pixel.SetPixel(0, 0, Color.white);
         pixel.Apply();
         QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1, true);
         QualitySettings.globalTextureMipmapLimit = 0;
         QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
-        QualitySettings.antiAliasing = 4;
+        QualitySettings.antiAliasing = 8;
+        QualitySettings.vSyncCount = 1;
         Screen.orientation = ScreenOrientation.Portrait;
         circleSprite = MakeCircleSprite();
-        carSprites = new Sprite[9];
-        for (int m = 0; m < 3; m++)
-            for (int p = 0; p < 3; p++)
-                carSprites[m * 3 + p] = MakeCarSprite(CarColors[p], m);
+        playerSprites = new Sprite[PlayerColors.Length];
+        for (int i = 0; i < PlayerColors.Length; i++)
+            playerSprites[i] = MakeCarSprite(PlayerColors[i], 1);
+        botSprites = new Sprite[BotColors.Length];
+        for (int i = 0; i < BotColors.Length; i++)
+            botSprites[i] = MakeCarSprite(BotColors[i], 1);
         LoadTable();
         SetupCamera();
         BuildRink();
-        SetupAudio();
-        paintIndex = Mathf.Clamp(PlayerPrefs.GetInt(PaintKey, 0), 0, 2);
-        modelIndex = Mathf.Clamp(PlayerPrefs.GetInt(ModelKey, 1), 0, 2);
-        LoadDaily();
+        SetupMusic();
         phase = Phase.Menu;
     }
 
@@ -183,7 +189,8 @@ public class car : MonoBehaviour
 
         cam.orthographic = true;
         cam.allowMSAA = true;
-        cam.backgroundColor = new Color(0.32f, 0.18f, 0.08f);
+        cam.allowHDR = true;
+        cam.backgroundColor = new Color(0.28f, 0.16f, 0.08f);
         cam.clearFlags = CameraClearFlags.SolidColor;
         FitCamera();
     }
@@ -221,27 +228,22 @@ public class car : MonoBehaviour
         RingRadius[1] = outer * 0.73f;
         RingRadius[2] = outer * 0.51f;
         RingRadius[3] = outer * 0.19f;
-        laneHalf = 0.30f * viewW;
+        laneHalf = 0.34f * viewW;
         LayoutHouse(viewH);
     }
 
     void LoadTable()
     {
-        string path = Path.Combine(Application.streamingAssetsPath, "masa.png");
-        if (!File.Exists(path))
-            path = Path.Combine(Application.streamingAssetsPath, "masa.jpg");
-        if (!File.Exists(path)) return;
-        byte[] bytes = File.ReadAllBytes(path);
-        boardTex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-        boardTex.LoadImage(bytes);
-        boardTex.filterMode = FilterMode.Bilinear;
+        // Ahşap zemin: yüksek çözünürlüklü tahta dokusu.
+        boardTex = MakeWoodTexture(1280, 2280);
+        boardTex.filterMode = FilterMode.Trilinear;
         boardTex.wrapMode = TextureWrapMode.Clamp;
-        boardTex.anisoLevel = 4;
+        boardTex.anisoLevel = 8;
     }
 
     void BuildRink()
     {
-        if (boardTex == null) return;
+        if (boardTex == null) boardTex = MakeWoodTexture(1024, 2048);
         float ppu = boardTex.height / 6.4f;
         var sprite = Sprite.Create(
             boardTex,
@@ -249,7 +251,7 @@ public class car : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             ppu);
         board = MakeSprite("Masa", sprite, Color.white, -20);
-        houseCover = MakeSprite("EskiHedefKapat", circleSprite, new Color(0.70f, 0.44f, 0.20f), -5);
+        houseCover = MakeSprite("EskiHedefKapat", circleSprite, new Color(0.62f, 0.38f, 0.18f), -5);
         for (int i = 0; i < RingRadius.Length; i++)
         {
             var ring = MakeSprite("Halka", circleSprite, RingColors[i], i);
@@ -289,7 +291,7 @@ public class car : MonoBehaviour
         }
     }
 
-    void StartMatch()
+    void StartRound()
     {
         for (int i = 0; i < stones.Count; i++)
         {
@@ -297,31 +299,26 @@ public class car : MonoBehaviour
         }
 
         stones.Clear();
-        matchRound = 1;
-        matchScore = 0;
-        streak = 0;
-        matchOver = false;
-        for (int i = 0; i < roundScores.Length; i++) roundScores[i] = 0;
-        StartRound();
-    }
-
-    void StartRound()
-    {
-        thrown = 0;
+        playerThrown = 0;
+        botThrown = 0;
+        botTurn = false;
+        playerBonus = 0;
+        comboStreak = 0;
+        activePower = PowerUp.None;
+        unlockFlash = "";
+        pops.Clear();
+        bits.Clear();
         calm = 0f;
         pulling = false;
         pull = Vector2.zero;
-        devamUntil = 0f;
+        botThinkAt = 0f;
         reason = "";
-        matchOver = false;
-        shotFriction = Friction;
         phase = Phase.Aim;
         HideDots();
-        PlacePickup();
-        SpawnStone();
+        SpawnStone(false);
     }
 
-    void SpawnStone()
+    void SpawnStone(bool forBot)
     {
         float x = Spawn.x;
         for (int i = 0; i < 7; i++)
@@ -344,56 +341,159 @@ public class car : MonoBehaviour
             }
         }
 
+        if (!forBot)
+        {
+            selectedSkin = selectedSkin % unlockCount;
+            RollPowerUp();
+        }
+        else activePower = PowerUp.None;
+
+        int idx = forBot ? botThrown % BotColors.Length : selectedSkin;
         var stone = new Stone
         {
             pos = new Vector2(x, Spawn.y),
             home = new Vector2(x, Spawn.y),
             angle = Mathf.PI * 0.5f,
             launched = false,
-            round = matchRound,
-            paint = paintIndex,
-            model = modelIndex,
+            bot = forBot,
+            frictionMul = 1f,
+            magnet = false,
+            body = forBot ? 1 : bodyStyle,
         };
-        stone.view = new GameObject("Araba");
+        stone.view = new GameObject(forBot ? "BotAraba" : "Araba");
         stone.view.transform.SetParent(transform, false);
         var body = stone.view.AddComponent<SpriteRenderer>();
-        body.sprite = carSprites[modelIndex * 3 + paintIndex];
+        int model = forBot ? 1 : bodyStyle;
+        Color paint = forBot ? BotColors[idx % BotColors.Length] : PlayerColors[idx % PlayerColors.Length];
+        body.sprite = MakeCarSprite(paint, model);
         body.color = Color.white;
         body.sortingOrder = 12;
         stones.Add(stone);
         current = stone;
+        botTurn = forBot;
         phase = Phase.Aim;
+        if (forBot) botThinkAt = Time.time + 0.75f;
+    }
+
+    void RollPowerUp()
+    {
+        activePower = PowerUp.None;
+        if (Random.value > 0.30f) return;
+        activePower = Random.value < 0.5f ? PowerUp.Ice : PowerUp.Magnet;
+        string msg = activePower == PowerUp.Ice ? "BUZ!  Daha kaygan" : "MIKNATIS!  Merkeze çeker";
+        AddPop(msg, Spawn + Vector2.up * 0.55f, new Color(0.55f, 0.90f, 1f));
+    }
+
+    void AddPop(string text, Vector2 world, Color color, bool boom = false)
+    {
+        pops.Add(new Pop { text = text, world = world, life = 1.15f, max = 1.15f, color = color, boom = boom });
+        if (!boom) return;
+        for (int i = 0; i < 16; i++)
+        {
+            float ang = (i / 16f) * Mathf.PI * 2f;
+            float sp = Random.Range(1.4f, 3.6f);
+            bits.Add(new BurstBit
+            {
+                pos = world,
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp,
+                color = i % 2 == 0 ? new Color(1f, 0.86f, 0.25f) : new Color(1f, 0.45f, 0.12f),
+                life = Random.Range(0.35f, 0.6f),
+                max = 0.55f
+            });
+        }
     }
 
     void Update()
     {
         FitCamera();
         float dt = Mathf.Min(Time.deltaTime, 0.033f);
+
         if (phase == Phase.Menu)
         {
-            HandleMenuClicks();
+            for (int i = 0; i < 3; i++)
+            {
+                if (Clicked(ModelRect(i)))
+                {
+                    bodyStyle = i;
+                    PlayerPrefs.SetInt(BodyKey, bodyStyle);
+                    return;
+                }
+            }
+            if (Clicked(MenuPlayRect())) StartRound();
+            else if (Clicked(MenuCollectionRect())) phase = Phase.Collection;
             return;
         }
 
-        if (phase == Phase.Over && Clicked(AgainRect()))
+        if (phase == Phase.Collection)
         {
-            if (matchOver) StartMatch();
-            else StartRound();
+            HandleCollectionClicks();
             return;
         }
 
-        ReadMouse();
-        if (phase == Phase.Aim && current != null) AimStep();
+        if (phase == Phase.Over)
+        {
+            if (Clicked(AgainRect())) StartRound();
+            else if (Clicked(OverCollectionRect())) phase = Phase.Collection;
+            return;
+        }
+
+        if (phase == Phase.Aim && botTurn && current != null && Time.time >= botThinkAt)
+            BotShoot();
+        else if (!botTurn)
+            ReadMouse();
+
+        if (phase == Phase.Aim && current != null && !botTurn) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
 
-        TickFx(dt);
+        for (int i = pops.Count - 1; i >= 0; i--)
+        {
+            pops[i].life -= dt;
+            pops[i].world += Vector2.up * (0.85f * dt);
+            if (pops[i].life <= 0f) pops.RemoveAt(i);
+        }
+
+        for (int i = bits.Count - 1; i >= 0; i--)
+        {
+            bits[i].life -= dt;
+            bits[i].vel *= 0.90f;
+            bits[i].pos += bits[i].vel * dt;
+            if (bits[i].life <= 0f) bits.RemoveAt(i);
+        }
+
         SyncStones();
         SyncDots();
     }
 
+    void HandleCollectionClicks()
+    {
+        if (Clicked(CollectionBackRect()))
+        {
+            phase = Phase.Menu;
+            return;
+        }
+
+        if (Clicked(CollectionPlayRect()))
+        {
+            StartRound();
+            return;
+        }
+
+        for (int i = 0; i < PlayerColors.Length; i++)
+        {
+            if (!Clicked(CollectionCellRect(i))) continue;
+            if (i < unlockCount)
+            {
+                selectedSkin = i;
+                PlayerPrefs.SetInt(SkinKey, selectedSkin);
+            }
+
+            break;
+        }
+    }
+
     void ReadMouse()
     {
-        if (phase != Phase.Aim || current == null) return;
+        if (phase != Phase.Aim || current == null || botTurn) return;
         if (!ReadPointer(out bool down, out bool held, out bool up, out Vector2 screen)) return;
 
         if (down)
@@ -453,13 +553,13 @@ public class car : MonoBehaviour
         }
 
         ApplyShot(current, pull);
+        current.frictionMul = activePower == PowerUp.Ice ? 0.55f : 1f;
+        current.magnet = activePower == PowerUp.Magnet;
         current.launched = true;
         pull = Vector2.zero;
         phase = Phase.Slide;
         calm = 0f;
-        lastBand = 0;
         preview.Clear();
-        Play(sndShot);
     }
 
     void AimStep()
@@ -471,12 +571,6 @@ public class car : MonoBehaviour
             current.pos = current.home + pull / len * back;
             Vector2 launch = -pull;
             current.angle = Mathf.Atan2(launch.y, launch.x);
-            int band = PowerBand(len);
-            if (band != lastBand)
-            {
-                lastBand = band;
-                if (band > 0) Play(sndPull);
-            }
             preview.Clear();
         }
         else
@@ -491,7 +585,9 @@ public class car : MonoBehaviour
     {
         float len = drag.magnitude;
         if (len < 0.0001f) len = 0.0001f;
-        float speed = PowerBand(len) / (float)PowerSteps * MaxSpeed;
+        // Sürekli güç: ince ayar kolay, 5 kademe sadece HUD.
+        float t = Mathf.Clamp01(len / MaxPull);
+        float speed = t * MaxSpeed;
         Vector2 dir = -drag / len;
         stone.vel = dir * speed;
         stone.curl = Mathf.Clamp(-drag.x / MaxPull, -1f, 1f) * CurlPower;
@@ -530,8 +626,6 @@ public class car : MonoBehaviour
             if (stones[i].launched) StopAtBoard(stones[i]);
         }
 
-        TryCollectPickup();
-
         bool moving = false;
         for (int i = 0; i < stones.Count; i++)
         {
@@ -560,14 +654,28 @@ public class car : MonoBehaviour
         }
 
         body.angle = Mathf.Atan2(body.vel.y, body.vel.x);
-        float drop = ((current != null && body == current) ? shotFriction : Friction) * dt;
-        if (drop >= sp)
+        if (body.magnet)
+        {
+            Vector2 toHouse = House - body.pos;
+            if (toHouse.sqrMagnitude > 0.0001f)
+                body.vel += toHouse.normalized * (1.35f * dt);
+        }
+
+        float drop = Friction * Mathf.Max(0.35f, body.frictionMul) * dt;
+        float spNow = body.vel.magnitude;
+        if (spNow <= StopSpeed)
         {
             body.vel = Vector2.zero;
             return false;
         }
 
-        body.vel -= body.vel / sp * drop;
+        if (drop >= spNow)
+        {
+            body.vel = Vector2.zero;
+            return false;
+        }
+
+        body.vel -= body.vel / spNow * drop;
         float sp2 = body.vel.magnitude;
         if (sp2 > 0f && Mathf.Abs(body.curl) > 0.0001f)
         {
@@ -613,71 +721,173 @@ public class car : MonoBehaviour
         b.pos += n * overlap * 0.5f;
         float rv = Vector2.Dot(b.vel - a.vel, n);
         if (rv >= 0f) return;
-        float j = -(1f + 0.88f) * rv * 0.5f;
+        float j = -(1f + 0.96f) * rv * 0.5f;
         a.vel -= j * n;
         b.vel += j * n;
         a.curl *= 0.35f;
         b.curl *= 0.35f;
-        if (rv < -0.35f)
-        {
-            Play(sndHit);
-            Buzz();
-        }
     }
 
     void Settle()
     {
-        bool inside = PointsAt(current.pos) > 0;
-        thrown += 1;
-        if (!inside)
+        bool shooterBot = current != null && current.bot;
+        var threatened = new List<Stone>();
+        for (int i = 0; i < stones.Count; i++)
         {
-            streak = 0;
-            Play(sndOut);
-            EndRound("Araba halkanın dışında durdu.");
+            Stone s = stones[i];
+            if (!s.launched || s == current) continue;
+            if (s.bot == shooterBot) continue;
+            if (PointsAt(s.pos) > 0) threatened.Add(s);
+        }
+
+        RemoveOutCars();
+
+        int knocks = 0;
+        for (int i = 0; i < threatened.Count; i++)
+        {
+            if (!stones.Contains(threatened[i])) knocks++;
+        }
+
+        if (!shooterBot)
+        {
+            if (knocks > 0)
+            {
+                for (int k = 0; k < knocks; k++)
+                {
+                    comboStreak++;
+                    int bonus = KnockBase + (comboStreak - 1) * 25;
+                    playerBonus += bonus;
+                    Vector2 at = current != null ? current.pos : House;
+                    AddPop("+" + bonus + " VURUŞ!", at + Vector2.up * (0.2f + k * 0.2f), new Color(1f, 0.75f, 0.2f));
+                }
+            }
+            else comboStreak = 0;
+
+            if (current != null && stones.Contains(current))
+            {
+                int pts = PointsAt(current.pos);
+                if (pts > 0)
+                    AddPop("+" + pts, current.pos + Vector2.up * 0.35f, pts >= 400 ? new Color(1f, 0.9f, 0.3f) : Color.white, true);
+                if (pts >= RingPoints[RingPoints.Length - 1])
+                {
+                    playerBonus += BullseyeBonus;
+                    AddPop("+" + BullseyeBonus + " BULLSEYE!", current.pos + Vector2.up * 0.55f, new Color(0.45f, 1f, 0.65f), true);
+                }
+            }
+        }
+
+        activePower = PowerUp.None;
+        if (current != null)
+        {
+            current.frictionMul = 1f;
+            current.magnet = false;
+        }
+
+        if (shooterBot) botThrown += 1;
+        else playerThrown += 1;
+
+        if (playerThrown >= CarsPerSide && botThrown >= CarsPerSide)
+        {
+            int you = TeamScore(false);
+            int bot = TeamScore(true);
+            if (you > bot) End("Sen kazandın!  " + you + " - " + bot, true);
+            else if (bot > you) End("Bot kazandı.  " + you + " - " + bot, false);
+            else End("Berabere.  " + you + " - " + bot, false);
             return;
         }
 
-        streak += 1;
-        int got = PointsAt(current.pos);
-        BurstScore(current.pos, got);
-        Play(sndIn);
-        Buzz();
-        if (thrown >= CarsPerRound)
-        {
-            EndRound("Beş araba da halkada.");
-            return;
-        }
-
-        shotFriction = Friction;
-        devamUntil = Time.time + 0.9f;
-        SpawnStone();
+        bool nextBot = !botTurn;
+        if (nextBot && botThrown >= CarsPerSide) nextBot = false;
+        if (!nextBot && playerThrown >= CarsPerSide) nextBot = true;
+        SpawnStone(nextBot);
     }
 
-    void EndRound(string why)
+    int RemoveOutCars()
     {
-        int now = ScoreThisRound();
-        roundScores[matchRound - 1] = now;
-        matchScore += now;
-        AddDaily(now);
-        if (matchScore > best)
+        int removed = 0;
+        for (int i = stones.Count - 1; i >= 0; i--)
         {
-            best = matchScore;
+            Stone s = stones[i];
+            if (!s.launched) continue;
+            if (s.vel.magnitude > StopSpeed) continue;
+            if (PointsAt(s.pos) > 0) continue;
+            if (s.view != null) Destroy(s.view);
+            stones.RemoveAt(i);
+            removed++;
+        }
+
+        return removed;
+    }
+
+    void BotShoot()
+    {
+        if (current == null || phase != Phase.Aim || !botTurn) return;
+        Vector2 target = House + Random.insideUnitCircle * 0.18f;
+        Stone hit = null;
+        float bestD = 999f;
+        for (int i = 0; i < stones.Count; i++)
+        {
+            Stone s = stones[i];
+            if (s.bot || !s.launched || s == current) continue;
+            float d = Vector2.Distance(s.pos, House);
+            if (d <= RingRadius[0] && d < bestD)
+            {
+                bestD = d;
+                hit = s;
+            }
+        }
+
+        if (hit != null && Random.value < 0.7f)
+        {
+            Vector2 outDir = (hit.pos - House).normalized;
+            if (outDir.sqrMagnitude < 0.0001f) outDir = Vector2.right;
+            target = hit.pos + outDir * (CarRadius * 0.35f);
+        }
+
+        Vector2 delta = target - current.home;
+        float dist = Mathf.Max(0.4f, delta.magnitude);
+        float need = Mathf.Sqrt(2f * Friction * dist) * Random.Range(0.92f, 1.12f);
+        float t = Mathf.Clamp(need / MaxSpeed, 0.38f, 0.98f);
+        Vector2 dir = delta.normalized;
+        Vector2 drag = -dir * (t * MaxPull);
+        drag.x += Random.Range(-0.10f, 0.10f) * MaxPull;
+        ApplyShot(current, drag);
+        current.frictionMul = 1f;
+        current.magnet = false;
+        current.launched = true;
+        phase = Phase.Slide;
+        calm = 0f;
+        preview.Clear();
+        pull = Vector2.zero;
+        pulling = false;
+    }
+
+    void End(string why, bool playerWon)
+    {
+        phase = Phase.Over;
+        pulling = false;
+        botTurn = false;
+        reason = why;
+        int score = TeamScore(false);
+        if (score > best)
+        {
+            best = score;
             PlayerPrefs.SetInt(BestKey, best);
         }
 
-        phase = Phase.Over;
-        pulling = false;
-        HidePickup();
-        if (matchRound >= RoundsPerMatch)
+        unlockFlash = "";
+        if (playerWon && unlockCount < PlayerColors.Length)
         {
-            matchOver = true;
-            reason = why + " Maç bitti.";
+            unlockCount++;
+            selectedSkin = unlockCount - 1;
+            PlayerPrefs.SetInt(UnlockKey, unlockCount);
+            PlayerPrefs.SetInt(SkinKey, selectedSkin);
+            unlockFlash = "Yeni araba açıldı! (" + unlockCount + "/" + PlayerColors.Length + ")";
+            AddPop("YENİ ARABA!", House, new Color(1f, 0.85f, 0.3f));
         }
         else
         {
-            matchOver = false;
-            matchRound += 1;
-            reason = why;
+            PlayerPrefs.SetInt(SkinKey, selectedSkin % unlockCount);
         }
     }
 
@@ -692,25 +902,22 @@ public class car : MonoBehaviour
         return 0;
     }
 
-    int ScoreThisRound()
+    int TeamScore(bool bot)
     {
-        int round = matchRound;
         int sum = 0;
         for (int i = 0; i < stones.Count; i++)
         {
             Stone stone = stones[i];
-            if (!stone.launched || stone.round != round) continue;
+            if (!stone.launched || stone.bot != bot) continue;
             if (stone.vel.magnitude > StopSpeed) continue;
             sum += PointsAt(stone.pos);
         }
 
+        if (!bot) sum += playerBonus;
         return sum;
     }
 
-    int LiveScore()
-    {
-        return matchScore + (phase == Phase.Over ? 0 : ScoreThisRound());
-    }
+    int Score() => TeamScore(false);
 
     void SyncStones()
     {
@@ -720,16 +927,9 @@ public class car : MonoBehaviour
             if (stone.view == null) continue;
             stone.view.transform.position = stone.pos;
             stone.view.transform.rotation = Quaternion.Euler(0f, 0f, stone.angle * Mathf.Rad2Deg);
-            float len = CarLen * (stone.model == 2 ? 1.28f : stone.model == 0 ? 1.08f : 1f);
-            float wide = CarWide * (stone.model == 0 ? 0.86f : 1f);
+            float len = CarLen * (stone.body == 2 ? 1.28f : stone.body == 0 ? 1.08f : 1f);
+            float wide = CarWide * (stone.body == 0 ? 0.86f : 1f);
             stone.view.transform.localScale = new Vector3(len, wide, 1f);
-            var body = stone.view.GetComponent<SpriteRenderer>();
-            if (body != null)
-            {
-                Color c = Color.white;
-                c.a = stone.round < matchRound ? 0.55f : 1f;
-                body.color = c;
-            }
         }
     }
 
@@ -809,16 +1009,89 @@ public class car : MonoBehaviour
     Rect AgainRect()
     {
         Rect card = EndCard();
-        float w = Mathf.Min(180f, card.width - 32f);
-        return new Rect(card.x + (card.width - w) * 0.5f, card.yMax - 58f, w, 42f);
+        float w = Mathf.Min(150f, (card.width - 40f) * 0.5f);
+        return new Rect(card.x + card.width * 0.5f - w - 6f, card.yMax - 58f, w, 42f);
+    }
+
+    Rect OverCollectionRect()
+    {
+        Rect card = EndCard();
+        float w = Mathf.Min(150f, (card.width - 40f) * 0.5f);
+        return new Rect(card.x + card.width * 0.5f + 6f, card.yMax - 58f, w, 42f);
     }
 
     Rect EndCard()
     {
         Rect safe = SafeScreen();
         float w = Mathf.Min(420f, safe.width - 24f);
-        float h = 248f;
+        float h = 300f;
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
+    }
+
+    Rect MenuCard()
+    {
+        Rect safe = SafeScreen();
+        float w = Mathf.Min(420f, safe.width - 24f);
+        float h = 400f;
+        return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
+    }
+
+    Rect MenuPlayRect()
+    {
+        Rect card = MenuCard();
+        float w = Mathf.Min(200f, card.width - 40f);
+        return new Rect(card.x + (card.width - w) * 0.5f, card.yMax - 110f, w, 42f);
+    }
+
+    Rect ModelRect(int i)
+    {
+        Rect card = MenuCard();
+        float w = (card.width - 48f) / 3f;
+        float x = card.x + 16f + i * (w + 8f);
+        return new Rect(x, card.yMax - 168f, w, 40f);
+    }
+
+    Rect MenuCollectionRect()
+    {
+        Rect card = MenuCard();
+        float w = Mathf.Min(200f, card.width - 40f);
+        return new Rect(card.x + (card.width - w) * 0.5f, card.yMax - 58f, w, 42f);
+    }
+
+    Rect CollectionCard()
+    {
+        Rect safe = SafeScreen();
+        float w = Mathf.Min(460f, safe.width - 16f);
+        float h = Mathf.Min(520f, safe.height - 40f);
+        return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
+    }
+
+    Rect CollectionCellRect(int i)
+    {
+        Rect card = CollectionCard();
+        int cols = 4;
+        float pad = 16f;
+        float gap = 8f;
+        float top = card.y + 78f;
+        float cellW = (card.width - pad * 2f - gap * (cols - 1)) / cols;
+        float cellH = 72f;
+        int row = i / cols;
+        int col = i % cols;
+        return new Rect(card.x + pad + col * (cellW + gap), top + row * (cellH + gap), cellW, cellH);
+    }
+
+    Rect CollectionPlayRect()
+    {
+        Rect card = CollectionCard();
+        float w = Mathf.Min(180f, (card.width - 40f) * 0.5f);
+        return new Rect(card.x + card.width * 0.5f - w - 6f, card.yMax - 58f, w, 42f);
+    }
+
+    Rect CollectionBackRect()
+    {
+        Rect card = CollectionCard();
+        float w = Mathf.Min(180f, (card.width - 40f) * 0.5f);
+        return new Rect(card.x + card.width * 0.5f + 6f, card.yMax - 58f, w, 42f);
     }
 
     void OnGUI()
@@ -830,46 +1103,149 @@ public class car : MonoBehaviour
             return;
         }
 
+        if (phase == Phase.Collection)
+        {
+            DrawCollection();
+            return;
+        }
+
         DrawHud();
         if (phase == Phase.Over) DrawEnd();
         else DrawBar();
         DrawWorldTexts();
-        DrawFx();
+        DrawPops();
+    }
+
+    void DrawMenu()
+    {
+        Rect card = MenuCard();
+        GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.94f);
+        GUI.DrawTexture(card, pixel);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(card.x, card.y + 18f, card.width, 36f), "Halka Arabaları", label);
+        GUI.Label(new Rect(card.x + 18f, card.y + 64f, card.width - 36f, 90f),
+            "Bota karşı oyna.\nKazanırsan yeni araba açılır.\nKoleksiyondan arabanı seç.", hintStyle);
+        string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
+        GUI.Label(new Rect(card.x, card.y + 160f, card.width, 24f),
+            "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name, hintStyle);
+        if (best > 0)
+            GUI.Label(new Rect(card.x, card.y + 186f, card.width, 22f), "Rekor " + best + "  ·  " + BodyNames[bodyStyle], hintStyle);
+        for (int i = 0; i < 3; i++)
+        {
+            Rect mr = ModelRect(i);
+            GUI.color = i == bodyStyle ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
+            GUI.DrawTexture(mr, pixel);
+            GUI.color = i == bodyStyle ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
+            GUI.Label(mr, BodyNames[i], hintStyle);
+        }
+
+        Rect play = MenuPlayRect();
+        GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+        GUI.DrawTexture(play, pixel);
+        GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
+        GUI.Label(play, "Oyna", label);
+
+        Rect coll = MenuCollectionRect();
+        GUI.color = new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(coll, pixel);
+        GUI.color = Color.white;
+        GUI.Label(coll, "Koleksiyon", label);
+        GUI.color = Color.white;
+    }
+
+    void DrawCollection()
+    {
+        Rect card = CollectionCard();
+        GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.96f);
+        GUI.DrawTexture(card, pixel);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(card.x, card.y + 14f, card.width, 32f), "Koleksiyon", label);
+        GUI.Label(new Rect(card.x, card.y + 46f, card.width, 22f),
+            unlockCount + "/" + PlayerColors.Length + " araba açık", hintStyle);
+
+        for (int i = 0; i < PlayerColors.Length; i++)
+        {
+            Rect cell = CollectionCellRect(i);
+            bool unlocked = i < unlockCount;
+            bool selected = i == selectedSkin;
+            GUI.color = unlocked
+                ? (selected ? new Color(0.25f, 0.18f, 0.08f, 1f) : new Color(0.12f, 0.14f, 0.18f, 1f))
+                : new Color(0.08f, 0.08f, 0.10f, 0.9f);
+            GUI.DrawTexture(cell, pixel);
+            if (selected)
+            {
+                GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+                GUI.DrawTexture(new Rect(cell.x, cell.y, cell.width, 3f), pixel);
+            }
+
+            Rect swatch = new Rect(cell.x + (cell.width - 36f) * 0.5f, cell.y + 10f, 36f, 22f);
+            GUI.color = unlocked ? PlayerColors[i] : Color.Lerp(PlayerColors[i], Color.black, 0.65f);
+            GUI.DrawTexture(swatch, pixel);
+            GUI.color = unlocked ? Color.white : new Color(1f, 1f, 1f, 0.45f);
+            string title = unlocked ? PlayerNames[i] : "???";
+            string tag = unlocked ? (selected ? "Seçili" : "Açık") : "Kilitli";
+            GUI.Label(new Rect(cell.x, cell.y + 34f, cell.width, 18f), title, hudStyle);
+            GUI.Label(new Rect(cell.x, cell.y + 50f, cell.width, 16f), tag, hintStyle);
+        }
+
+        Rect play = CollectionPlayRect();
+        GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+        GUI.DrawTexture(play, pixel);
+        GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
+        GUI.Label(play, "Bu arabayla oyna", label);
+
+        Rect back = CollectionBackRect();
+        GUI.color = new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(back, pixel);
+        GUI.color = Color.white;
+        GUI.Label(back, "Geri", label);
+        GUI.color = Color.white;
     }
 
     void DrawHud()
     {
         Rect safe = SafeScreen();
-        int n = phase == Phase.Over ? thrown : thrown + 1;
-        n = Mathf.Clamp(n, 1, CarsPerRound);
+        int turn = Mathf.Clamp(Mathf.Max(playerThrown, botThrown) + (phase == Phase.Over ? 0 : 1), 1, CarsPerSide);
         float gap = 6f;
-        float pad = 10f;
+        float pad = 8f;
         float h = 26f;
         float y = safe.y + 8f;
-        float inner = safe.width - pad * 2f;
+        float inner = safe.width - pad * 2f - gap * 2f;
+        float w = inner / 3f;
         float x = safe.x + pad;
-        float col = (inner - gap) * 0.5f;
-        int hudRound = (phase == Phase.Over && !matchOver) ? matchRound - 1 : matchRound;
-        hudRound = Mathf.Clamp(hudRound, 1, RoundsPerMatch);
-        DrawPill(new Rect(x, y, col, h), "Tur " + hudRound + "/" + RoundsPerMatch);
-        DrawPill(new Rect(x + col + gap, y, col, h), "Araba " + n + "/" + CarsPerRound);
-        y += h + gap;
-        DrawPill(new Rect(x, y, col, h), "Skor " + LiveScore());
-        DrawPill(new Rect(x + col + gap, y, col, h), "Bugün " + dailyScore + "/" + DailyGoal);
-        if (streak > 1)
-            DrawPill(new Rect(safe.x + (safe.width - 88f) * 0.5f, y + h + 6f, 88f, h), "Seri " + streak);
-        else if (Time.time < devamUntil)
-            DrawPill(new Rect(safe.x + (safe.width - 90f) * 0.5f, y + h + 6f, 90f, h), "Devam");
+        DrawPill(new Rect(x, y, w, h), "Sen " + TeamScore(false));
+        DrawPill(new Rect(x + w + gap, y, w, h), "Bot " + TeamScore(true));
+        DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), "Tur " + turn + "/" + CarsPerSide);
+        string turnHint = botTurn ? "Bot oynuyor…" : "Senin sıran";
+        if (phase == Phase.Slide) turnHint = "Kayıyor…";
+        if (phase != Phase.Over)
+            DrawPill(new Rect(safe.x + (safe.width - 140f) * 0.5f, y + h + 6f, 140f, h), turnHint);
+        float y2 = y + h + 36f;
+        DrawPill(new Rect(safe.x + pad, y2, 110f, h), "Arabalar " + unlockCount + "/" + PlayerColors.Length);
+        if (comboStreak > 0)
+            DrawPill(new Rect(safe.x + pad + 118f, y2, 90f, h), "Kombo x" + comboStreak);
+        if (!botTurn && activePower != PowerUp.None && phase == Phase.Aim)
+        {
+            string p = activePower == PowerUp.Ice ? "Power: BUZ" : "Power: MIKNATIS";
+            DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
+        }
     }
 
     void DrawBar()
     {
+        if (botTurn)
+        {
+            Rect safeBot = SafeScreen();
+            GUI.Label(new Rect(safeBot.x, safeBot.yMax - 48f, safeBot.width, 22f), "Bot nişan alıyor…", hintStyle);
+            return;
+        }
+
         float len = pull.magnitude;
         int band = phase == Phase.Aim && pulling ? PowerBand(len) : 0;
-        string hint = thrown == 0 && matchRound == 1 && !pulling ? "Üst halkaya at" : "Geri çek, bırak";
+        string hint = "Geri çek, bırak";
+        if (activePower == PowerUp.Ice) hint = "BUZ hazır — çek bırak";
+        else if (activePower == PowerUp.Magnet) hint = "MIKNATIS hazır — çek bırak";
         if (phase == Phase.Slide) hint = "Kayıyor…";
-        else if (shotFriction < Friction * 0.9f) hint = "Boost";
-        else if (shotFriction > Friction * 1.1f) hint = "Tutuş";
         else if (band == 1) hint = "Hafif";
         else if (band == 2) hint = "Az";
         else if (band == 3) hint = "Orta";
@@ -905,15 +1281,23 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.94f);
         GUI.DrawTexture(card, pixel);
         GUI.color = Color.white;
-        GUI.Label(new Rect(card.x, card.y + 10f, card.width, 30f), matchOver ? "Maç bitti" : "Tur bitti", label);
-        GUI.Label(new Rect(card.x + 12f, card.y + 40f, card.width - 24f, 36f), reason, hintStyle);
-        GUI.Label(new Rect(card.x, card.y + 78f, card.width, 26f), "Maç " + matchScore + "  En iyi " + best, hintStyle);
-        GUI.Label(new Rect(card.x, card.y + 102f, card.width, 22f), "Bugün " + dailyScore + "/" + DailyGoal, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Tur bitti", label);
+        GUI.Label(new Rect(card.x + 16f, card.y + 52f, card.width - 32f, 28f), reason, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 88f, card.width, 28f), "Sen " + TeamScore(false) + "   Bot " + TeamScore(true), label);
+        GUI.Label(new Rect(card.x, card.y + 118f, card.width, 22f), "Bonus " + playerBonus + "   Rekor " + best, hintStyle);
+        if (!string.IsNullOrEmpty(unlockFlash))
+            GUI.Label(new Rect(card.x + 12f, card.y + 144f, card.width - 24f, 28f), unlockFlash, hintStyle);
         Rect button = AgainRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(button, pixel);
         GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
-        GUI.Label(button, matchOver ? "Tekrar" : "Sonraki tur", label);
+        GUI.Label(button, "Tekrar", label);
+
+        Rect collBtn = OverCollectionRect();
+        GUI.color = new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(collBtn, pixel);
+        GUI.color = Color.white;
+        GUI.Label(collBtn, "Koleksiyon", label);
         GUI.color = Color.white;
     }
 
@@ -926,6 +1310,39 @@ public class car : MonoBehaviour
             if (!stone.launched || stone.vel.magnitude > StopSpeed) continue;
             PlaceWorldLabel(stone.pos + new Vector2(0f, 0.36f), PointsAt(stone.pos).ToString(), rects);
         }
+    }
+
+    void DrawPops()
+    {
+        if (cam == null) return;
+        for (int i = 0; i < bits.Count; i++)
+        {
+            BurstBit b = bits[i];
+            Vector3 s = cam.WorldToScreenPoint(b.pos);
+            if (s.z < 0f) continue;
+            float t = Mathf.Clamp01(b.life / Mathf.Max(0.01f, b.max));
+            float sz = 5f + 7f * t;
+            Color c = b.color;
+            c.a = t;
+            GUI.color = c;
+            GUI.DrawTexture(new Rect(s.x - sz * 0.5f, Screen.height - s.y - sz * 0.5f, sz, sz), pixel);
+        }
+
+        for (int i = 0; i < pops.Count; i++)
+        {
+            Pop p = pops[i];
+            Vector3 screen = cam.WorldToScreenPoint(p.world);
+            if (screen.z < 0f) continue;
+            float a = Mathf.Clamp01(p.life / Mathf.Max(0.01f, p.max));
+            float grow = p.boom ? 1f + (1f - a) * 1.2f : 1f;
+            var rect = new Rect(screen.x - 80f * grow, Screen.height - screen.y - 16f * grow, 160f * grow, 32f * grow);
+            Color c = p.color;
+            c.a = a;
+            GUI.color = c;
+            GUI.Label(rect, p.text, popStyle != null ? popStyle : label);
+        }
+
+        GUI.color = Color.white;
     }
 
     void PlaceWorldLabel(Vector2 world, string text, List<Rect> used)
@@ -985,198 +1402,22 @@ public class car : MonoBehaviour
         hintStyle = new GUIStyle(label);
         hintStyle.fontSize = size;
         popStyle = new GUIStyle(label);
-        popStyle.fontSize = size + 10;
-        popStyle.fontStyle = FontStyle.Bold;
+        popStyle.fontSize = size + 8;
         stylesReady = true;
     }
 
-    void HandleMenuClicks()
+    void SetupMusic()
     {
-        for (int i = 0; i < 3; i++)
-        {
-            if (Clicked(ModelRect(i)))
-            {
-                modelIndex = i;
-                PlayerPrefs.SetInt(ModelKey, modelIndex);
-                Play(sndPull);
-                return;
-            }
-
-            if (Clicked(PaintRect(i)))
-            {
-                paintIndex = i;
-                PlayerPrefs.SetInt(PaintKey, paintIndex);
-                Play(sndPull);
-                return;
-            }
-        }
-
-        if (Clicked(StartRect()))
-            StartMatch();
-    }
-
-    void DrawMenu()
-    {
-        Rect safe = SafeScreen();
-        Rect card = new Rect(safe.x + 16f, safe.y + safe.height * 0.12f, safe.width - 32f, safe.height * 0.72f);
-        GUI.color = new Color(0.08f, 0.05f, 0.03f, 0.92f);
-        GUI.DrawTexture(card, pixel);
-        GUI.color = Color.white;
-        GUI.Label(new Rect(card.x, card.y + 12f, card.width, 32f), "Halka Arabaları", label);
-        GUI.Label(new Rect(card.x, card.y + 44f, card.width, 20f), "En iyi " + best + "   Bugün " + dailyScore + "/" + DailyGoal, hintStyle);
-        GUI.Label(new Rect(card.x, card.y + 68f, card.width, 20f), ModelNames[modelIndex], hintStyle);
-        for (int i = 0; i < 3; i++)
-        {
-            Rect mr = ModelRect(i);
-            GUI.color = i == modelIndex ? new Color(0.94f, 0.64f, 0.02f, 1f) : new Color(0.22f, 0.12f, 0.07f, 1f);
-            GUI.DrawTexture(mr, pixel);
-            GUI.color = Color.white;
-            GUI.Label(mr, ModelNames[i].Replace(" ", "\n"), hintStyle);
-            Rect r = PaintRect(i);
-            GUI.color = CarColors[i];
-            GUI.DrawTexture(r, pixel);
-            if (i == paintIndex)
-            {
-                GUI.color = Color.white;
-                GUI.Box(r, "");
-            }
-        }
-
-        GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
-        GUI.DrawTexture(StartRect(), pixel);
-        GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
-        GUI.Label(StartRect(), "Başla", label);
-        GUI.color = Color.white;
-    }
-
-    Rect PaintRect(int i)
-    {
-        Rect safe = SafeScreen();
-        float size = 44f;
-        float gap = 14f;
-        float total = size * 3f + gap * 2f;
-        float x = safe.x + (safe.width - total) * 0.5f + i * (size + gap);
-        return new Rect(x, safe.y + safe.height * 0.52f, size, size);
-    }
-
-    Rect ModelRect(int i)
-    {
-        Rect safe = SafeScreen();
-        float w = Mathf.Min(92f, (safe.width - 48f) / 3f);
-        float gap = 8f;
-        float total = w * 3f + gap * 2f;
-        float x = safe.x + (safe.width - total) * 0.5f + i * (w + gap);
-        return new Rect(x, safe.y + safe.height * 0.34f, w, 48f);
-    }
-
-    Rect StartRect()
-    {
-        Rect safe = SafeScreen();
-        float w = Mathf.Min(180f, safe.width - 48f);
-        return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + safe.height * 0.68f, w, 44f);
-    }
-
-    void LoadDaily()
-    {
-        string today = System.DateTime.Now.ToString("yyyyMMdd");
-        dailyDay = PlayerPrefs.GetString(DailyDayKey, "");
-        if (dailyDay != today)
-        {
-            dailyDay = today;
-            dailyScore = 0;
-            PlayerPrefs.SetString(DailyDayKey, dailyDay);
-            PlayerPrefs.SetInt(DailyKey, 0);
-        }
-        else dailyScore = PlayerPrefs.GetInt(DailyKey, 0);
-    }
-
-    void AddDaily(int points)
-    {
-        LoadDaily();
-        dailyScore += points;
-        PlayerPrefs.SetInt(DailyKey, dailyScore);
-    }
-
-    void PlacePickup()
-    {
-        HidePickup();
-        if (Random.value > 0.28f) return;
-        pickupKind = Random.value < 0.5f ? PickupKind.Boost : PickupKind.Traction;
-        pickupPos = new Vector2(Random.Range(-laneHalf * 0.45f, laneHalf * 0.45f), Mathf.Lerp(Spawn.y + 0.9f, House.y - 0.4f, Random.Range(0.25f, 0.7f)));
-        pickupAlive = true;
-        Color col = pickupKind == PickupKind.Boost ? new Color(0.25f, 0.85f, 0.45f, 0.95f) : new Color(0.95f, 0.55f, 0.15f, 0.95f);
-        pickupView = MakeSprite("Pickup", circleSprite, col, 8);
-        pickupView.transform.position = pickupPos;
-        pickupView.transform.localScale = Vector3.one * 0.28f;
-    }
-
-    void HidePickup()
-    {
-        pickupAlive = false;
-        pickupKind = PickupKind.None;
-        if (pickupView != null)
-        {
-            Destroy(pickupView.gameObject);
-            pickupView = null;
-        }
-    }
-
-    void TryCollectPickup()
-    {
-        if (!pickupAlive || current == null || !current.launched) return;
-        if (Vector2.Distance(current.pos, pickupPos) > CarRadius + 0.16f) return;
-        if (pickupKind == PickupKind.Boost) shotFriction = Friction * 0.55f;
-        else shotFriction = Friction * 1.85f;
-        Play(sndPick);
-        Buzz();
-        HidePickup();
-    }
-
-    void SetupAudio()
-    {
-        speaker = gameObject.AddComponent<AudioSource>();
-        speaker.playOnAwake = false;
-        sndPull = MakeTone(210f, 0.06f);
-        sndShot = MakeTone(170f, 0.12f);
-        sndHit = MakeTone(380f, 0.05f);
-        sndIn = MakeTone(560f, 0.16f);
-        sndOut = MakeTone(120f, 0.18f);
-        sndPick = MakeTone(440f, 0.10f);
         music = gameObject.AddComponent<AudioSource>();
-        music.playOnAwake = false;
         music.loop = true;
         music.volume = 0.18f;
-        music.clip = MakeLoungeLoop();
-        music.Play();
-    }
-
-    AudioClip MakeTone(float freq, float seconds)
-    {
-        int rate = 44100;
-        int n = Mathf.Max(32, (int)(rate * seconds));
-        var clip = AudioClip.Create("ton", n, 1, rate, false);
-        var data = new float[n];
-        for (int i = 0; i < n; i++)
-        {
-            float t = i / (float)rate;
-            float env = 1f - t / seconds;
-            data[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.11f * env;
-        }
-
-        clip.SetData(data, 0);
-        return clip;
-    }
-
-    AudioClip MakeLoungeLoop()
-    {
+        music.playOnAwake = false;
         int rate = 22050;
-        float bpm = 96f;
-        float beat = 60f / bpm;
-        int bars = 4;
-        int samples = (int)(rate * beat * 4f * bars);
+        float beat = 60f / 96f;
+        int samples = (int)(rate * beat * 16f);
         var data = new float[samples];
-        float[] melody = { 261.63f, 329.63f, 392.00f, 523.25f, 392.00f, 329.63f, 349.23f, 261.63f };
-        float[] bass = { 130.81f, 130.81f, 196.00f, 174.61f };
+        float[] melody = { 261.63f, 329.63f, 392f, 523.25f, 392f, 329.63f, 349.23f, 261.63f };
+        float[] bass = { 130.81f, 130.81f, 196f, 174.61f };
         for (int i = 0; i < samples; i++)
         {
             float t = i / (float)rate;
@@ -1184,99 +1425,14 @@ public class car : MonoBehaviour
             int beatI = Mathf.FloorToInt(t / beat) % bass.Length;
             float envM = 1f - (t / (beat * 0.5f) % 1f);
             float envB = 1f - (t / beat % 1f);
-            float m = Mathf.Sin(2f * Mathf.PI * melody[eighth] * t) * 0.045f * envM;
-            float b = Mathf.Sin(2f * Mathf.PI * bass[beatI] * t) * 0.05f * envB;
-            data[i] = (m + b) * (0.85f + 0.15f * Mathf.Sin(2f * Mathf.PI * t / 8f));
+            data[i] = Mathf.Sin(2f * Mathf.PI * melody[eighth] * t) * 0.045f * envM
+                + Mathf.Sin(2f * Mathf.PI * bass[beatI] * t) * 0.05f * envB;
         }
 
         var clip = AudioClip.Create("lounge", samples, 1, rate, false);
         clip.SetData(data, 0);
-        return clip;
-    }
-
-    void BurstScore(Vector2 world, int pts)
-    {
-        Color gold = pts >= 4 ? new Color(1f, 0.86f, 0.25f) : new Color(1f, 0.95f, 0.55f);
-        pops.Add(new ScorePop { world = world, text = "+" + pts, life = 0.9f, max = 0.9f, color = gold });
-        int n = 8 + pts * 7;
-        for (int i = 0; i < n; i++)
-        {
-            float ang = (i / (float)n) * Mathf.PI * 2f + Random.Range(-0.2f, 0.2f);
-            float sp = Random.Range(1.2f, 3.4f + pts);
-            bits.Add(new BurstBit
-            {
-                pos = world,
-                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp,
-                color = i % 2 == 0 ? gold : new Color(1f, 0.45f, 0.12f),
-                life = Random.Range(0.35f, 0.7f)
-            });
-            bits[bits.Count - 1].max = bits[bits.Count - 1].life;
-        }
-    }
-
-    void TickFx(float dt)
-    {
-        for (int i = pops.Count - 1; i >= 0; i--)
-        {
-            pops[i].life -= dt;
-            pops[i].world += Vector2.up * (1.1f * dt);
-            if (pops[i].life <= 0f) pops.RemoveAt(i);
-        }
-
-        for (int i = bits.Count - 1; i >= 0; i--)
-        {
-            bits[i].life -= dt;
-            bits[i].vel *= 0.92f;
-            bits[i].pos += bits[i].vel * dt;
-            if (bits[i].life <= 0f) bits.RemoveAt(i);
-        }
-    }
-
-    void DrawFx()
-    {
-        if (cam == null) return;
-        for (int i = 0; i < bits.Count; i++)
-        {
-            BurstBit b = bits[i];
-            Vector3 s = cam.WorldToScreenPoint(b.pos);
-            if (s.z < 0f) continue;
-            float t = Mathf.Clamp01(b.life / b.max);
-            float sz = 6f + 8f * t;
-            var r = new Rect(s.x - sz * 0.5f, Screen.height - s.y - sz * 0.5f, sz, sz);
-            Color c = b.color;
-            c.a = t;
-            GUI.color = c;
-            GUI.DrawTexture(r, pixel);
-        }
-
-        for (int i = 0; i < pops.Count; i++)
-        {
-            ScorePop p = pops[i];
-            Vector3 s = cam.WorldToScreenPoint(p.world);
-            if (s.z < 0f) continue;
-            float t = Mathf.Clamp01(p.life / p.max);
-            float grow = 1f + (1f - t) * 1.35f;
-            float w = 70f * grow;
-            float h = 36f * grow;
-            var r = new Rect(s.x - w * 0.5f, Screen.height - s.y - h * 0.5f, w, h);
-            Color c = p.color;
-            c.a = t;
-            GUI.color = c;
-            GUI.Label(r, p.text, popStyle != null ? popStyle : label);
-        }
-
-        GUI.color = Color.white;
-    }
-
-    void Play(AudioClip clip)
-    {
-        if (speaker == null || clip == null) return;
-        speaker.PlayOneShot(clip);
-    }
-
-    void Buzz()
-    {
-        if (Application.isMobilePlatform) Handheld.Vibrate();
+        music.clip = clip;
+        music.Play();
     }
 
     SpriteRenderer MakeSprite(string name, Sprite sprite, Color color, int order)
@@ -1292,29 +1448,31 @@ public class car : MonoBehaviour
 
     static Sprite MakeCircleSprite()
     {
-        const int n = 256;
-        var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
-        float radius = n * 0.5f - 1f;
+        const int n = 512;
+        var tex = new Texture2D(n, n, TextureFormat.RGBA32, true);
+        tex.filterMode = FilterMode.Trilinear;
+        tex.anisoLevel = 8;
+        float radius = n * 0.5f - 1.5f;
         var center = new Vector2(n * 0.5f, n * 0.5f);
         var pixels = new Color[n * n];
         for (int y = 0; y < n; y++)
         {
             for (int x = 0; x < n; x++)
             {
-                float d = Vector2.Distance(new Vector2(x, y), center);
-                pixels[y * n + x] = d <= radius ? Color.white : Color.clear;
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), center);
+                float edge = Mathf.Clamp01(radius + 1.25f - d);
+                pixels[y * n + x] = new Color(1f, 1f, 1f, edge);
             }
         }
 
         tex.SetPixels(pixels);
-        tex.Apply();
+        tex.Apply(true);
         return Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), n);
     }
 
     static Sprite MakeSquareSprite()
     {
-        const int n = 8;
+        const int n = 16;
         var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
         var pixels = new Color[n * n];
@@ -1324,19 +1482,60 @@ public class car : MonoBehaviour
         return Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), n);
     }
 
-    static Sprite MakeCarSprite(Color paint, int model)
+    static Texture2D MakeWoodTexture(int w, int h)
     {
-        const int w = 160;
-        const int h = 72;
-        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
+        tex.filterMode = FilterMode.Trilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.anisoLevel = 8;
         var pixels = new Color[w * h];
-        Color tire = new Color(0.10f, 0.10f, 0.10f, 1f);
-        Color chrome = new Color(0.82f, 0.84f, 0.88f, 1f);
-        Color glass = new Color(0.45f, 0.72f, 0.92f, 1f);
-        Color lamp = new Color(1f, 0.94f, 0.55f, 1f);
+        int planks = 7;
+        float plankW = w / (float)planks;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int plank = Mathf.Clamp(Mathf.FloorToInt(x / plankW), 0, planks - 1);
+                float local = (x - plank * plankW) / plankW;
+                float seam = Mathf.SmoothStep(0f, 1f, Mathf.Min(local, 1f - local) * 18f);
+                float grain = Mathf.Sin((y + plank * 37f) * 0.085f + Mathf.Sin(y * 0.021f + plank) * 2.4f);
+                grain = 0.55f + 0.45f * grain;
+                float wave = 0.92f + 0.08f * Mathf.Sin(y * 0.011f + plank * 1.7f);
+                float shade = 0.78f + 0.22f * seam;
+                float tone = (0.70f + 0.08f * (plank % 3)) * grain * wave * shade;
+                float r = Mathf.Clamp01(0.52f * tone + 0.10f);
+                float g = Mathf.Clamp01(0.32f * tone + 0.05f);
+                float b = Mathf.Clamp01(0.14f * tone + 0.02f);
+                if (local < 0.018f || local > 0.982f)
+                {
+                    r *= 0.62f;
+                    g *= 0.62f;
+                    b *= 0.62f;
+                }
+
+                pixels[y * w + x] = new Color(r, g, b, 1f);
+            }
+        }
+
+        tex.SetPixels(pixels);
+        tex.Apply(true);
+        return tex;
+    }
+
+    // Üstten görünüm: uzun gövde, orta kalınlık; tekerlek yok.
+    static Sprite MakeCarSprite(Color paint, int model = 1)
+    {
+        const int w = 256;
+        const int h = 128;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
+        tex.filterMode = FilterMode.Trilinear;
+        tex.anisoLevel = 8;
+        var pixels = new Color[w * h];
+        Color glass = new Color(0.62f, 0.86f, 0.98f, 1f);
+        Color lamp = new Color(1f, 0.95f, 0.62f, 1f);
+        Color roof = Color.Lerp(paint, Color.white, 0.14f);
+        Color trim = Color.Lerp(paint, Color.black, 0.28f);
         Color gold = new Color(0.92f, 0.75f, 0.28f, 1f);
-        Color roof = Color.Lerp(paint, Color.white, 0.12f);
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -1344,46 +1543,47 @@ public class car : MonoBehaviour
                 float nx = (x + 0.5f) / w * 2f - 1f;
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
-                bool leftTire = Rounded(nx - (model == 2 ? -0.12f : 0f), ny + 0.78f, model == 2 ? 0.72f : 0.58f, 0.15f, 0.07f);
-                bool rightTire = Rounded(nx - (model == 2 ? -0.12f : 0f), ny - 0.78f, model == 2 ? 0.72f : 0.58f, 0.15f, 0.07f);
-                bool body = false, cabin = false, window = false, extra = false, stripe = false;
+                bool body, cabin, window, extra = false;
                 if (model == 0)
                 {
-                    body = Rounded(nx, ny, 0.88f, 0.46f, 0.22f) && nx < 0.92f;
-                    cabin = Rounded(nx + 0.02f, ny, 0.22f, 0.30f, 0.08f);
+                    body = Rounded(nx, ny, 0.92f, 0.58f, 0.22f);
+                    cabin = Rounded(nx + 0.02f, ny, 0.22f, 0.32f, 0.08f);
                     window = Rounded(nx + 0.16f, ny, 0.16f, 0.22f, 0.06f);
-                    extra = nx > 0.55f && Mathf.Abs(ny) < 0.22f && nx < 0.95f;
+                    extra = nx > 0.55f && Mathf.Abs(ny) < 0.2f && nx < 0.95f;
                 }
                 else if (model == 2)
                 {
-                    body = Rounded(nx, ny, 0.94f, 0.52f, 0.12f);
-                    cabin = Rounded(nx, ny, 0.42f, 0.34f, 0.08f);
-                    window = Rounded(nx + 0.22f, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx + 0.02f, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx - 0.20f, ny, 0.12f, 0.24f, 0.05f);
-                    stripe = Mathf.Abs(ny) < 0.06f && Mathf.Abs(nx) < 0.88f;
+                    body = Rounded(nx, ny, 0.94f, 0.62f, 0.12f);
+                    cabin = Rounded(nx, ny, 0.40f, 0.36f, 0.08f);
+                    window = Rounded(nx + 0.22f, ny, 0.12f, 0.26f, 0.05f) || Rounded(nx, ny, 0.12f, 0.26f, 0.05f) || Rounded(nx - 0.22f, ny, 0.12f, 0.26f, 0.05f);
+                    extra = Mathf.Abs(ny) < 0.06f && Mathf.Abs(nx) < 0.88f;
                 }
                 else
                 {
-                    body = Rounded(nx, ny, 0.84f, 0.55f, 0.16f);
-                    cabin = Rounded(nx + 0.06f, ny, 0.30f, 0.34f, 0.10f);
-                    window = Rounded(nx + 0.18f, ny, 0.14f, 0.26f, 0.07f);
-                    stripe = Mathf.Abs(ny) < 0.045f && nx > -0.2f && nx < 0.7f;
+                    body = Rounded(nx, ny, 0.90f, 0.72f, 0.20f);
+                    cabin = Rounded(nx + 0.06f, ny, 0.28f, 0.42f, 0.10f);
+                    window = Rounded(nx + 0.18f, ny, 0.14f, 0.30f, 0.08f);
+                }
+                bool lightL = Ellipse(nx + 0.76f, ny - 0.28f, 0.07f, 0.12f);
+                bool lightR = Ellipse(nx + 0.76f, ny + 0.28f, 0.07f, 0.12f);
+                bool bumper = Rounded(nx + 0.82f, ny, 0.08f, 0.52f, 0.07f);
+                if (window) c = glass;
+                else if (lightL || lightR) c = lamp;
+                else if (extra) c = model == 2 ? gold : trim;
+                else if (cabin) c = roof;
+                else if (bumper) c = trim;
+                else if (body)
+                {
+                    float shade = 0.86f + 0.14f * (1f - Mathf.Abs(ny));
+                    c = new Color(paint.r * shade, paint.g * shade, paint.b * shade, 1f);
                 }
 
-                bool lightL = Ellipse(nx + 0.78f, ny - 0.20f, 0.07f, 0.10f);
-                bool lightR = Ellipse(nx + 0.78f, ny + 0.20f, 0.07f, 0.10f);
-                if (leftTire || rightTire) c = tire;
-                else if (window) c = glass;
-                else if (lightL || lightR) c = lamp;
-                else if (stripe) c = model == 2 ? gold : chrome;
-                else if (extra) c = chrome;
-                else if (cabin) c = roof;
-                else if (body) c = paint;
                 pixels[y * w + x] = c;
             }
         }
 
         tex.SetPixels(pixels);
-        tex.Apply();
+        tex.Apply(true);
         return Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), w);
     }
 

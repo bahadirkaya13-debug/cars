@@ -36,7 +36,7 @@ public class CurlingGame : MonoBehaviour
     Text resultText;
     Button restartButton;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    // Oyun2 ana giriş noktası car.cs; bu otomatik açılışı kapalı tut.
     static void AutoStart()
     {
         if (FindFirstObjectByType<CurlingGame>() != null)
@@ -78,15 +78,23 @@ public class CurlingGame : MonoBehaviour
         cam.orthographicSize = 10.4f;
         cam.transform.SetPositionAndRotation(new Vector3(0f, 0f, -10f), Quaternion.identity);
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.12f, 0.22f, 0.32f);
+        cam.backgroundColor = new Color(0.28f, 0.16f, 0.08f);
         cam.nearClipPlane = 0.1f;
+        cam.allowMSAA = true;
     }
 
     void BuildRink()
     {
-        CreateSprite("BuzPisti", SpriteUtil.Rect(32, 32, new Color(0.78f, 0.9f, 0.97f)), Vector3.zero, new Vector3(7.2f, 20.4f, 1f), 0);
-        CreateSprite("AtisAlani", SpriteUtil.Rect(32, 32, new Color(0.93f, 0.96f, 1f, 0.35f)), new Vector3(0f, -7.15f, 0f), new Vector3(3.4f, 1.6f, 1f), 1);
-        CreateSprite("OrtaCizgi", SpriteUtil.Rect(8, 8, new Color(0.35f, 0.55f, 0.75f, 0.45f)), Vector3.zero, new Vector3(0.06f, 18.6f, 1f), 2);
+        CreateSprite("AhsapZemin", SpriteUtil.Rect(32, 32, new Color(0.52f, 0.32f, 0.14f)), Vector3.zero, new Vector3(7.2f, 20.4f, 1f), 0);
+        for (int i = 0; i < 7; i++)
+        {
+            float x = -3.0f + i * 1.0f;
+            var plank = CreateSprite($"Tahta{i}", SpriteUtil.Rect(32, 32, new Color(0.58f + (i % 3) * 0.04f, 0.36f, 0.16f)), new Vector3(x, 0f, 0f), new Vector3(0.92f, 20.4f, 1f), 1);
+            _ = plank;
+        }
+
+        CreateSprite("AtisAlani", SpriteUtil.Rect(32, 32, new Color(0.70f, 0.48f, 0.24f, 0.35f)), new Vector3(0f, -7.15f, 0f), new Vector3(3.4f, 1.6f, 1f), 2);
+        CreateSprite("OrtaCizgi", SpriteUtil.Rect(8, 8, new Color(0.30f, 0.16f, 0.06f, 0.35f)), Vector3.zero, new Vector3(0.06f, 18.6f, 1f), 2);
         CreateSprite("HogCizgisi", SpriteUtil.Rect(8, 8, new Color(0.85f, 0.25f, 0.25f, 0.7f)), new Vector3(0f, 2.4f, 0f), new Vector3(6.6f, 0.06f, 1f), 2);
     }
 
@@ -335,7 +343,7 @@ public class CurlingGame : MonoBehaviour
                 return;
             }
 
-            Vector2 impulse = pull.normalized * mag * 7.15f;
+            Vector2 impulse = pull.normalized * mag * 11.5f;
             activeCar.Launch(impulse);
             hintText.text = "Kaymasını izle — ustalık ortada durdurmak";
         }
