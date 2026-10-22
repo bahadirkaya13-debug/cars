@@ -1,20 +1,19 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class car : MonoBehaviour
 {
-    const float Friction = 1.70f;
+    const float Friction = 1.20f;
     const float MaxPull = 1.50f;
     const float MinPull = 0.22f;
-    const float MaxSpeed = 5.40f;
+    const float MaxSpeed = 9.20f;
     const float Back = 0.22f;
     const float StopSpeed = 0.08f;
     const float CurlPower = 1.20f;
-    const float CarRadius = 0.16f;
-    const float CarLen = 0.48f;
-    const float CarWide = 0.56f;
+    const float CarRadius = 0.38f;
+    const float CarLen = 0.50f;
+    const float CarWide = 1.12f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int CarsPerRound = 5;
@@ -98,7 +97,8 @@ public class car : MonoBehaviour
         QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1, true);
         QualitySettings.globalTextureMipmapLimit = 0;
         QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
-        QualitySettings.antiAliasing = 4;
+        QualitySettings.antiAliasing = 8;
+        QualitySettings.vSyncCount = 1;
         Screen.orientation = ScreenOrientation.Portrait;
         circleSprite = MakeCircleSprite();
         carSprites = new Sprite[CarColors.Length];
@@ -123,7 +123,8 @@ public class car : MonoBehaviour
 
         cam.orthographic = true;
         cam.allowMSAA = true;
-        cam.backgroundColor = new Color(0.32f, 0.18f, 0.08f);
+        cam.allowHDR = true;
+        cam.backgroundColor = new Color(0.28f, 0.16f, 0.08f);
         cam.clearFlags = CameraClearFlags.SolidColor;
         FitCamera();
     }
@@ -161,27 +162,22 @@ public class car : MonoBehaviour
         RingRadius[1] = outer * 0.73f;
         RingRadius[2] = outer * 0.51f;
         RingRadius[3] = outer * 0.19f;
-        laneHalf = 0.30f * viewW;
+        laneHalf = 0.34f * viewW;
         LayoutHouse(viewH);
     }
 
     void LoadTable()
     {
-        string path = Path.Combine(Application.streamingAssetsPath, "masa.png");
-        if (!File.Exists(path))
-            path = Path.Combine(Application.streamingAssetsPath, "masa.jpg");
-        if (!File.Exists(path)) return;
-        byte[] bytes = File.ReadAllBytes(path);
-        boardTex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-        boardTex.LoadImage(bytes);
-        boardTex.filterMode = FilterMode.Bilinear;
+        // Ahşap zemin: yüksek çözünürlüklü tahta dokusu.
+        boardTex = MakeWoodTexture(1280, 2280);
+        boardTex.filterMode = FilterMode.Trilinear;
         boardTex.wrapMode = TextureWrapMode.Clamp;
-        boardTex.anisoLevel = 4;
+        boardTex.anisoLevel = 8;
     }
 
     void BuildRink()
     {
-        if (boardTex == null) return;
+        if (boardTex == null) boardTex = MakeWoodTexture(1024, 2048);
         float ppu = boardTex.height / 6.4f;
         var sprite = Sprite.Create(
             boardTex,
@@ -189,7 +185,7 @@ public class car : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             ppu);
         board = MakeSprite("Masa", sprite, Color.white, -20);
-        houseCover = MakeSprite("EskiHedefKapat", circleSprite, new Color(0.70f, 0.44f, 0.20f), -5);
+        houseCover = MakeSprite("EskiHedefKapat", circleSprite, new Color(0.62f, 0.38f, 0.18f), -5);
         for (int i = 0; i < RingRadius.Length; i++)
         {
             var ring = MakeSprite("Halka", circleSprite, RingColors[i], i);
@@ -848,29 +844,31 @@ public class car : MonoBehaviour
 
     static Sprite MakeCircleSprite()
     {
-        const int n = 256;
-        var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
-        float radius = n * 0.5f - 1f;
+        const int n = 512;
+        var tex = new Texture2D(n, n, TextureFormat.RGBA32, true);
+        tex.filterMode = FilterMode.Trilinear;
+        tex.anisoLevel = 8;
+        float radius = n * 0.5f - 1.5f;
         var center = new Vector2(n * 0.5f, n * 0.5f);
         var pixels = new Color[n * n];
         for (int y = 0; y < n; y++)
         {
             for (int x = 0; x < n; x++)
             {
-                float d = Vector2.Distance(new Vector2(x, y), center);
-                pixels[y * n + x] = d <= radius ? Color.white : Color.clear;
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), center);
+                float edge = Mathf.Clamp01(radius + 1.25f - d);
+                pixels[y * n + x] = new Color(1f, 1f, 1f, edge);
             }
         }
 
         tex.SetPixels(pixels);
-        tex.Apply();
+        tex.Apply(true);
         return Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), n);
     }
 
     static Sprite MakeSquareSprite()
     {
-        const int n = 8;
+        const int n = 16;
         var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
         var pixels = new Color[n * n];
@@ -880,18 +878,58 @@ public class car : MonoBehaviour
         return Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), n);
     }
 
+    static Texture2D MakeWoodTexture(int w, int h)
+    {
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
+        tex.filterMode = FilterMode.Trilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.anisoLevel = 8;
+        var pixels = new Color[w * h];
+        int planks = 7;
+        float plankW = w / (float)planks;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int plank = Mathf.Clamp(Mathf.FloorToInt(x / plankW), 0, planks - 1);
+                float local = (x - plank * plankW) / plankW;
+                float seam = Mathf.SmoothStep(0f, 1f, Mathf.Min(local, 1f - local) * 18f);
+                float grain = Mathf.Sin((y + plank * 37f) * 0.085f + Mathf.Sin(y * 0.021f + plank) * 2.4f);
+                grain = 0.55f + 0.45f * grain;
+                float wave = 0.92f + 0.08f * Mathf.Sin(y * 0.011f + plank * 1.7f);
+                float shade = 0.78f + 0.22f * seam;
+                float tone = (0.70f + 0.08f * (plank % 3)) * grain * wave * shade;
+                float r = Mathf.Clamp01(0.52f * tone + 0.10f);
+                float g = Mathf.Clamp01(0.32f * tone + 0.05f);
+                float b = Mathf.Clamp01(0.14f * tone + 0.02f);
+                if (local < 0.018f || local > 0.982f)
+                {
+                    r *= 0.62f;
+                    g *= 0.62f;
+                    b *= 0.62f;
+                }
+
+                pixels[y * w + x] = new Color(r, g, b, 1f);
+            }
+        }
+
+        tex.SetPixels(pixels);
+        tex.Apply(true);
+        return tex;
+    }
+
     static Sprite MakeCarSprite(Color paint)
     {
-        const int w = 128;
-        const int h = 64;
-        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
+        const int w = 256;
+        const int h = 192;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
+        tex.filterMode = FilterMode.Trilinear;
+        tex.anisoLevel = 8;
         var pixels = new Color[w * h];
-        Color tire = new Color(0.12f, 0.12f, 0.12f, 1f);
-        Color well = new Color(0.18f, 0.18f, 0.18f, 1f);
-        Color glass = new Color(0.58f, 0.82f, 0.95f, 1f);
-        Color lamp = new Color(1f, 0.94f, 0.55f, 1f);
-        Color roof = Color.Lerp(paint, Color.white, 0.10f);
+        Color glass = new Color(0.62f, 0.86f, 0.98f, 1f);
+        Color lamp = new Color(1f, 0.95f, 0.62f, 1f);
+        Color roof = Color.Lerp(paint, Color.white, 0.14f);
+        Color trim = Color.Lerp(paint, Color.black, 0.28f);
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -899,24 +937,28 @@ public class car : MonoBehaviour
                 float nx = (x + 0.5f) / w * 2f - 1f;
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
-                bool body = Rounded(nx, ny, 0.82f, 0.70f, 0.18f);
-                bool leftTire = Rounded(nx, ny + 0.88f, 0.62f, 0.16f, 0.08f);
-                bool rightTire = Rounded(nx, ny - 0.88f, 0.62f, 0.16f, 0.08f);
-                bool cabin = Rounded(nx + 0.08f, ny, 0.28f, 0.44f, 0.10f);
-                bool window = Rounded(nx + 0.20f, ny, 0.14f, 0.34f, 0.08f);
-                bool lightL = Ellipse(nx + 0.68f, ny - 0.28f, 0.07f, 0.12f);
-                bool lightR = Ellipse(nx + 0.68f, ny + 0.28f, 0.07f, 0.12f);
-                if (leftTire || rightTire) c = Mathf.Abs(nx) > 0.55f ? well : tire;
-                else if (window) c = glass;
+                bool body = Rounded(nx, ny, 0.86f, 0.82f, 0.20f);
+                bool cabin = Rounded(nx + 0.06f, ny, 0.30f, 0.52f, 0.12f);
+                bool window = Rounded(nx + 0.18f, ny, 0.16f, 0.40f, 0.10f);
+                bool lightL = Ellipse(nx + 0.72f, ny - 0.34f, 0.08f, 0.14f);
+                bool lightR = Ellipse(nx + 0.72f, ny + 0.34f, 0.08f, 0.14f);
+                bool bumper = Rounded(nx + 0.78f, ny, 0.10f, 0.62f, 0.08f);
+                if (window) c = glass;
                 else if (lightL || lightR) c = lamp;
                 else if (cabin) c = roof;
-                else if (body) c = paint;
+                else if (bumper) c = trim;
+                else if (body)
+                {
+                    float shade = 0.88f + 0.12f * (1f - Mathf.Abs(ny));
+                    c = new Color(paint.r * shade, paint.g * shade, paint.b * shade, 1f);
+                }
+
                 pixels[y * w + x] = c;
             }
         }
 
         tex.SetPixels(pixels);
-        tex.Apply();
+        tex.Apply(true);
         return Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), w);
     }
 

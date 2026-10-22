@@ -24,13 +24,13 @@ public class CurlingCar : MonoBehaviour
         Body.sharedMaterial = ice;
 
         var col = gameObject.AddComponent<CapsuleCollider2D>();
-        col.size = new Vector2(0.52f, 0.74f);
+        col.size = new Vector2(0.84f, 0.74f);
         col.sharedMaterial = ice;
 
-        var body = CreateChildSprite("Body", SpriteUtil.Rect(48, 80, color), new Vector3(0.34f, 0.30f, 1f), 10);
-        var glass = CreateChildSprite("Glass", SpriteUtil.Rect(32, 22, new Color(0.55f, 0.85f, 1f, 0.95f)), new Vector3(0.28f, 0.24f, 1f), 11);
+        var body = CreateChildSprite("Body", SpriteUtil.Rect(48, 80, color), new Vector3(0.56f, 0.30f, 1f), 10);
+        var glass = CreateChildSprite("Glass", SpriteUtil.Rect(32, 22, new Color(0.55f, 0.85f, 1f, 0.95f)), new Vector3(0.40f, 0.24f, 1f), 11);
         glass.localPosition = new Vector3(0f, 0.14f, 0f);
-        var stripe = CreateChildSprite("Stripe", SpriteUtil.Rect(40, 10, Color.white), new Vector3(0.28f, 0.18f, 1f), 11);
+        var stripe = CreateChildSprite("Stripe", SpriteUtil.Rect(40, 10, Color.white), new Vector3(0.44f, 0.18f, 1f), 11);
         stripe.localPosition = new Vector3(0f, -0.1f, 0f);
         _ = body;
     }

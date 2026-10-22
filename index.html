@@ -8,7 +8,7 @@
     html, body {
       margin: 0;
       height: 100%;
-      background: #0c1218;
+      background: #2a180c;
       color: #eef3f8;
       font-family: "Segoe UI", sans-serif;
     }
@@ -175,10 +175,10 @@
       { r: 78, points: 50, color: "#f0a202" },
       { r: 36, points: 100, color: "#f6f1e4" },
     ];
-    const FRICTION = 170;
+    const FRICTION = 120;
     const MAX_PULL = 150;
     const MIN_PULL = 22;
-    const MAX_SPEED = 540;
+    const MAX_SPEED = 920;
     const BACK = 0.22;
     const STOP_SPEED = 8;
     const CURL = 120;
@@ -187,11 +187,13 @@
     const COLORS = ["#4cc9f0", "#f72585", "#80b918", "#c77dff", "#ffd166"];
 
     const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d");
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     const stage = document.getElementById("stage");
     const menuEl = document.getElementById("menu");
@@ -284,10 +286,18 @@
       ctx.closePath();
     }
 
+    function shade(hex, t) {
+      const n = hex.replace("#", "");
+      const r = parseInt(n.slice(0, 2), 16);
+      const g = parseInt(n.slice(2, 4), 16);
+      const b = parseInt(n.slice(4, 6), 16);
+      return `rgb(${(r * t) | 0},${(g * t) | 0},${(b * t) | 0})`;
+    }
+
     function spawnCar() {
       let x = SPAWN.x;
       for (let i = 0; i < 7; i++) {
-        const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 48);
+        const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 64);
         const blocked = cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < c.r * 2 + 8);
         if (!blocked) { x = tx; break; }
       }
@@ -298,7 +308,7 @@
         homeY: SPAWN.y,
         vx: 0,
         vy: 0,
-        r: 16,
+        r: 28,
         color: COLORS[thrown % COLORS.length],
         angle: -Math.PI / 2,
         curl: 0,
@@ -573,18 +583,31 @@
     }
 
     function drawRink() {
-      ctx.fillStyle = "#101820";
+      ctx.fillStyle = "#24140a";
       ctx.fillRect(0, 0, W, H);
       roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
-      const g = ctx.createLinearGradient(0, INSET, 0, H - INSET);
-      g.addColorStop(0, "#3e546b");
-      g.addColorStop(1, "#2a3c4e");
-      ctx.fillStyle = g;
-      ctx.fill();
       ctx.save();
       ctx.clip();
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
-      ctx.lineWidth = 2;
+      const planks = 7;
+      const plankW = (W - INSET * 2) / planks;
+      for (let i = 0; i < planks; i++) {
+        const x = INSET + i * plankW;
+        const tone = 0.70 + 0.08 * (i % 3);
+        const g = ctx.createLinearGradient(x, 0, x + plankW, 0);
+        g.addColorStop(0, `rgb(${82 * tone | 0},${50 * tone | 0},${22 * tone | 0})`);
+        g.addColorStop(0.5, `rgb(${110 * tone | 0},${68 * tone | 0},${30 * tone | 0})`);
+        g.addColorStop(1, `rgb(${78 * tone | 0},${46 * tone | 0},${20 * tone | 0})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(x, INSET, plankW + 1, H - INSET * 2);
+        ctx.strokeStyle = "rgba(40,22,10,0.55)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, INSET);
+        ctx.lineTo(x + 0.5, H - INSET);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(255,220,160,0.08)";
+      ctx.lineWidth = 1.5;
       for (const s of scratches) {
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
@@ -593,7 +616,7 @@
       }
       ctx.restore();
       roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
-      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.strokeStyle = "rgba(255, 210, 150, 0.28)";
       ctx.lineWidth = 3;
       ctx.stroke();
     }
@@ -648,27 +671,26 @@
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
-      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fillStyle = "rgba(0,0,0,0.30)";
       ctx.beginPath();
-      ctx.ellipse(0, 8, 14, 6, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 10, 20, 10, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#161616";
-      ctx.fillRect(-13, -14, 7, 4);
-      ctx.fillRect(5, -14, 7, 4);
-      ctx.fillRect(-13, 10, 7, 4);
-      ctx.fillRect(5, 10, 7, 4);
-      roundRect(-17, -11, 34, 22, 6);
-      ctx.fillStyle = c.color;
+      // Enlemesine iki araba kalınlığı; teker yok.
+      roundRect(-20, -18, 40, 36, 10);
+      const body = ctx.createLinearGradient(0, -18, 0, 18);
+      body.addColorStop(0, c.color);
+      body.addColorStop(1, shade(c.color, 0.72));
+      ctx.fillStyle = body;
       ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.4)";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 2;
       ctx.stroke();
-      roundRect(2, -7, 8, 14, 2);
+      roundRect(2, -12, 10, 24, 4);
       ctx.fillStyle = "rgba(232,246,255,0.95)";
       ctx.fill();
       ctx.fillStyle = "#fff3bf";
-      ctx.fillRect(14, -7, 3, 4);
-      ctx.fillRect(14, 3, 3, 4);
+      ctx.fillRect(16, -12, 4, 6);
+      ctx.fillRect(16, 6, 4, 6);
       ctx.restore();
 
       if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
