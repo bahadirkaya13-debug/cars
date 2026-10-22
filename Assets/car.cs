@@ -5,11 +5,10 @@ using UnityEngine.InputSystem;
 public class car : MonoBehaviour
 {
     // Web (index.html) ile aynı ölçek: 1 birim ≈ 100 px
-    // Orta çekiş ≈ halka merkezi; tam güç hafif geçer.
-    const float Friction = 1.85f;
+    const float Friction = 1.60f;
     const float MaxPull = 1.50f;
     const float MinPull = 0.22f;
-    const float MaxSpeed = 5.70f;
+    const float MaxSpeed = 7.40f;
     const float Back = 0.22f;
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
@@ -18,14 +17,15 @@ public class car : MonoBehaviour
     const float CarWide = 0.96f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
-    const int CarsPerRound = 5;
+    const int CarsPerSide = 4;
     const string BestKey = "halka-arabalari-best";
 
     Vector2 House = new Vector2(0f, 0.35f);
     Vector2 Spawn = new Vector2(0f, -2.55f);
     readonly float[] RingRadius = { 0.98f, 0.72f, 0.50f, 0.18f };
     float laneHalf = 1.38f;
-    static readonly int[] RingPoints = { 1, 2, 3, 4 };
+    // Dış → iç: 50, 100, 200, 400
+    static readonly int[] RingPoints = { 50, 100, 200, 400 };
     static readonly Color[] RingColors =
     {
         new Color(0.12f, 0.45f, 0.86f),
@@ -33,14 +33,19 @@ public class car : MonoBehaviour
         new Color(0.82f, 0.16f, 0.16f),
         new Color(0.10f, 0.42f, 0.82f),
     };
-    static readonly Color[] CarColors =
+    static readonly Color[] PlayerColors =
     {
         new Color(0.86f, 0.18f, 0.18f),
-        new Color(0.16f, 0.42f, 0.86f),
-        new Color(0.96f, 0.82f, 0.12f),
-        new Color(0.18f, 0.62f, 0.16f),
         new Color(0.95f, 0.48f, 0.10f),
+        new Color(0.96f, 0.82f, 0.12f),
+        new Color(0.90f, 0.30f, 0.45f),
+    };
+    static readonly Color[] BotColors =
+    {
+        new Color(0.16f, 0.42f, 0.86f),
         new Color(0.30f, 0.82f, 0.84f),
+        new Color(0.35f, 0.55f, 0.95f),
+        new Color(0.18f, 0.62f, 0.80f),
     };
 
     enum Phase { Aim, Slide, Over }
@@ -54,6 +59,7 @@ public class car : MonoBehaviour
         public float curl;
         public float angle;
         public bool launched;
+        public bool bot;
     }
 
     Camera cam;
@@ -63,16 +69,19 @@ public class car : MonoBehaviour
     Texture2D boardTex;
     Texture2D pixel;
     Sprite circleSprite;
-    Sprite[] carSprites;
+    Sprite[] playerSprites;
+    Sprite[] botSprites;
     readonly List<Stone> stones = new List<Stone>();
     readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
     readonly List<Vector2> preview = new List<Vector2>();
     Stone current;
     Phase phase;
-    int thrown;
+    int playerThrown;
+    int botThrown;
+    bool botTurn;
     int best;
     float calm;
-    float devamUntil;
+    float botThinkAt;
     bool pulling;
     Vector2 pressPos;
     Vector2 pull;
@@ -103,9 +112,12 @@ public class car : MonoBehaviour
         QualitySettings.vSyncCount = 1;
         Screen.orientation = ScreenOrientation.Portrait;
         circleSprite = MakeCircleSprite();
-        carSprites = new Sprite[CarColors.Length];
-        for (int i = 0; i < CarColors.Length; i++)
-            carSprites[i] = MakeCarSprite(CarColors[i]);
+        playerSprites = new Sprite[PlayerColors.Length];
+        for (int i = 0; i < PlayerColors.Length; i++)
+            playerSprites[i] = MakeCarSprite(PlayerColors[i]);
+        botSprites = new Sprite[BotColors.Length];
+        for (int i = 0; i < BotColors.Length; i++)
+            botSprites[i] = MakeCarSprite(BotColors[i]);
         LoadTable();
         SetupCamera();
         BuildRink();
@@ -235,18 +247,20 @@ public class car : MonoBehaviour
         }
 
         stones.Clear();
-        thrown = 0;
+        playerThrown = 0;
+        botThrown = 0;
+        botTurn = false;
         calm = 0f;
         pulling = false;
         pull = Vector2.zero;
-        devamUntil = 0f;
+        botThinkAt = 0f;
         reason = "";
         phase = Phase.Aim;
         HideDots();
-        SpawnStone();
+        SpawnStone(false);
     }
 
-    void SpawnStone()
+    void SpawnStone(bool forBot)
     {
         float x = Spawn.x;
         for (int i = 0; i < 7; i++)
@@ -269,22 +283,27 @@ public class car : MonoBehaviour
             }
         }
 
+        int idx = forBot ? botThrown : playerThrown;
+        var sprites = forBot ? botSprites : playerSprites;
         var stone = new Stone
         {
             pos = new Vector2(x, Spawn.y),
             home = new Vector2(x, Spawn.y),
             angle = Mathf.PI * 0.5f,
             launched = false,
+            bot = forBot,
         };
-        stone.view = new GameObject("Araba");
+        stone.view = new GameObject(forBot ? "BotAraba" : "Araba");
         stone.view.transform.SetParent(transform, false);
         var body = stone.view.AddComponent<SpriteRenderer>();
-        body.sprite = carSprites[thrown % carSprites.Length];
+        body.sprite = sprites[idx % sprites.Length];
         body.color = Color.white;
         body.sortingOrder = 12;
         stones.Add(stone);
         current = stone;
+        botTurn = forBot;
         phase = Phase.Aim;
+        if (forBot) botThinkAt = Time.time + 0.75f;
     }
 
     void Update()
@@ -297,8 +316,12 @@ public class car : MonoBehaviour
             return;
         }
 
-        ReadMouse();
-        if (phase == Phase.Aim && current != null) AimStep();
+        if (phase == Phase.Aim && botTurn && current != null && Time.time >= botThinkAt)
+            BotShoot();
+        else if (!botTurn)
+            ReadMouse();
+
+        if (phase == Phase.Aim && current != null && !botTurn) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
 
         SyncStones();
@@ -307,7 +330,7 @@ public class car : MonoBehaviour
 
     void ReadMouse()
     {
-        if (phase != Phase.Aim || current == null) return;
+        if (phase != Phase.Aim || current == null || botTurn) return;
         if (!ReadPointer(out bool down, out bool held, out bool up, out Vector2 screen)) return;
 
         if (down)
@@ -519,7 +542,7 @@ public class car : MonoBehaviour
         b.pos += n * overlap * 0.5f;
         float rv = Vector2.Dot(b.vel - a.vel, n);
         if (rv >= 0f) return;
-        float j = -(1f + 0.88f) * rv * 0.5f;
+        float j = -(1f + 0.96f) * rv * 0.5f;
         a.vel -= j * n;
         b.vel += j * n;
         a.curl *= 0.35f;
@@ -528,30 +551,91 @@ public class car : MonoBehaviour
 
     void Settle()
     {
-        bool inside = PointsAt(current.pos) > 0;
-        thrown += 1;
-        if (!inside)
+        int knocked = RemoveOutCars();
+        if (current != null && current.bot) botThrown += 1;
+        else playerThrown += 1;
+
+        if (playerThrown >= CarsPerSide && botThrown >= CarsPerSide)
         {
-            End("Araba halkanın dışında durdu.");
+            int you = TeamScore(false);
+            int bot = TeamScore(true);
+            if (you > bot) End("Sen kazandın!  " + you + " - " + bot);
+            else if (bot > you) End("Bot kazandı.  " + you + " - " + bot);
+            else End("Berabere.  " + you + " - " + bot);
             return;
         }
 
-        if (thrown >= CarsPerRound)
+        bool nextBot = !botTurn;
+        if (nextBot && botThrown >= CarsPerSide) nextBot = false;
+        if (!nextBot && playerThrown >= CarsPerSide) nextBot = true;
+        SpawnStone(nextBot);
+    }
+
+    int RemoveOutCars()
+    {
+        int removed = 0;
+        for (int i = stones.Count - 1; i >= 0; i--)
         {
-            End("Beş araba da halkada.");
-            return;
+            Stone s = stones[i];
+            if (!s.launched) continue;
+            if (s.vel.magnitude > StopSpeed) continue;
+            if (PointsAt(s.pos) > 0) continue;
+            if (s.view != null) Destroy(s.view);
+            stones.RemoveAt(i);
+            removed++;
         }
 
-        devamUntil = Time.time + 0.9f;
-        SpawnStone();
+        return removed;
+    }
+
+    void BotShoot()
+    {
+        if (current == null || phase != Phase.Aim || !botTurn) return;
+        Vector2 target = House + Random.insideUnitCircle * 0.18f;
+        Stone hit = null;
+        float bestD = 999f;
+        for (int i = 0; i < stones.Count; i++)
+        {
+            Stone s = stones[i];
+            if (s.bot || !s.launched || s == current) continue;
+            float d = Vector2.Distance(s.pos, House);
+            if (d <= RingRadius[0] && d < bestD)
+            {
+                bestD = d;
+                hit = s;
+            }
+        }
+
+        if (hit != null && Random.value < 0.7f)
+        {
+            Vector2 outDir = (hit.pos - House).normalized;
+            if (outDir.sqrMagnitude < 0.0001f) outDir = Vector2.right;
+            target = hit.pos + outDir * (CarRadius * 0.35f);
+        }
+
+        Vector2 delta = target - current.home;
+        float dist = Mathf.Max(0.4f, delta.magnitude);
+        float need = Mathf.Sqrt(2f * Friction * dist) * Random.Range(0.92f, 1.12f);
+        float t = Mathf.Clamp(need / MaxSpeed, 0.38f, 0.98f);
+        Vector2 dir = delta.normalized;
+        Vector2 drag = -dir * (t * MaxPull);
+        drag.x += Random.Range(-0.10f, 0.10f) * MaxPull;
+        ApplyShot(current, drag);
+        current.launched = true;
+        phase = Phase.Slide;
+        calm = 0f;
+        preview.Clear();
+        pull = Vector2.zero;
+        pulling = false;
     }
 
     void End(string why)
     {
         phase = Phase.Over;
         pulling = false;
+        botTurn = false;
         reason = why;
-        int score = Score();
+        int score = TeamScore(false);
         if (score > best)
         {
             best = score;
@@ -570,19 +654,21 @@ public class car : MonoBehaviour
         return 0;
     }
 
-    int Score()
+    int TeamScore(bool bot)
     {
         int sum = 0;
         for (int i = 0; i < stones.Count; i++)
         {
             Stone stone = stones[i];
-            if (!stone.launched) continue;
+            if (!stone.launched || stone.bot != bot) continue;
             if (stone.vel.magnitude > StopSpeed) continue;
             sum += PointsAt(stone.pos);
         }
 
         return sum;
     }
+
+    int Score() => TeamScore(false);
 
     void SyncStones()
     {
@@ -680,7 +766,7 @@ public class car : MonoBehaviour
     {
         Rect safe = SafeScreen();
         float w = Mathf.Min(420f, safe.width - 24f);
-        float h = 220f;
+        float h = 260f;
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
@@ -696,24 +782,32 @@ public class car : MonoBehaviour
     void DrawHud()
     {
         Rect safe = SafeScreen();
-        int n = phase == Phase.Over ? thrown : thrown + 1;
-        n = Mathf.Clamp(n, 1, CarsPerRound);
-        float gap = 8f;
-        float pad = 10f;
-        float h = 28f;
+        int turn = Mathf.Clamp(Mathf.Max(playerThrown, botThrown) + (phase == Phase.Over ? 0 : 1), 1, CarsPerSide);
+        float gap = 6f;
+        float pad = 8f;
+        float h = 26f;
         float y = safe.y + 8f;
-        float inner = safe.width - pad * 2f - gap;
-        float leftW = inner * 0.46f;
-        float rightW = inner - leftW;
+        float inner = safe.width - pad * 2f - gap * 2f;
+        float w = inner / 3f;
         float x = safe.x + pad;
-        DrawPill(new Rect(x, y, leftW, h), "Araba " + n + "/" + CarsPerRound);
-        DrawPill(new Rect(x + leftW + gap, y, rightW, h), "Skor " + Score());
-        if (Time.time < devamUntil)
-            DrawPill(new Rect(safe.x + (safe.width - 90f) * 0.5f, y + h + 6f, 90f, h), "Devam");
+        DrawPill(new Rect(x, y, w, h), "Sen " + TeamScore(false));
+        DrawPill(new Rect(x + w + gap, y, w, h), "Bot " + TeamScore(true));
+        DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), "Tur " + turn + "/" + CarsPerSide);
+        string turnHint = botTurn ? "Bot oynuyor…" : "Senin sıran";
+        if (phase == Phase.Slide) turnHint = "Kayıyor…";
+        if (phase != Phase.Over)
+            DrawPill(new Rect(safe.x + (safe.width - 140f) * 0.5f, y + h + 6f, 140f, h), turnHint);
     }
 
     void DrawBar()
     {
+        if (botTurn)
+        {
+            Rect safe = SafeScreen();
+            GUI.Label(new Rect(safe.x, safe.yMax - 48f, safe.width, 22f), "Bot nişan alıyor…", hintStyle);
+            return;
+        }
+
         float len = pull.magnitude;
         int band = phase == Phase.Aim && pulling ? PowerBand(len) : 0;
         string hint = "Geri çek, bırak";
@@ -755,8 +849,8 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Tur bitti", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 52f, card.width - 32f, 28f), reason, hintStyle);
-        GUI.Label(new Rect(card.x, card.y + 82f, card.width, 32f), "Skor " + Score(), label);
-        GUI.Label(new Rect(card.x, card.y + 110f, card.width, 24f), "En iyi " + best, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 88f, card.width, 28f), "Sen " + TeamScore(false) + "   Bot " + TeamScore(true), label);
+        GUI.Label(new Rect(card.x, card.y + 120f, card.width, 24f), "Rekor " + best, hintStyle);
         Rect button = AgainRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(button, pixel);

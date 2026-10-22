@@ -134,9 +134,9 @@
   <div class="stage" id="stage">
     <canvas id="c" width="720" height="1280"></canvas>
     <header class="top">
-      <span>Halka Arabaları</span>
-      <span id="car">Araba 1/5</span>
-      <span id="score">Skor 0</span>
+      <span id="you">Sen 0</span>
+      <span id="car">Tur 1/4</span>
+      <span id="score">Bot 0</span>
     </header>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
@@ -148,13 +148,13 @@
       <div class="card">
         <h1>Halka Arabaları</h1>
         <ol>
-          <li>Arabayı geri çek, bırak. Yan çekersen sona doğru kıvrılır.</li>
-          <li>Ortaya yakın duran 4 / 3 / 2 / 1 puan alır.</li>
-          <li>Halkanın içinde durursan sonraki arabayı atarsın.</li>
-          <li>Dışarıda durursa tur biter.</li>
+          <li>Sen kırmızı, bot mavi — sıra sıra atarsınız.</li>
+          <li>Puan: dış 50 → içe 100 / 200 / 400. Rekor senin en iyi skorun.</li>
+          <li>Rakibin arabasını vurup halkadan çıkarabilirsin.</li>
+          <li>Halka dışında kalan arabalar silinir.</li>
         </ol>
         <p id="menu-best"></p>
-        <button id="start" type="button">Başla</button>
+        <button id="start" type="button">Bota karşı oyna</button>
       </div>
     </section>
     <section class="panel hidden" id="over">
@@ -175,23 +175,23 @@
     const HOUSE = { x: 360, y: 280 };
     const SPAWN = { x: 360, y: 1080 };
     const RINGS = [
-      { r: 168, points: 1, color: "#1f73db" },
-      { r: 120, points: 2, color: "#b87538" },
-      { r: 78, points: 3, color: "#d12929" },
-      { r: 36, points: 4, color: "#1a6bd1" },
+      { r: 168, points: 50, color: "#1f73db" },
+      { r: 120, points: 100, color: "#b87538" },
+      { r: 78, points: 200, color: "#d12929" },
+      { r: 36, points: 400, color: "#1a6bd1" },
     ];
-    // Unity ile aynı: orta çekiş ≈ merkez, tam güç hafif geçer.
-    const FRICTION = 185;
+    const FRICTION = 160;
     const MAX_PULL = 150;
     const MIN_PULL = 22;
-    const MAX_SPEED = 570;
+    const MAX_SPEED = 740;
     const BACK = 0.22;
     const STOP_SPEED = 8;
     const CURL = 70;
     const POWER_STEPS = 5;
-    const CARS_PER_ROUND = 5;
+    const CARS_PER_SIDE = 4;
     const BEST_KEY = "halka-arabalari-best";
-    const COLORS = ["#db2e2e", "#296bdb", "#f5d11f", "#2e9e29", "#f27a1a", "#4cd1d6"];
+    const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73"];
+    const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
     const CAR_LEN = 82;
     const CAR_WIDE = 48;
 
@@ -212,6 +212,7 @@
     const powerCells = powerEl ? Array.from(powerEl.querySelectorAll("span")) : [];
     const hintEl = document.getElementById("hint");
     const scoreEl = document.getElementById("score");
+    const youEl = document.getElementById("you");
     const carEl = document.getElementById("car");
     const reasonEl = document.getElementById("reason");
     const finalEl = document.getElementById("final");
@@ -227,12 +228,15 @@
 
     let best = 0;
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
-    menuBestEl.textContent = best > 0 ? "En iyi " + best : "İlk turun seni bekliyor.";
+    menuBestEl.textContent = best > 0 ? "Rekor " + best : "Bota karşı ilk turun seni bekliyor.";
 
     let cars = [];
     let current = null;
     let state = "menu";
-    let thrown = 0;
+    let playerThrown = 0;
+    let botThrown = 0;
+    let botTurn = false;
+    let botThinkAt = 0;
     let calm = 0;
     let actx = null;
     let lastHit = 0;
@@ -249,15 +253,17 @@
       return 0;
     }
 
-    function totalScore() {
+    function teamScore(isBot) {
       let s = 0;
       for (const c of cars) {
-        if (!c.launched) continue;
+        if (!c.launched || c.bot !== isBot) continue;
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
         s += pointsAt(c.x, c.y);
       }
       return s;
     }
+
+    function totalScore() { return teamScore(false); }
 
     function boardLimits(r) {
       return {
@@ -304,13 +310,15 @@
       return `rgb(${clamp((r * t) | 0, 0, 255)},${clamp((g * t) | 0, 0, 255)},${clamp((b * t) | 0, 0, 255)})`;
     }
 
-    function spawnCar() {
+    function spawnCar(forBot) {
       let x = SPAWN.x;
       for (let i = 0; i < 7; i++) {
         const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 64);
         const blocked = cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < c.r * 2 + 8);
         if (!blocked) { x = tx; break; }
       }
+      const idx = forBot ? botThrown : playerThrown;
+      const palette = forBot ? BOT_COLORS : PLAYER_COLORS;
       const car = {
         x: x,
         y: SPAWN.y,
@@ -319,19 +327,24 @@
         vx: 0,
         vy: 0,
         r: 26,
-        color: COLORS[thrown % COLORS.length],
+        color: palette[idx % palette.length],
         angle: -Math.PI / 2,
         curl: 0,
         launched: false,
+        bot: !!forBot,
       };
       cars.push(car);
       current = car;
+      botTurn = !!forBot;
       state = "aim";
+      if (forBot) botThinkAt = performance.now() + 750;
     }
 
     function startRound() {
       cars = [];
-      thrown = 0;
+      playerThrown = 0;
+      botThrown = 0;
+      botTurn = false;
       calm = 0;
       pops.length = 0;
       pull.active = false;
@@ -340,37 +353,96 @@
       menuEl.classList.add("hidden");
       overEl.classList.add("hidden");
       try { if (actx && actx.state === "suspended") actx.resume(); } catch (e) { /* yoksay */ }
-      spawnCar();
+      spawnCar(false);
     }
 
     function showOver(reason, win) {
       state = "over";
       pull.active = false;
-      const s = totalScore();
+      botTurn = false;
+      const s = teamScore(false);
+      const b = teamScore(true);
       if (s > best) {
         best = s;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
       reasonEl.textContent = reason;
-      finalEl.textContent = "Skor " + s;
-      bestOutEl.textContent = "En iyi " + best;
+      finalEl.textContent = "Sen " + s + "   Bot " + b;
+      bestOutEl.textContent = "Rekor " + best;
       overEl.classList.remove("hidden");
       tone(win ? 560 : 120, 0.2);
     }
 
+    function removeOutCars() {
+      let removed = 0;
+      for (let i = cars.length - 1; i >= 0; i--) {
+        const c = cars[i];
+        if (!c.launched) continue;
+        if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
+        if (pointsAt(c.x, c.y) > 0) continue;
+        cars.splice(i, 1);
+        removed++;
+      }
+      if (removed) pops.push({ text: "Çıktı ×" + removed, x: W / 2, y: 90, life: 0.9 });
+      return removed;
+    }
+
     function settle() {
-      const inside = pointsAt(current.x, current.y) > 0;
-      thrown += 1;
-      if (!inside) {
-        showOver("Araba halkanın dışında durdu.", false);
+      removeOutCars();
+      if (current && current.bot) botThrown += 1;
+      else playerThrown += 1;
+
+      if (playerThrown >= CARS_PER_SIDE && botThrown >= CARS_PER_SIDE) {
+        const you = teamScore(false);
+        const bot = teamScore(true);
+        if (you > bot) showOver("Sen kazandın!  " + you + " - " + bot, true);
+        else if (bot > you) showOver("Bot kazandı.  " + you + " - " + bot, false);
+        else showOver("Berabere.  " + you + " - " + bot, false);
         return;
       }
-      if (thrown >= CARS_PER_ROUND) {
-        showOver("Beş araba da halkada.", true);
-        return;
+
+      let nextBot = !botTurn;
+      if (nextBot && botThrown >= CARS_PER_SIDE) nextBot = false;
+      if (!nextBot && playerThrown >= CARS_PER_SIDE) nextBot = true;
+      spawnCar(nextBot);
+    }
+
+    function botShoot() {
+      if (!current || state !== "aim" || !botTurn) return;
+      let target = { x: HOUSE.x + (Math.random() - 0.5) * 36, y: HOUSE.y + (Math.random() - 0.5) * 36 };
+      let hit = null;
+      let bestD = 1e9;
+      for (const c of cars) {
+        if (c.bot || !c.launched || c === current) continue;
+        const d = Math.hypot(c.x - HOUSE.x, c.y - HOUSE.y);
+        if (d <= RINGS[0].r && d < bestD) { bestD = d; hit = c; }
       }
-      pops.push({ text: "Devam", x: W / 2, y: 86, life: 0.95 });
-      spawnCar();
+      if (hit && Math.random() < 0.7) {
+        let ox = hit.x - HOUSE.x;
+        let oy = hit.y - HOUSE.y;
+        const ol = Math.hypot(ox, oy) || 1;
+        target = { x: hit.x + (ox / ol) * 10, y: hit.y + (oy / ol) * 10 };
+      }
+      const dx = target.x - current.homeX;
+      const dy = target.y - current.homeY;
+      const dist = Math.max(40, Math.hypot(dx, dy));
+      const need = Math.sqrt(2 * FRICTION * dist) * (0.92 + Math.random() * 0.2);
+      const t = clamp(need / MAX_SPEED, 0.38, 0.98);
+      const len = Math.hypot(dx, dy) || 1;
+      const px = -(dx / len) * t * MAX_PULL + (Math.random() - 0.5) * 0.2 * MAX_PULL;
+      const py = -(dy / len) * t * MAX_PULL;
+      const shot = shotFromPull(current.x, current.y, px, py);
+      current.vx = shot.vx;
+      current.vy = shot.vy;
+      current.curl = shot.curl;
+      current.angle = Math.atan2(current.vy, current.vx);
+      current.launched = true;
+      state = "slide";
+      calm = 0;
+      pull.active = false;
+      pull.x = 0;
+      pull.y = 0;
+      tone(150, 0.1);
     }
 
     function canvasPoint(e) {
@@ -382,7 +454,7 @@
     }
 
     function onDown(e) {
-      if (state !== "aim" || !current) return;
+      if (state !== "aim" || !current || botTurn) return;
       pull.active = true;
       const p = canvasPoint(e);
       pull.sx = p.x;
@@ -401,7 +473,7 @@
     function launch() {
       const len = Math.hypot(pull.x, pull.y);
       pull.active = false;
-      if (!current || state !== "aim") return;
+      if (!current || state !== "aim" || botTurn) return;
       if (len < MIN_PULL) {
         pull.x = 0;
         pull.y = 0;
@@ -485,7 +557,7 @@
           tone(380, 0.05);
         }
       }
-      const j = -(1 + 0.88) * rv / 2;
+      const j = -(1 + 0.96) * rv / 2;
       a.vx -= j * nx;
       a.vy -= j * ny;
       b.vx += j * nx;
@@ -565,7 +637,8 @@
     }
 
     function update(dt) {
-      if (state === "aim" && current) applyAim();
+      if (state === "aim" && botTurn && performance.now() >= botThinkAt) botShoot();
+      else if (state === "aim" && current && !botTurn) applyAim();
       else if (state === "slide") {
         stepPhysics(dt);
         const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP_SPEED);
@@ -653,10 +726,10 @@
       ctx.fillStyle = "#1b2430";
       ctx.fill();
       const labels = [
-        { text: "1", x: HOUSE.x - 144, y: HOUSE.y, dark: false },
-        { text: "2", x: HOUSE.x - 98, y: HOUSE.y, dark: false },
-        { text: "3", x: HOUSE.x - 56, y: HOUSE.y, dark: false },
-        { text: "4", x: HOUSE.x, y: HOUSE.y - 14, dark: true },
+        { text: "50", x: HOUSE.x - 144, y: HOUSE.y, dark: false },
+        { text: "100", x: HOUSE.x - 98, y: HOUSE.y, dark: false },
+        { text: "200", x: HOUSE.x - 56, y: HOUSE.y, dark: false },
+        { text: "400", x: HOUSE.x, y: HOUSE.y - 14, dark: true },
       ];
       ctx.font = "700 14px Segoe UI, sans-serif";
       ctx.textAlign = "center";
@@ -732,7 +805,7 @@
     function drawAim() {
       const path = previewPath();
       if (!path) {
-        if (thrown === 0 && !pull.active) {
+        if (playerThrown === 0 && botThrown === 0 && !pull.active && !botTurn) {
           ctx.font = "700 15px Segoe UI, sans-serif";
           ctx.textAlign = "center";
           ctx.fillStyle = "#ffffff";
@@ -785,15 +858,18 @@
     }
 
     function syncHud() {
-      scoreEl.textContent = "Skor " + totalScore();
-      const n = state === "over" ? thrown : thrown + 1;
-      carEl.textContent = "Araba " + clamp(n, 1, CARS_PER_ROUND) + "/" + CARS_PER_ROUND;
+      youEl.textContent = "Sen " + teamScore(false);
+      scoreEl.textContent = "Bot " + teamScore(true);
+      const turn = clamp(Math.max(playerThrown, botThrown) + (state === "over" ? 0 : 1), 1, CARS_PER_SIDE);
+      carEl.textContent = "Tur " + turn + "/" + CARS_PER_SIDE;
       const len = Math.hypot(pull.x, pull.y);
-      const band = state === "aim" && pull.active ? powerBand(len) : 0;
+      const band = state === "aim" && pull.active && !botTurn ? powerBand(len) : 0;
       const bandHints = ["Geri çek, bırak", "Hafif", "Az", "Orta", "Güçlü", "Tam güç"];
       let hint = bandHints[0];
-      if (state === "slide") hint = "Kayıyor…";
+      if (botTurn && state === "aim") hint = "Bot nişan alıyor…";
+      else if (state === "slide") hint = "Kayıyor…";
       else if (band > 0) hint = bandHints[band];
+      else if (!botTurn && state === "aim") hint = "Senin sıran — geri çek";
       hintEl.textContent = hint;
       const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
       for (let i = 0; i < powerCells.length; i++) {
@@ -802,16 +878,16 @@
         powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
       }
       bottomEl.hidden = state === "menu" || state === "over";
-      stage.dataset.state = state;
+      stage.dataset.state = botTurn ? "bot" : state;
     }
 
     function draw() {
       drawRink();
       drawHouse();
       if (state === "menu") {
-        drawCar({ x: SPAWN.x, y: SPAWN.y, angle: -Math.PI / 2, color: COLORS[0], vx: 0, vy: 0, launched: false });
+        drawCar({ x: SPAWN.x, y: SPAWN.y, angle: -Math.PI / 2, color: PLAYER_COLORS[0], vx: 0, vy: 0, launched: false });
       } else {
-        if (state === "aim" && current) drawAim();
+        if (state === "aim" && current && !botTurn) drawAim();
         for (const c of cars) drawCar(c);
         drawPops();
       }
