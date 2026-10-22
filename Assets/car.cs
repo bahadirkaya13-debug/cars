@@ -4,16 +4,17 @@ using UnityEngine.InputSystem;
 
 public class car : MonoBehaviour
 {
-    const float Friction = 1.20f;
+    // Web (index.html) ile aynı ölçek: 1 birim ≈ 100 px
+    const float Friction = 1.00f;
     const float MaxPull = 1.50f;
     const float MinPull = 0.22f;
-    const float MaxSpeed = 9.20f;
+    const float MaxSpeed = 11.80f;
     const float Back = 0.22f;
     const float StopSpeed = 0.08f;
     const float CurlPower = 1.20f;
-    const float CarRadius = 0.38f;
-    const float CarLen = 0.50f;
-    const float CarWide = 1.12f;
+    const float CarRadius = 0.42f;
+    const float CarLen = 0.52f;
+    const float CarWide = 1.30f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int CarsPerRound = 5;
@@ -918,10 +919,11 @@ public class car : MonoBehaviour
         return tex;
     }
 
+    // Üstten görünüm: gövde + cam + far; tekerlek yok.
     static Sprite MakeCarSprite(Color paint)
     {
         const int w = 256;
-        const int h = 192;
+        const int h = 220;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
         tex.filterMode = FilterMode.Trilinear;
         tex.anisoLevel = 8;
@@ -937,19 +939,19 @@ public class car : MonoBehaviour
                 float nx = (x + 0.5f) / w * 2f - 1f;
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
-                bool body = Rounded(nx, ny, 0.86f, 0.82f, 0.20f);
-                bool cabin = Rounded(nx + 0.06f, ny, 0.30f, 0.52f, 0.12f);
-                bool window = Rounded(nx + 0.18f, ny, 0.16f, 0.40f, 0.10f);
-                bool lightL = Ellipse(nx + 0.72f, ny - 0.34f, 0.08f, 0.14f);
-                bool lightR = Ellipse(nx + 0.72f, ny + 0.34f, 0.08f, 0.14f);
-                bool bumper = Rounded(nx + 0.78f, ny, 0.10f, 0.62f, 0.08f);
+                bool body = Rounded(nx, ny, 0.88f, 0.90f, 0.22f);
+                bool cabin = Rounded(nx + 0.04f, ny, 0.28f, 0.58f, 0.12f);
+                bool window = Rounded(nx + 0.16f, ny, 0.15f, 0.44f, 0.10f);
+                bool lightL = Ellipse(nx + 0.74f, ny - 0.38f, 0.08f, 0.15f);
+                bool lightR = Ellipse(nx + 0.74f, ny + 0.38f, 0.08f, 0.15f);
+                bool bumper = Rounded(nx + 0.80f, ny, 0.09f, 0.70f, 0.08f);
                 if (window) c = glass;
                 else if (lightL || lightR) c = lamp;
                 else if (cabin) c = roof;
                 else if (bumper) c = trim;
                 else if (body)
                 {
-                    float shade = 0.88f + 0.12f * (1f - Mathf.Abs(ny));
+                    float shade = 0.86f + 0.14f * (1f - Mathf.Abs(ny));
                     c = new Color(paint.r * shade, paint.g * shade, paint.b * shade, 1f);
                 }
 

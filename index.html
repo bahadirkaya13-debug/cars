@@ -67,15 +67,17 @@
     .power {
       width: min(72%, 320px);
       height: 16px;
-      border-radius: 999px;
-      background: #0e1520;
-      border: 2px solid rgba(255, 255, 255, 0.22);
-      overflow: hidden;
+      display: flex;
+      gap: 4px;
     }
-    .power > div {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, #3ddc97, #f4d35e 62%, #ee6c4d);
+    .power span {
+      flex: 1;
+      border-radius: 4px;
+      background: rgba(18, 10, 5, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .power span.on {
+      border-color: transparent;
     }
     .panel {
       position: absolute;
@@ -137,7 +139,9 @@
       <span id="score">Skor 0</span>
     </header>
     <footer class="bottom" id="bottom" hidden>
-      <div class="power" aria-hidden="true"><div id="fill"></div></div>
+      <div class="power" id="power" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
       <p id="hint">Geri çek ve bırak</p>
     </footer>
     <section class="panel" id="menu">
@@ -145,7 +149,7 @@
         <h1>Halka Arabaları</h1>
         <ol>
           <li>Arabayı geri çek, bırak. Yan çekersen sona doğru kıvrılır.</li>
-          <li>Ortaya yakın duran daha çok puan alır.</li>
+          <li>Ortaya yakın duran 4 / 3 / 2 / 1 puan alır.</li>
           <li>Halkanın içinde durursan sonraki arabayı atarsın.</li>
           <li>Dışarıda durursa tur biter.</li>
         </ol>
@@ -167,24 +171,28 @@
     const W = 720;
     const H = 1280;
     const INSET = 24;
+    // Unity car.cs ile aynı kurallar (1 birim ≈ 100 px)
     const HOUSE = { x: 360, y: 280 };
     const SPAWN = { x: 360, y: 1080 };
     const RINGS = [
-      { r: 168, points: 10, color: "#34506a" },
-      { r: 120, points: 25, color: "#e15a3a" },
-      { r: 78, points: 50, color: "#f0a202" },
-      { r: 36, points: 100, color: "#f6f1e4" },
+      { r: 168, points: 1, color: "#1f73db" },
+      { r: 120, points: 2, color: "#b87538" },
+      { r: 78, points: 3, color: "#d12929" },
+      { r: 36, points: 4, color: "#1a6bd1" },
     ];
-    const FRICTION = 120;
+    const FRICTION = 100;
     const MAX_PULL = 150;
     const MIN_PULL = 22;
-    const MAX_SPEED = 920;
+    const MAX_SPEED = 1180;
     const BACK = 0.22;
     const STOP_SPEED = 8;
     const CURL = 120;
+    const POWER_STEPS = 5;
     const CARS_PER_ROUND = 5;
     const BEST_KEY = "halka-arabalari-best";
-    const COLORS = ["#4cc9f0", "#f72585", "#80b918", "#c77dff", "#ffd166"];
+    const COLORS = ["#db2e2e", "#296bdb", "#f5d11f", "#2e9e29", "#f27a1a", "#4cd1d6"];
+    const CAR_LEN = 52;
+    const CAR_WIDE = 112;
 
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
@@ -199,7 +207,8 @@
     const menuEl = document.getElementById("menu");
     const overEl = document.getElementById("over");
     const bottomEl = document.getElementById("bottom");
-    const fillEl = document.getElementById("fill");
+    const powerEl = document.getElementById("power");
+    const powerCells = powerEl ? Array.from(powerEl.querySelectorAll("span")) : [];
     const hintEl = document.getElementById("hint");
     const scoreEl = document.getElementById("score");
     const carEl = document.getElementById("car");
@@ -291,7 +300,7 @@
       const r = parseInt(n.slice(0, 2), 16);
       const g = parseInt(n.slice(2, 4), 16);
       const b = parseInt(n.slice(4, 6), 16);
-      return `rgb(${(r * t) | 0},${(g * t) | 0},${(b * t) | 0})`;
+      return `rgb(${clamp((r * t) | 0, 0, 255)},${clamp((g * t) | 0, 0, 255)},${clamp((b * t) | 0, 0, 255)})`;
     }
 
     function spawnCar() {
@@ -308,7 +317,7 @@
         homeY: SPAWN.y,
         vx: 0,
         vy: 0,
-        r: 28,
+        r: 42,
         color: COLORS[thrown % COLORS.length],
         angle: -Math.PI / 2,
         curl: 0,
@@ -484,15 +493,21 @@
       b.curl *= 0.35;
     }
 
+    function powerBand(len) {
+      if (len < MIN_PULL) return 0;
+      const t = clamp(len / MAX_PULL, 0, 1);
+      return clamp(Math.ceil(t * POWER_STEPS), 1, POWER_STEPS);
+    }
+
     function shotFromPull(x, y, px, py) {
       const len = Math.hypot(px, py) || 1;
-      const speed = (Math.min(len, MAX_PULL) / MAX_PULL) * MAX_SPEED;
+      const speed = (powerBand(len) / POWER_STEPS) * MAX_SPEED;
       return {
         x: x,
         y: y,
         vx: (-px / len) * speed,
         vy: (-py / len) * speed,
-        curl: clamp(px / MAX_PULL, -1, 1) * CURL,
+        curl: clamp(-px / MAX_PULL, -1, 1) * CURL,
       };
     }
 
@@ -636,10 +651,10 @@
       ctx.fillStyle = "#1b2430";
       ctx.fill();
       const labels = [
-        { text: "10", x: HOUSE.x - 144, y: HOUSE.y, dark: false },
-        { text: "25", x: HOUSE.x - 98, y: HOUSE.y, dark: false },
-        { text: "50", x: HOUSE.x - 56, y: HOUSE.y, dark: false },
-        { text: "100", x: HOUSE.x, y: HOUSE.y - 14, dark: true },
+        { text: "1", x: HOUSE.x - 144, y: HOUSE.y, dark: false },
+        { text: "2", x: HOUSE.x - 98, y: HOUSE.y, dark: false },
+        { text: "3", x: HOUSE.x - 56, y: HOUSE.y, dark: false },
+        { text: "4", x: HOUSE.x, y: HOUSE.y - 14, dark: true },
       ];
       ctx.font = "700 14px Segoe UI, sans-serif";
       ctx.textAlign = "center";
@@ -668,29 +683,35 @@
     }
 
     function drawCar(c) {
+      // Üstten görünüm — Unity sprite ile aynı oran; tekerlek yok.
+      const halfL = CAR_LEN * 0.5;
+      const halfW = CAR_WIDE * 0.5;
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
-      ctx.fillStyle = "rgba(0,0,0,0.30)";
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.beginPath();
-      ctx.ellipse(0, 10, 20, 10, 0, 0, Math.PI * 2);
+      ctx.ellipse(2, 6, halfL * 0.9, halfW * 0.55, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Enlemesine iki araba kalınlığı; teker yok.
-      roundRect(-20, -18, 40, 36, 10);
-      const body = ctx.createLinearGradient(0, -18, 0, 18);
+      roundRect(-halfL, -halfW, CAR_LEN, CAR_WIDE, Math.min(halfL, halfW) * 0.45);
+      const body = ctx.createLinearGradient(0, -halfW, 0, halfW);
       body.addColorStop(0, c.color);
+      body.addColorStop(0.5, shade(c.color, 0.92));
       body.addColorStop(1, shade(c.color, 0.72));
       ctx.fillStyle = body;
       ctx.fill();
       ctx.strokeStyle = "rgba(0,0,0,0.35)";
       ctx.lineWidth = 2;
       ctx.stroke();
-      roundRect(2, -12, 10, 24, 4);
+      roundRect(halfL * 0.05, -halfW * 0.55, halfL * 0.42, halfW * 1.1, 5);
+      ctx.fillStyle = shade(c.color, 1.12);
+      ctx.fill();
+      roundRect(halfL * 0.22, -halfW * 0.42, halfL * 0.28, halfW * 0.84, 4);
       ctx.fillStyle = "rgba(232,246,255,0.95)";
       ctx.fill();
       ctx.fillStyle = "#fff3bf";
-      ctx.fillRect(16, -12, 4, 6);
-      ctx.fillRect(16, 6, 4, 6);
+      ctx.fillRect(halfL * 0.62, -halfW * 0.55, 5, 8);
+      ctx.fillRect(halfL * 0.62, halfW * 0.35, 5, 8);
       ctx.restore();
 
       if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
@@ -766,15 +787,18 @@
       const n = state === "over" ? thrown : thrown + 1;
       carEl.textContent = "Araba " + clamp(n, 1, CARS_PER_ROUND) + "/" + CARS_PER_ROUND;
       const len = Math.hypot(pull.x, pull.y);
-      const t = state === "aim" && pull.active ? Math.min(1, len / MAX_PULL) : 0;
-      fillEl.style.width = (t * 100).toFixed(1) + "%";
-      const side = len > 0 ? Math.abs(pull.x) / len : 0;
-      let hint = "Geri çek ve bırak";
+      const band = state === "aim" && pull.active ? powerBand(len) : 0;
+      const bandHints = ["Geri çek, bırak", "Hafif", "Az", "Orta", "Güçlü", "Tam güç"];
+      let hint = bandHints[0];
       if (state === "slide") hint = "Kayıyor…";
-      else if (pull.active && len >= MIN_PULL && side > 0.16) hint = "Sona doğru kıvrılır";
-      else if (pull.active && len >= MIN_PULL) hint = "Bırak";
-      else if (pull.active) hint = "Biraz daha çek";
+      else if (band > 0) hint = bandHints[band];
       hintEl.textContent = hint;
+      const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
+      for (let i = 0; i < powerCells.length; i++) {
+        const on = i < band;
+        powerCells[i].classList.toggle("on", on);
+        powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
+      }
       bottomEl.hidden = state === "menu" || state === "over";
       stage.dataset.state = state;
     }
