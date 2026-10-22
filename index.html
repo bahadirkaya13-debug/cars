@@ -180,19 +180,20 @@
       { r: 78, points: 3, color: "#d12929" },
       { r: 36, points: 4, color: "#1a6bd1" },
     ];
-    const FRICTION = 100;
+    // Unity ile aynı: orta çekiş ≈ merkez, tam güç hafif geçer.
+    const FRICTION = 185;
     const MAX_PULL = 150;
     const MIN_PULL = 22;
-    const MAX_SPEED = 1180;
+    const MAX_SPEED = 570;
     const BACK = 0.22;
     const STOP_SPEED = 8;
-    const CURL = 120;
+    const CURL = 70;
     const POWER_STEPS = 5;
     const CARS_PER_ROUND = 5;
     const BEST_KEY = "halka-arabalari-best";
     const COLORS = ["#db2e2e", "#296bdb", "#f5d11f", "#2e9e29", "#f27a1a", "#4cd1d6"];
-    const CAR_LEN = 52;
-    const CAR_WIDE = 112;
+    const CAR_LEN = 82;
+    const CAR_WIDE = 48;
 
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
@@ -317,7 +318,7 @@
         homeY: SPAWN.y,
         vx: 0,
         vy: 0,
-        r: 42,
+        r: 26,
         color: COLORS[thrown % COLORS.length],
         angle: -Math.PI / 2,
         curl: 0,
@@ -501,7 +502,8 @@
 
     function shotFromPull(x, y, px, py) {
       const len = Math.hypot(px, py) || 1;
-      const speed = (powerBand(len) / POWER_STEPS) * MAX_SPEED;
+      const t = clamp(len / MAX_PULL, 0, 1);
+      const speed = t * MAX_SPEED;
       return {
         x: x,
         y: y,

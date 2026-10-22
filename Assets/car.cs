@@ -5,16 +5,17 @@ using UnityEngine.InputSystem;
 public class car : MonoBehaviour
 {
     // Web (index.html) ile aynı ölçek: 1 birim ≈ 100 px
-    const float Friction = 1.00f;
+    // Orta çekiş ≈ halka merkezi; tam güç hafif geçer.
+    const float Friction = 1.85f;
     const float MaxPull = 1.50f;
     const float MinPull = 0.22f;
-    const float MaxSpeed = 11.80f;
+    const float MaxSpeed = 5.70f;
     const float Back = 0.22f;
     const float StopSpeed = 0.08f;
-    const float CurlPower = 1.20f;
-    const float CarRadius = 0.42f;
-    const float CarLen = 0.52f;
-    const float CarWide = 1.30f;
+    const float CurlPower = 0.70f;
+    const float CarRadius = 0.26f;
+    const float CarLen = 0.82f;
+    const float CarWide = 0.96f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int CarsPerRound = 5;
@@ -396,7 +397,9 @@ public class car : MonoBehaviour
     {
         float len = drag.magnitude;
         if (len < 0.0001f) len = 0.0001f;
-        float speed = PowerBand(len) / (float)PowerSteps * MaxSpeed;
+        // Sürekli güç: ince ayar kolay, 5 kademe sadece HUD.
+        float t = Mathf.Clamp01(len / MaxPull);
+        float speed = t * MaxSpeed;
         Vector2 dir = -drag / len;
         stone.vel = dir * speed;
         stone.curl = Mathf.Clamp(-drag.x / MaxPull, -1f, 1f) * CurlPower;
@@ -919,11 +922,11 @@ public class car : MonoBehaviour
         return tex;
     }
 
-    // Üstten görünüm: gövde + cam + far; tekerlek yok.
+    // Üstten görünüm: uzun gövde, orta kalınlık; tekerlek yok.
     static Sprite MakeCarSprite(Color paint)
     {
         const int w = 256;
-        const int h = 220;
+        const int h = 128;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
         tex.filterMode = FilterMode.Trilinear;
         tex.anisoLevel = 8;
@@ -939,12 +942,12 @@ public class car : MonoBehaviour
                 float nx = (x + 0.5f) / w * 2f - 1f;
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
-                bool body = Rounded(nx, ny, 0.88f, 0.90f, 0.22f);
-                bool cabin = Rounded(nx + 0.04f, ny, 0.28f, 0.58f, 0.12f);
-                bool window = Rounded(nx + 0.16f, ny, 0.15f, 0.44f, 0.10f);
-                bool lightL = Ellipse(nx + 0.74f, ny - 0.38f, 0.08f, 0.15f);
-                bool lightR = Ellipse(nx + 0.74f, ny + 0.38f, 0.08f, 0.15f);
-                bool bumper = Rounded(nx + 0.80f, ny, 0.09f, 0.70f, 0.08f);
+                bool body = Rounded(nx, ny, 0.90f, 0.72f, 0.20f);
+                bool cabin = Rounded(nx + 0.06f, ny, 0.28f, 0.42f, 0.10f);
+                bool window = Rounded(nx + 0.18f, ny, 0.14f, 0.30f, 0.08f);
+                bool lightL = Ellipse(nx + 0.76f, ny - 0.28f, 0.07f, 0.12f);
+                bool lightR = Ellipse(nx + 0.76f, ny + 0.28f, 0.07f, 0.12f);
+                bool bumper = Rounded(nx + 0.82f, ny, 0.08f, 0.52f, 0.07f);
                 if (window) c = glass;
                 else if (lightL || lightR) c = lamp;
                 else if (cabin) c = roof;
