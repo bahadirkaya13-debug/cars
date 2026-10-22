@@ -46,13 +46,25 @@
       justify-content: space-between;
       gap: 8px;
     }
-    .top span {
+    .top span, .hud-back {
       background: rgba(8, 12, 18, 0.62);
       border-radius: 999px;
       padding: 6px 12px;
       font-size: 14px;
       font-weight: 700;
     }
+    .hud-back {
+      position: absolute;
+      top: 50px;
+      left: 14px;
+      z-index: 6;
+      pointer-events: auto;
+      background: #f0a202;
+      color: #1a1203;
+      border: 0;
+      padding: 8px 16px;
+    }
+    .hud-back[hidden] { display: none; }
     .bottom {
       bottom: 14px;
       flex-direction: column;
@@ -92,10 +104,12 @@
     .panel.hidden { display: none; }
     .card {
       width: min(86%, 420px);
+      max-height: 92%;
+      overflow-y: auto;
       background: rgba(16, 24, 34, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 18px;
-      padding: 26px 28px 22px;
+      padding: 22px 22px 18px;
       text-align: center;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     }
@@ -131,13 +145,13 @@
       color: #fff;
     }
     #best-out { margin: 4px 0 16px; }
-    .btn-row {
+    .btn-row, .stack {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
       margin-top: 8px;
     }
+    .stack button, .btn-row button { width: 100%; }
     button.ghost {
       background: transparent;
       color: #f0e6d8;
@@ -188,14 +202,20 @@
       box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
     }
     .coll-item .tag { font-size: 11px; color: #c5d0dc; font-weight: 600; }
-    .models { display: flex; gap: 8px; margin: 0 0 12px; }
+    .models { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
     .models button {
-      flex: 1; font: inherit; font-size: 12px; font-weight: 800; padding: 8px 4px;
-      border-radius: 10px; background: #243040; color: #eef3f8;
+      width: 100%; font: inherit; font-size: 14px; font-weight: 800; padding: 10px 8px;
+      border-radius: 12px; background: #243040; color: #eef3f8;
     }
     .models button.sel { background: #f0a202; color: #1a1203; }
-    #levels { flex-wrap: wrap; }
-    #levels button { flex: 1 1 28%; font-size: 11px; }
+    .section-lab {
+      margin: 8px 0 4px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #f0a202;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
@@ -206,6 +226,7 @@
       <span id="car">Tur 1/4</span>
       <span id="score">Bot 0</span>
     </header>
+    <button id="to-menu" class="hud-back" type="button" hidden>Menü</button>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
         <span></span><span></span><span></span><span></span><span></span>
@@ -215,20 +236,16 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 5 · Gerçekçi arabalar · ASMR · Seviyeler</p>
-        <ol>
-          <li>Vuruş ve bullseye bonus / kombo puanı verir.</li>
-          <li>Kazanırsan yeni araba rengi açılır (koleksiyon).</li>
-          <li>Nadir power-up: BUZ (kaygan) veya MIKNATIS (merkeze çeker).</li>
-          <li>Rakibi halkadan çıkar, 50→400 puan topla.</li>
-          <li>Seviye seç: Salon, Buz, Dar halka, Fırtına, Usta.</li>
-        </ol>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 6 · Hot Wheels · Menü</p>
+        <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
+        <p class="section-lab">Araba</p>
         <div class="models" id="models">
-          <button type="button" data-body="0">Sport GT</button>
-          <button type="button" data-body="1" class="sel">Lüks Sedan</button>
-          <button type="button" data-body="2">Limuzin</button>
+          <button type="button" data-body="0">Muscle</button>
+          <button type="button" data-body="1" class="sel">Hatch</button>
+          <button type="button" data-body="2">Cruiser</button>
         </div>
+        <p class="section-lab">Seviye</p>
         <div class="models" id="levels"></div>
         <div class="btn-row">
           <button id="start" type="button">Bota karşı oyna</button>
@@ -257,6 +274,7 @@
         <div class="btn-row">
           <button id="again" type="button">Tekrar oyna</button>
           <button id="over-collection" class="ghost" type="button">Koleksiyon</button>
+          <button id="over-menu" class="ghost" type="button">Menü</button>
         </div>
       </div>
     </section>
@@ -399,6 +417,22 @@
       menuEl.classList.remove("hidden");
       state = "menu";
       refreshMenuBest();
+    }
+
+    function goMenu() {
+      pull.active = false;
+      pull.x = 0;
+      pull.y = 0;
+      state = "menu";
+      cars = [];
+      current = null;
+      pops.length = 0;
+      bits.length = 0;
+      menuEl.classList.remove("hidden");
+      overEl.classList.add("hidden");
+      collectionEl.classList.add("hidden");
+      refreshMenuBest();
+      asmr("tap");
     }
 
     let cars = [];
@@ -888,7 +922,10 @@
     document.getElementById("over-collection").addEventListener("click", showCollection);
     document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
     document.getElementById("coll-play").addEventListener("click", startRound);
+    document.getElementById("to-menu").addEventListener("click", (e) => { e.stopPropagation(); goMenu(); });
+    document.getElementById("over-menu").addEventListener("click", goMenu);
     window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && state !== "menu") goMenu();
       if ((e.key === "Enter" || e.key === "r" || e.key === "R") && (state === "menu" || state === "over")) {
         startRound();
       }
@@ -1158,84 +1195,104 @@
 
     function drawCar(c) {
       const m = c.body == null ? bodyStyle : c.body;
-      const len = CAR_LEN * (m === 2 ? 1.32 : m === 0 ? 1.12 : 1.05);
-      const wide = CAR_WIDE * (m === 0 ? 0.78 : m === 2 ? 0.9 : 0.92);
+      const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08);
+      const wide = CAR_WIDE * (m === 1 ? 0.86 : 0.80);
       const halfL = len * 0.5;
       const halfW = wide * 0.5;
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
-      ctx.fillStyle = "rgba(0,0,0,0.32)";
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.beginPath();
-      ctx.ellipse(3, 7, halfL * 0.92, halfW * 0.62, 0, 0, Math.PI * 2);
+      ctx.ellipse(2, 8, halfL * 0.9, halfW * 0.7, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#1a1a1a";
-      ctx.beginPath(); ctx.ellipse(-halfL * 0.28, -halfW * 0.78, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(halfL * 0.22, -halfW * 0.78, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(-halfL * 0.28, halfW * 0.78, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(halfL * 0.22, halfW * 0.78, 11, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#4a4a4a";
-      ctx.beginPath(); ctx.ellipse(-halfL * 0.28, -halfW * 0.78, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(halfL * 0.22, -halfW * 0.78, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(-halfL * 0.28, halfW * 0.78, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(halfL * 0.22, halfW * 0.78, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-      roundRect(-halfL, -halfW, len, wide, Math.min(halfL, halfW) * (m === 0 ? 0.58 : 0.38));
+      const wheel = (x, y) => {
+        ctx.fillStyle = "#111";
+        ctx.beginPath(); ctx.ellipse(x, y, 13, 8.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#c8ccd2";
+        ctx.beginPath(); ctx.ellipse(x, y, 6.2, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#3a3d42";
+        ctx.beginPath(); ctx.ellipse(x, y, 2.4, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+      };
+      wheel(-halfL * 0.32, -halfW * 0.92);
+      wheel(halfL * 0.28, -halfW * 0.92);
+      wheel(-halfL * 0.32, halfW * 0.92);
+      wheel(halfL * 0.28, halfW * 0.92);
+      const radius = m === 0 ? 10 : 7;
+      roundRect(-halfL, -halfW, len, wide, radius);
       const body = ctx.createLinearGradient(0, -halfW, 0, halfW);
-      body.addColorStop(0, shade(c.color, 1.25));
-      body.addColorStop(0.22, shade(c.color, 1.05));
+      body.addColorStop(0, shade(c.color, 1.35));
+      body.addColorStop(0.18, shade(c.color, 1.12));
       body.addColorStop(0.5, c.color);
-      body.addColorStop(0.78, shade(c.color, 0.72));
-      body.addColorStop(1, shade(c.color, 0.48));
+      body.addColorStop(0.82, shade(c.color, 0.62));
+      body.addColorStop(1, shade(c.color, 0.42));
       ctx.fillStyle = body;
       ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.22)";
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1.4;
       ctx.stroke();
-      ctx.strokeStyle = "rgba(0,0,0,0.35)";
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.22)";
-      roundRect(-halfL * 0.7, -halfW * 0.72, len * 0.55, wide * 0.18, 4);
+      ctx.fillStyle = "#d8dce2";
+      roundRect(halfL * 0.78, -halfW * 0.72, halfL * 0.2, wide * 0.72, 3);
       ctx.fill();
-      if (m === 2) {
-        ctx.fillStyle = "#d4af37";
-        ctx.fillRect(-halfL * 0.72, -1.5, len * 0.78, 3);
-        ctx.fillStyle = "rgba(40,70,95,0.88)";
-        roundRect(-halfL * 0.5, -halfW * 0.38, halfL * 0.28, halfW * 0.76, 3); ctx.fill();
-        roundRect(-halfL * 0.12, -halfW * 0.38, halfL * 0.28, halfW * 0.76, 3); ctx.fill();
-        roundRect(halfL * 0.26, -halfW * 0.38, halfL * 0.28, halfW * 0.76, 3); ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.25)";
-        roundRect(-halfL * 0.46, -halfW * 0.32, halfL * 0.18, 6, 2); ctx.fill();
-      } else if (m === 0) {
-        ctx.fillStyle = "rgba(30,50,70,0.9)";
+      roundRect(-halfL * 0.98, -halfW * 0.68, halfL * 0.16, wide * 0.68, 3);
+      ctx.fill();
+      ctx.fillStyle = "#fff3b0";
+      roundRect(halfL * 0.78, -halfW * 0.55, 7, 10, 2); ctx.fill();
+      roundRect(halfL * 0.78, halfW * 0.32, 7, 10, 2); ctx.fill();
+      ctx.fillStyle = "#c41e1e";
+      roundRect(-halfL * 0.96, -halfW * 0.48, 6, 9, 2); ctx.fill();
+      roundRect(-halfL * 0.96, halfW * 0.28, 6, 9, 2); ctx.fill();
+      if (m === 0) {
+        ctx.fillStyle = "rgba(10,10,12,0.92)";
+        ctx.fillRect(-halfL * 0.55, -7.2, len * 0.78, 5.2);
+        ctx.fillRect(-halfL * 0.55, 2, len * 0.78, 5.2);
+        ctx.fillStyle = "#1a2430";
         ctx.beginPath();
-        ctx.moveTo(halfL * 0.05, -halfW * 0.32);
-        ctx.lineTo(halfL * 0.62, 0);
-        ctx.lineTo(halfL * 0.05, halfW * 0.32);
+        ctx.moveTo(halfL * 0.08, -halfW * 0.42);
+        ctx.lineTo(halfL * 0.58, -halfW * 0.22);
+        ctx.lineTo(halfL * 0.58, halfW * 0.22);
+        ctx.lineTo(halfL * 0.08, halfW * 0.42);
         ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "rgba(210,235,255,0.35)";
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
         ctx.beginPath();
-        ctx.moveTo(halfL * 0.12, -halfW * 0.18);
-        ctx.lineTo(halfL * 0.48, 0);
-        ctx.lineTo(halfL * 0.12, halfW * 0.08);
+        ctx.moveTo(halfL * 0.14, -halfW * 0.22);
+        ctx.lineTo(halfL * 0.5, -halfW * 0.1);
+        ctx.lineTo(halfL * 0.5, 0);
+        ctx.lineTo(halfL * 0.14, -0.04);
         ctx.fill();
+        ctx.fillStyle = shade(c.color, 0.55);
+        roundRect(-halfL * 0.92, -halfW * 0.38, 10, wide * 0.38, 2);
+        ctx.fill();
+      } else if (m === 1) {
+        ctx.fillStyle = shade(c.color, 0.78);
+        roundRect(-halfL * 0.22, -halfW * 0.52, halfL * 0.72, wide * 0.52, 5);
+        ctx.fill();
+        ctx.fillStyle = "#15202c";
+        roundRect(halfL * 0.12, -halfW * 0.38, halfL * 0.34, wide * 0.38, 3);
+        ctx.fill();
+        ctx.fillStyle = "rgba(70,110,140,0.55)";
+        roundRect(-halfL * 0.08, -halfW * 0.28, halfL * 0.18, wide * 0.22, 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.35)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-halfL * 0.18, -halfW * 0.5);
+        ctx.lineTo(halfL * 0.42, -halfW * 0.5);
+        ctx.moveTo(-halfL * 0.18, halfW * 0.5);
+        ctx.lineTo(halfL * 0.42, halfW * 0.5);
+        ctx.stroke();
       } else {
-        roundRect(halfL * 0.02, -halfW * 0.48, halfL * 0.46, halfW * 0.96, 6);
-        ctx.fillStyle = shade(c.color, 1.08);
-        ctx.fill();
-        roundRect(halfL * 0.16, -halfW * 0.36, halfL * 0.3, halfW * 0.72, 5);
-        const glass = ctx.createLinearGradient(halfL * 0.16, -halfW * 0.36, halfL * 0.46, halfW * 0.36);
-        glass.addColorStop(0, "rgba(210,235,255,0.95)");
-        glass.addColorStop(1, "rgba(40,70,95,0.75)");
-        ctx.fillStyle = glass;
-        ctx.fill();
+        ctx.fillStyle = "#1a2430";
+        roundRect(-halfL * 0.35, -halfW * 0.4, halfL * 0.28, wide * 0.4, 3); ctx.fill();
+        roundRect(halfL * 0.08, -halfW * 0.4, halfL * 0.32, wide * 0.4, 3); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        roundRect(-halfL * 0.7, -halfW * 0.62, len * 0.5, 6, 2); ctx.fill();
+        ctx.fillStyle = shade(c.color, 0.5);
+        roundRect(-halfL * 0.98, -halfW * 0.28, 12, wide * 0.28, 2); ctx.fill();
       }
-      ctx.fillStyle = "#fff6c8";
-      ctx.fillRect(halfL * 0.72, -halfW * 0.48, 6, 9);
-      ctx.fillRect(halfL * 0.72, halfW * 0.28, 6, 9);
-      ctx.fillStyle = "#c23b3b";
-      ctx.fillRect(-halfL * 0.92, -halfW * 0.42, 5, 8);
-      ctx.fillRect(-halfL * 0.92, halfW * 0.22, 5, 8);
       ctx.restore();
 
       if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
@@ -1345,6 +1402,7 @@
         powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
       }
       bottomEl.hidden = state === "menu" || state === "over" || state === "collection";
+      document.getElementById("to-menu").hidden = state === "menu" || state === "collection";
       stage.dataset.state = botTurn ? "bot" : state;
     }
 

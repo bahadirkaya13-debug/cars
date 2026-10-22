@@ -25,7 +25,7 @@ public class car : MonoBehaviour
     const string SkinKey = "halka-arabalari-skin";
     const string BodyKey = "halka-arabalari-body";
     const string LevelKey = "halka-arabalari-level";
-    static readonly string[] BodyNames = { "Sport GT", "Lüks Sedan", "Limuzin" };
+    static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
     static readonly float[] LevelFriction = { 1.60f, 0.95f, 1.50f, 2.10f, 1.25f };
     static readonly float[] LevelSpeed = { 7.40f, 8.20f, 7.00f, 9.00f, 7.80f };
@@ -329,6 +329,23 @@ public class car : MonoBehaviour
         FitCamera();
     }
 
+    void GoMenu()
+    {
+        pulling = false;
+        pull = Vector2.zero;
+        for (int i = 0; i < stones.Count; i++)
+        {
+            if (stones[i].view != null) Destroy(stones[i].view);
+        }
+        stones.Clear();
+        pops.Clear();
+        bits.Clear();
+        HideDots();
+        current = null;
+        phase = Phase.Menu;
+        PlayAsmr("tap");
+    }
+
     void StartRound()
     {
         ApplyLevel();
@@ -504,8 +521,15 @@ public class car : MonoBehaviour
 
         if (phase == Phase.Over)
         {
-            if (Clicked(AgainRect())) StartRound();
+            if (Clicked(BackMenuRect())) GoMenu();
+            else if (Clicked(AgainRect())) StartRound();
             else if (Clicked(OverCollectionRect())) phase = Phase.Collection;
+            return;
+        }
+
+        if (Clicked(BackMenuRect()))
+        {
+            GoMenu();
             return;
         }
 
@@ -1116,40 +1140,31 @@ public class car : MonoBehaviour
     {
         Rect safe = SafeScreen();
         float w = Mathf.Min(420f, safe.width - 24f);
-        float h = 500f;
+        float h = Mathf.Min(safe.height - 20f, 620f);
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
-    Rect MenuPlayRect()
+    Rect StackBtn(int i)
     {
         Rect card = MenuCard();
-        float w = Mathf.Min(200f, card.width - 40f);
-        return new Rect(card.x + (card.width - w) * 0.5f, card.yMax - 110f, w, 42f);
+        float top = card.y + 118f;
+        float h = 36f;
+        float gap = 6f;
+        return new Rect(card.x + 22f, top + i * (h + gap), card.width - 44f, h);
     }
 
-    Rect ModelRect(int i)
-    {
-        Rect card = MenuCard();
-        float w = (card.width - 48f) / 3f;
-        float x = card.x + 16f + i * (w + 8f);
-        return new Rect(x, card.y + 214f, w, 36f);
-    }
+    Rect MenuPlayRect() { return StackBtn(8); }
 
-    Rect LevelRect(int i)
-    {
-        Rect card = MenuCard();
-        int col = i % 3;
-        int row = i / 3;
-        float w = (card.width - 48f) / 3f;
-        float x = card.x + 16f + col * (w + 8f);
-        return new Rect(x, card.y + 260f + row * 36f, w, 32f);
-    }
+    Rect ModelRect(int i) { return StackBtn(i); }
 
-    Rect MenuCollectionRect()
+    Rect LevelRect(int i) { return StackBtn(3 + i); }
+
+    Rect MenuCollectionRect() { return StackBtn(9); }
+
+    Rect BackMenuRect()
     {
-        Rect card = MenuCard();
-        float w = Mathf.Min(200f, card.width - 40f);
-        return new Rect(card.x + (card.width - w) * 0.5f, card.yMax - 58f, w, 42f);
+        Rect safe = SafeScreen();
+        return new Rect(safe.x + 8f, safe.y + 40f, 78f, 30f);
     }
 
     Rect CollectionCard()
@@ -1216,16 +1231,14 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.94f);
         GUI.DrawTexture(card, pixel);
         GUI.color = Color.white;
-        GUI.Label(new Rect(card.x, card.y + 18f, card.width, 36f), "Halka Arabaları", label);
-        GUI.Label(new Rect(card.x + 18f, card.y + 52f, card.width - 36f, 22f),
-            "Sürüm 5  ·  Gerçekçi arabalar  ·  ASMR  ·  Seviyeler", hintStyle);
-        GUI.Label(new Rect(card.x + 18f, card.y + 76f, card.width - 36f, 70f),
-            "Bota karşı oyna. Kazanırsan yeni araba açılır.\nKoleksiyondan arabanı seç. Seviye seç.", hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
+        GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
+            "Sürüm 6  ·  Hot Wheels  ·  Menü", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
-        GUI.Label(new Rect(card.x, card.y + 160f, card.width, 24f),
-            "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name, hintStyle);
-        if (best > 0)
-            GUI.Label(new Rect(card.x, card.y + 186f, card.width, 22f), "Rekor " + best + "  ·  " + BodyNames[bodyStyle], hintStyle);
+        GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
+            "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
+            + (best > 0 ? "\nRekor " + best : ""), hintStyle);
+        GUI.Label(new Rect(card.x + 16f, card.y + 96f, card.width - 32f, 18f), "ARABA / SEVİYE", hintStyle);
         for (int i = 0; i < 3; i++)
         {
             Rect mr = ModelRect(i);
@@ -1321,6 +1334,12 @@ public class car : MonoBehaviour
         DrawPill(new Rect(x, y, w, h), "Sen " + TeamScore(false));
         DrawPill(new Rect(x + w + gap, y, w, h), "Bot " + TeamScore(true));
         DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), LevelNames[levelI] + " " + turn + "/" + carsPerSide);
+        Rect back = BackMenuRect();
+        GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+        GUI.DrawTexture(back, pixel);
+        GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
+        GUI.Label(back, "Menü", hudStyle);
+        GUI.color = Color.white;
         string turnHint = botTurn ? "Bot oynuyor…" : "Senin sıran";
         if (phase == Phase.Slide) turnHint = "Kayıyor…";
         if (phase != Phase.Over)
@@ -1681,21 +1700,19 @@ public class car : MonoBehaviour
 
     static Sprite MakeCarSprite(Color paint, int model = 1)
     {
-        const int w = 280;
-        const int h = 148;
+        const int w = 300;
+        const int h = 160;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
         tex.filterMode = FilterMode.Trilinear;
         tex.anisoLevel = 8;
         var pixels = new Color[w * h];
-        Color glass = new Color(0.72f, 0.88f, 0.98f, 1f);
-        Color glassDark = new Color(0.16f, 0.28f, 0.40f, 0.95f);
-        Color lamp = new Color(1f, 0.96f, 0.72f, 1f);
-        Color lampR = new Color(0.78f, 0.16f, 0.16f, 1f);
-        Color roof = Color.Lerp(paint, Color.white, 0.18f);
-        Color trim = Color.Lerp(paint, Color.black, 0.32f);
-        Color gold = new Color(0.83f, 0.69f, 0.22f, 1f);
-        Color tire = new Color(0.08f, 0.08f, 0.09f, 1f);
-        Color rim = new Color(0.42f, 0.43f, 0.46f, 1f);
+        Color glass = new Color(0.12f, 0.16f, 0.22f, 1f);
+        Color lamp = new Color(1f, 0.95f, 0.68f, 1f);
+        Color lampR = new Color(0.78f, 0.14f, 0.14f, 1f);
+        Color chrome = new Color(0.82f, 0.84f, 0.88f, 1f);
+        Color tire = new Color(0.07f, 0.07f, 0.08f, 1f);
+        Color rim = new Color(0.72f, 0.74f, 0.78f, 1f);
+        Color stripe = new Color(0.06f, 0.06f, 0.07f, 1f);
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -1704,51 +1721,41 @@ public class car : MonoBehaviour
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
                 bool wheel =
-                    Ellipse(nx + 0.22f, ny - 0.78f, 0.16f, 0.20f) || Ellipse(nx - 0.28f, ny - 0.78f, 0.16f, 0.20f) ||
-                    Ellipse(nx + 0.22f, ny + 0.78f, 0.16f, 0.20f) || Ellipse(nx - 0.28f, ny + 0.78f, 0.16f, 0.20f);
+                    Ellipse(nx + 0.28f, ny - 0.86f, 0.18f, 0.22f) || Ellipse(nx - 0.32f, ny - 0.86f, 0.18f, 0.22f) ||
+                    Ellipse(nx + 0.28f, ny + 0.86f, 0.18f, 0.22f) || Ellipse(nx - 0.32f, ny + 0.86f, 0.18f, 0.22f);
                 bool hub =
-                    Ellipse(nx + 0.22f, ny - 0.78f, 0.07f, 0.08f) || Ellipse(nx - 0.28f, ny - 0.78f, 0.07f, 0.08f) ||
-                    Ellipse(nx + 0.22f, ny + 0.78f, 0.07f, 0.08f) || Ellipse(nx - 0.28f, ny + 0.78f, 0.07f, 0.08f);
-                bool body, cabin, window, extra = false;
-                if (model == 0)
-                {
-                    body = Rounded(nx, ny, 0.90f, 0.52f, 0.26f);
-                    cabin = Rounded(nx + 0.02f, ny, 0.20f, 0.28f, 0.08f);
-                    window = nx > 0.05f && nx < 0.62f && Mathf.Abs(ny) < 0.28f * (1f - (nx - 0.05f));
-                    extra = nx > 0.58f && Mathf.Abs(ny) < 0.16f && nx < 0.92f;
-                }
-                else if (model == 2)
-                {
-                    body = Rounded(nx, ny, 0.94f, 0.56f, 0.12f);
-                    cabin = Rounded(nx, ny, 0.42f, 0.34f, 0.08f);
-                    window = Rounded(nx + 0.22f, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx - 0.22f, ny, 0.12f, 0.24f, 0.05f);
-                    extra = Mathf.Abs(ny) < 0.05f && Mathf.Abs(nx) < 0.86f;
-                }
-                else
-                {
-                    body = Rounded(nx, ny, 0.88f, 0.62f, 0.18f);
-                    cabin = Rounded(nx + 0.06f, ny, 0.28f, 0.38f, 0.10f);
-                    window = Rounded(nx + 0.18f, ny, 0.14f, 0.28f, 0.08f);
-                }
-                bool lightL = Ellipse(nx + 0.78f, ny - 0.28f, 0.07f, 0.12f);
-                bool lightR = Ellipse(nx + 0.78f, ny + 0.28f, 0.07f, 0.12f);
-                bool tailL = Ellipse(nx - 0.80f, ny - 0.26f, 0.06f, 0.10f);
-                bool tailR = Ellipse(nx - 0.80f, ny + 0.26f, 0.06f, 0.10f);
-                bool bumper = Rounded(nx + 0.84f, ny, 0.08f, 0.48f, 0.06f);
-                bool gloss = Rounded(nx - 0.08f, ny - 0.38f, 0.42f, 0.08f, 0.05f);
+                    Ellipse(nx + 0.28f, ny - 0.86f, 0.08f, 0.10f) || Ellipse(nx - 0.32f, ny - 0.86f, 0.08f, 0.10f) ||
+                    Ellipse(nx + 0.28f, ny + 0.86f, 0.08f, 0.10f) || Ellipse(nx - 0.32f, ny + 0.86f, 0.08f, 0.10f);
+                bool body = model == 0
+                    ? Rounded(nx, ny, 0.90f, 0.52f, 0.22f)
+                    : model == 2
+                        ? Rounded(nx, ny, 0.94f, 0.54f, 0.12f)
+                        : Rounded(nx, ny, 0.88f, 0.58f, 0.16f);
+                bool windshield = nx > 0.08f && nx < 0.58f && Mathf.Abs(ny) < 0.34f * Mathf.Max(0.15f, 1f - (nx - 0.08f) * 1.15f);
+                bool rearGlass = nx > -0.62f && nx < -0.28f && Mathf.Abs(ny) < 0.30f;
+                bool sunroof = model == 1 && Rounded(nx + 0.02f, ny, 0.14f, 0.20f, 0.04f);
+                bool stripes = model == 0 && nx > -0.62f && nx < 0.72f && (Mathf.Abs(ny - 0.11f) < 0.055f || Mathf.Abs(ny + 0.11f) < 0.055f);
+                bool roofRail = model == 1 && Mathf.Abs(Mathf.Abs(ny) - 0.48f) < 0.03f && nx > -0.2f && nx < 0.45f;
+                bool spoiler = (model == 0 || model == 2) && nx < -0.82f && nx > -0.98f && Mathf.Abs(ny) < 0.32f;
+                bool lightL = Ellipse(nx + 0.80f, ny - 0.28f, 0.07f, 0.12f);
+                bool lightR = Ellipse(nx + 0.80f, ny + 0.28f, 0.07f, 0.12f);
+                bool tailL = Ellipse(nx - 0.86f, ny - 0.24f, 0.06f, 0.10f);
+                bool tailR = Ellipse(nx - 0.86f, ny + 0.24f, 0.06f, 0.10f);
+                bool bumper = Rounded(nx + 0.86f, ny, 0.08f, 0.46f, 0.05f) || Rounded(nx - 0.90f, ny, 0.06f, 0.42f, 0.04f);
                 if (hub) c = rim;
                 else if (wheel) c = tire;
-                else if (window) c = Color.Lerp(glass, glassDark, (ny + 1f) * 0.5f);
+                else if (stripes) c = stripe;
+                else if (sunroof) c = new Color(0.18f, 0.28f, 0.36f, 1f);
+                else if (windshield || rearGlass) c = glass;
+                else if (roofRail) c = Color.Lerp(paint, Color.black, 0.45f);
+                else if (spoiler) c = Color.Lerp(paint, Color.black, 0.35f);
                 else if (lightL || lightR) c = lamp;
                 else if (tailL || tailR) c = lampR;
-                else if (extra) c = model == 2 ? gold : trim;
-                else if (gloss && body) c = Color.Lerp(paint, Color.white, 0.42f);
-                else if (cabin) c = roof;
-                else if (bumper) c = trim;
+                else if (bumper) c = chrome;
                 else if (body)
                 {
-                    float shade = 0.55f + 0.50f * (1f - Mathf.Abs(ny));
-                    if (ny < -0.12f) shade += 0.12f;
+                    float shade = 0.52f + 0.55f * (1f - Mathf.Abs(ny));
+                    if (ny < -0.14f) shade += 0.16f;
                     c = new Color(paint.r * shade, paint.g * shade, paint.b * shade, 1f);
                 }
 
