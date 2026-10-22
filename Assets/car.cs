@@ -14,8 +14,8 @@ public class car : MonoBehaviour
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
     const float CarRadius = 0.26f;
-    const float CarLen = 1.22f;
-    const float CarWide = 0.58f;
+    const float CarLen = 0.95f;
+    const float CarWide = 0.52f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int BaseCars = 4;
@@ -1735,12 +1735,7 @@ public class car : MonoBehaviour
             tex.filterMode = FilterMode.Bilinear;
             tex.wrapMode = TextureWrapMode.Clamp;
             tex = PunchWhite(tex);
-            if (file.IndexOf("muscle", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                tex = RotateTexture(tex, 180);
-            else if (tex.height > tex.width * 1.12f)
-                tex = RotateTexture(tex, 90);
-            tex = UpscaleTexture(tex, 4);
-            return Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 220f);
+            return Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
         }
         catch
         {
@@ -1796,71 +1791,6 @@ public class car : MonoBehaviour
         dst.filterMode = FilterMode.Bilinear;
         dst.wrapMode = TextureWrapMode.Clamp;
         dst.SetPixels32(np);
-        dst.Apply(true);
-        return dst;
-    }
-
-    static Texture2D RotateTexture(Texture2D src, int deg)
-    {
-        int w = src.width, h = src.height;
-        Color32[] px = src.GetPixels32();
-        if (deg == 180)
-        {
-            var dst = new Texture2D(w, h, TextureFormat.RGBA32, false);
-            var np = new Color32[px.Length];
-            for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                    np[y * w + x] = px[(h - 1 - y) * w + (w - 1 - x)];
-            dst.filterMode = FilterMode.Bilinear;
-            dst.SetPixels32(np);
-            dst.Apply(true);
-            return dst;
-        }
-        var rot = new Texture2D(h, w, TextureFormat.RGBA32, false);
-        var rp = new Color32[w * h];
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                rp[x * h + (h - 1 - y)] = px[y * w + x];
-        rot.filterMode = FilterMode.Bilinear;
-        rot.SetPixels32(rp);
-        rot.Apply(true);
-        return rot;
-    }
-
-    static Texture2D UpscaleTexture(Texture2D src, int scale)
-    {
-        int w = src.width * scale;
-        int h = src.height * scale;
-        var dst = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        Color32[] a = src.GetPixels32();
-        var b = new Color32[w * h];
-        int sw = src.width, sh = src.height;
-        for (int y = 0; y < h; y++)
-        {
-            float v = (y + 0.5f) / h * sh - 0.5f;
-            int y0 = Mathf.Clamp(Mathf.FloorToInt(v), 0, sh - 1);
-            int y1 = Mathf.Min(y0 + 1, sh - 1);
-            float fy = v - y0;
-            for (int x = 0; x < w; x++)
-            {
-                float u = (x + 0.5f) / w * sw - 0.5f;
-                int x0 = Mathf.Clamp(Mathf.FloorToInt(u), 0, sw - 1);
-                int x1 = Mathf.Min(x0 + 1, sw - 1);
-                float fx = u - x0;
-                Color32 c00 = a[y0 * sw + x0];
-                Color32 c10 = a[y0 * sw + x1];
-                Color32 c01 = a[y1 * sw + x0];
-                Color32 c11 = a[y1 * sw + x1];
-                b[y * w + x] = new Color32(
-                    (byte)Mathf.Lerp(Mathf.Lerp(c00.r, c10.r, fx), Mathf.Lerp(c01.r, c11.r, fx), fy),
-                    (byte)Mathf.Lerp(Mathf.Lerp(c00.g, c10.g, fx), Mathf.Lerp(c01.g, c11.g, fx), fy),
-                    (byte)Mathf.Lerp(Mathf.Lerp(c00.b, c10.b, fx), Mathf.Lerp(c01.b, c11.b, fx), fy),
-                    (byte)Mathf.Lerp(Mathf.Lerp(c00.a, c10.a, fx), Mathf.Lerp(c01.a, c11.a, fx), fy));
-            }
-        }
-        dst.filterMode = FilterMode.Bilinear;
-        dst.wrapMode = TextureWrapMode.Clamp;
-        dst.SetPixels32(b);
         dst.Apply(true);
         return dst;
     }
