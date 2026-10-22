@@ -18,7 +18,14 @@ public class car : MonoBehaviour
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int CarsPerRound = 5;
+    const int RoundsPerMatch = 3;
+    const int DailyGoal = 20;
     const string BestKey = "halka-arabalari-best";
+    const string PaintKey = "halka-arabalari-paint";
+    const string ModelKey = "halka-arabalari-model";
+    static readonly string[] ModelNames = { "Sport GT", "Lüks Sedan", "Limuzin" };
+    const string DailyKey = "halka-arabalari-daily";
+    const string DailyDayKey = "halka-arabalari-daily-day";
 
     Vector2 House = new Vector2(0f, 0.35f);
     Vector2 Spawn = new Vector2(0f, -2.55f);
@@ -42,7 +49,8 @@ public class car : MonoBehaviour
         new Color(0.30f, 0.82f, 0.84f),
     };
 
-    enum Phase { Aim, Slide, Over }
+    enum Phase { Menu, Aim, Slide, Over }
+    enum PickupKind { None, Boost, Traction }
 
     class Stone
     {
@@ -53,6 +61,9 @@ public class car : MonoBehaviour
         public float curl;
         public float angle;
         public bool launched;
+        public int round;
+        public int paint;
+        public int model;
     }
 
     Camera cam;
@@ -70,12 +81,56 @@ public class car : MonoBehaviour
     Phase phase;
     int thrown;
     int best;
+    int paintIndex;
+    int modelIndex;
+    int matchRound;
+    int streak;
+    int matchScore;
+    readonly int[] roundScores = new int[RoundsPerMatch];
+    int dailyScore;
+    string dailyDay = "";
     float calm;
     float devamUntil;
+    float shotFriction = Friction;
     bool pulling;
     Vector2 pressPos;
     Vector2 pull;
     string reason = "";
+    bool matchOver;
+    PickupKind pickupKind;
+    Vector2 pickupPos;
+    bool pickupAlive;
+    SpriteRenderer pickupView;
+    class ScorePop
+    {
+        public Vector2 world;
+        public string text;
+        public float life;
+        public float max;
+        public Color color;
+    }
+
+    class BurstBit
+    {
+        public Vector2 pos;
+        public Vector2 vel;
+        public Color color;
+        public float life;
+        public float max;
+    }
+
+    readonly List<ScorePop> pops = new List<ScorePop>();
+    readonly List<BurstBit> bits = new List<BurstBit>();
+    GUIStyle popStyle;
+    AudioSource speaker;
+    AudioSource music;
+    AudioClip sndPull;
+    AudioClip sndShot;
+    AudioClip sndHit;
+    AudioClip sndIn;
+    AudioClip sndOut;
+    AudioClip sndPick;
+    int lastBand;
     GUIStyle label;
     GUIStyle hintStyle;
     GUIStyle hudStyle;
@@ -101,13 +156,18 @@ public class car : MonoBehaviour
         QualitySettings.antiAliasing = 4;
         Screen.orientation = ScreenOrientation.Portrait;
         circleSprite = MakeCircleSprite();
-        carSprites = new Sprite[CarColors.Length];
-        for (int i = 0; i < CarColors.Length; i++)
-            carSprites[i] = MakeCarSprite(CarColors[i]);
+        carSprites = new Sprite[9];
+        for (int m = 0; m < 3; m++)
+            for (int p = 0; p < 3; p++)
+                carSprites[m * 3 + p] = MakeCarSprite(CarColors[p], m);
         LoadTable();
         SetupCamera();
         BuildRink();
-        StartRound();
+        SetupAudio();
+        paintIndex = Mathf.Clamp(PlayerPrefs.GetInt(PaintKey, 0), 0, 2);
+        modelIndex = Mathf.Clamp(PlayerPrefs.GetInt(ModelKey, 1), 0, 2);
+        LoadDaily();
+        phase = Phase.Menu;
     }
 
     void SetupCamera()
@@ -229,7 +289,7 @@ public class car : MonoBehaviour
         }
     }
 
-    void StartRound()
+    void StartMatch()
     {
         for (int i = 0; i < stones.Count; i++)
         {
@@ -237,14 +297,27 @@ public class car : MonoBehaviour
         }
 
         stones.Clear();
+        matchRound = 1;
+        matchScore = 0;
+        streak = 0;
+        matchOver = false;
+        for (int i = 0; i < roundScores.Length; i++) roundScores[i] = 0;
+        StartRound();
+    }
+
+    void StartRound()
+    {
         thrown = 0;
         calm = 0f;
         pulling = false;
         pull = Vector2.zero;
         devamUntil = 0f;
         reason = "";
+        matchOver = false;
+        shotFriction = Friction;
         phase = Phase.Aim;
         HideDots();
+        PlacePickup();
         SpawnStone();
     }
 
@@ -277,11 +350,14 @@ public class car : MonoBehaviour
             home = new Vector2(x, Spawn.y),
             angle = Mathf.PI * 0.5f,
             launched = false,
+            round = matchRound,
+            paint = paintIndex,
+            model = modelIndex,
         };
         stone.view = new GameObject("Araba");
         stone.view.transform.SetParent(transform, false);
         var body = stone.view.AddComponent<SpriteRenderer>();
-        body.sprite = carSprites[thrown % carSprites.Length];
+        body.sprite = carSprites[modelIndex * 3 + paintIndex];
         body.color = Color.white;
         body.sortingOrder = 12;
         stones.Add(stone);
@@ -293,9 +369,16 @@ public class car : MonoBehaviour
     {
         FitCamera();
         float dt = Mathf.Min(Time.deltaTime, 0.033f);
+        if (phase == Phase.Menu)
+        {
+            HandleMenuClicks();
+            return;
+        }
+
         if (phase == Phase.Over && Clicked(AgainRect()))
         {
-            StartRound();
+            if (matchOver) StartMatch();
+            else StartRound();
             return;
         }
 
@@ -303,6 +386,7 @@ public class car : MonoBehaviour
         if (phase == Phase.Aim && current != null) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
 
+        TickFx(dt);
         SyncStones();
         SyncDots();
     }
@@ -373,7 +457,9 @@ public class car : MonoBehaviour
         pull = Vector2.zero;
         phase = Phase.Slide;
         calm = 0f;
+        lastBand = 0;
         preview.Clear();
+        Play(sndShot);
     }
 
     void AimStep()
@@ -385,6 +471,12 @@ public class car : MonoBehaviour
             current.pos = current.home + pull / len * back;
             Vector2 launch = -pull;
             current.angle = Mathf.Atan2(launch.y, launch.x);
+            int band = PowerBand(len);
+            if (band != lastBand)
+            {
+                lastBand = band;
+                if (band > 0) Play(sndPull);
+            }
             preview.Clear();
         }
         else
@@ -438,6 +530,8 @@ public class car : MonoBehaviour
             if (stones[i].launched) StopAtBoard(stones[i]);
         }
 
+        TryCollectPickup();
+
         bool moving = false;
         for (int i = 0; i < stones.Count; i++)
         {
@@ -466,7 +560,7 @@ public class car : MonoBehaviour
         }
 
         body.angle = Mathf.Atan2(body.vel.y, body.vel.x);
-        float drop = Friction * dt;
+        float drop = ((current != null && body == current) ? shotFriction : Friction) * dt;
         if (drop >= sp)
         {
             body.vel = Vector2.zero;
@@ -524,6 +618,11 @@ public class car : MonoBehaviour
         b.vel += j * n;
         a.curl *= 0.35f;
         b.curl *= 0.35f;
+        if (rv < -0.35f)
+        {
+            Play(sndHit);
+            Buzz();
+        }
     }
 
     void Settle()
@@ -532,30 +631,53 @@ public class car : MonoBehaviour
         thrown += 1;
         if (!inside)
         {
-            End("Araba halkanın dışında durdu.");
+            streak = 0;
+            Play(sndOut);
+            EndRound("Araba halkanın dışında durdu.");
             return;
         }
 
+        streak += 1;
+        int got = PointsAt(current.pos);
+        BurstScore(current.pos, got);
+        Play(sndIn);
+        Buzz();
         if (thrown >= CarsPerRound)
         {
-            End("Beş araba da halkada.");
+            EndRound("Beş araba da halkada.");
             return;
         }
 
+        shotFriction = Friction;
         devamUntil = Time.time + 0.9f;
         SpawnStone();
     }
 
-    void End(string why)
+    void EndRound(string why)
     {
+        int now = ScoreThisRound();
+        roundScores[matchRound - 1] = now;
+        matchScore += now;
+        AddDaily(now);
+        if (matchScore > best)
+        {
+            best = matchScore;
+            PlayerPrefs.SetInt(BestKey, best);
+        }
+
         phase = Phase.Over;
         pulling = false;
-        reason = why;
-        int score = Score();
-        if (score > best)
+        HidePickup();
+        if (matchRound >= RoundsPerMatch)
         {
-            best = score;
-            PlayerPrefs.SetInt(BestKey, best);
+            matchOver = true;
+            reason = why + " Maç bitti.";
+        }
+        else
+        {
+            matchOver = false;
+            matchRound += 1;
+            reason = why;
         }
     }
 
@@ -570,18 +692,24 @@ public class car : MonoBehaviour
         return 0;
     }
 
-    int Score()
+    int ScoreThisRound()
     {
+        int round = matchRound;
         int sum = 0;
         for (int i = 0; i < stones.Count; i++)
         {
             Stone stone = stones[i];
-            if (!stone.launched) continue;
+            if (!stone.launched || stone.round != round) continue;
             if (stone.vel.magnitude > StopSpeed) continue;
             sum += PointsAt(stone.pos);
         }
 
         return sum;
+    }
+
+    int LiveScore()
+    {
+        return matchScore + (phase == Phase.Over ? 0 : ScoreThisRound());
     }
 
     void SyncStones()
@@ -592,7 +720,16 @@ public class car : MonoBehaviour
             if (stone.view == null) continue;
             stone.view.transform.position = stone.pos;
             stone.view.transform.rotation = Quaternion.Euler(0f, 0f, stone.angle * Mathf.Rad2Deg);
-            stone.view.transform.localScale = new Vector3(CarLen, CarWide, 1f);
+            float len = CarLen * (stone.model == 2 ? 1.28f : stone.model == 0 ? 1.08f : 1f);
+            float wide = CarWide * (stone.model == 0 ? 0.86f : 1f);
+            stone.view.transform.localScale = new Vector3(len, wide, 1f);
+            var body = stone.view.GetComponent<SpriteRenderer>();
+            if (body != null)
+            {
+                Color c = Color.white;
+                c.a = stone.round < matchRound ? 0.55f : 1f;
+                body.color = c;
+            }
         }
     }
 
@@ -680,17 +817,24 @@ public class car : MonoBehaviour
     {
         Rect safe = SafeScreen();
         float w = Mathf.Min(420f, safe.width - 24f);
-        float h = 220f;
+        float h = 248f;
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
     void OnGUI()
     {
         EnsureStyles();
+        if (phase == Phase.Menu)
+        {
+            DrawMenu();
+            return;
+        }
+
         DrawHud();
         if (phase == Phase.Over) DrawEnd();
         else DrawBar();
         DrawWorldTexts();
+        DrawFx();
     }
 
     void DrawHud()
@@ -698,17 +842,23 @@ public class car : MonoBehaviour
         Rect safe = SafeScreen();
         int n = phase == Phase.Over ? thrown : thrown + 1;
         n = Mathf.Clamp(n, 1, CarsPerRound);
-        float gap = 8f;
+        float gap = 6f;
         float pad = 10f;
-        float h = 28f;
+        float h = 26f;
         float y = safe.y + 8f;
-        float inner = safe.width - pad * 2f - gap;
-        float leftW = inner * 0.46f;
-        float rightW = inner - leftW;
+        float inner = safe.width - pad * 2f;
         float x = safe.x + pad;
-        DrawPill(new Rect(x, y, leftW, h), "Araba " + n + "/" + CarsPerRound);
-        DrawPill(new Rect(x + leftW + gap, y, rightW, h), "Skor " + Score());
-        if (Time.time < devamUntil)
+        float col = (inner - gap) * 0.5f;
+        int hudRound = (phase == Phase.Over && !matchOver) ? matchRound - 1 : matchRound;
+        hudRound = Mathf.Clamp(hudRound, 1, RoundsPerMatch);
+        DrawPill(new Rect(x, y, col, h), "Tur " + hudRound + "/" + RoundsPerMatch);
+        DrawPill(new Rect(x + col + gap, y, col, h), "Araba " + n + "/" + CarsPerRound);
+        y += h + gap;
+        DrawPill(new Rect(x, y, col, h), "Skor " + LiveScore());
+        DrawPill(new Rect(x + col + gap, y, col, h), "Bugün " + dailyScore + "/" + DailyGoal);
+        if (streak > 1)
+            DrawPill(new Rect(safe.x + (safe.width - 88f) * 0.5f, y + h + 6f, 88f, h), "Seri " + streak);
+        else if (Time.time < devamUntil)
             DrawPill(new Rect(safe.x + (safe.width - 90f) * 0.5f, y + h + 6f, 90f, h), "Devam");
     }
 
@@ -716,8 +866,10 @@ public class car : MonoBehaviour
     {
         float len = pull.magnitude;
         int band = phase == Phase.Aim && pulling ? PowerBand(len) : 0;
-        string hint = "Geri çek, bırak";
+        string hint = thrown == 0 && matchRound == 1 && !pulling ? "Üst halkaya at" : "Geri çek, bırak";
         if (phase == Phase.Slide) hint = "Kayıyor…";
+        else if (shotFriction < Friction * 0.9f) hint = "Boost";
+        else if (shotFriction > Friction * 1.1f) hint = "Tutuş";
         else if (band == 1) hint = "Hafif";
         else if (band == 2) hint = "Az";
         else if (band == 3) hint = "Orta";
@@ -753,15 +905,15 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.94f);
         GUI.DrawTexture(card, pixel);
         GUI.color = Color.white;
-        GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Tur bitti", label);
-        GUI.Label(new Rect(card.x + 16f, card.y + 52f, card.width - 32f, 28f), reason, hintStyle);
-        GUI.Label(new Rect(card.x, card.y + 82f, card.width, 32f), "Skor " + Score(), label);
-        GUI.Label(new Rect(card.x, card.y + 110f, card.width, 24f), "En iyi " + best, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 10f, card.width, 30f), matchOver ? "Maç bitti" : "Tur bitti", label);
+        GUI.Label(new Rect(card.x + 12f, card.y + 40f, card.width - 24f, 36f), reason, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 78f, card.width, 26f), "Maç " + matchScore + "  En iyi " + best, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 102f, card.width, 22f), "Bugün " + dailyScore + "/" + DailyGoal, hintStyle);
         Rect button = AgainRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(button, pixel);
         GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
-        GUI.Label(button, "Tekrar", label);
+        GUI.Label(button, matchOver ? "Tekrar" : "Sonraki tur", label);
         GUI.color = Color.white;
     }
 
@@ -832,7 +984,299 @@ public class car : MonoBehaviour
         hudStyle.fontSize = size;
         hintStyle = new GUIStyle(label);
         hintStyle.fontSize = size;
+        popStyle = new GUIStyle(label);
+        popStyle.fontSize = size + 10;
+        popStyle.fontStyle = FontStyle.Bold;
         stylesReady = true;
+    }
+
+    void HandleMenuClicks()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (Clicked(ModelRect(i)))
+            {
+                modelIndex = i;
+                PlayerPrefs.SetInt(ModelKey, modelIndex);
+                Play(sndPull);
+                return;
+            }
+
+            if (Clicked(PaintRect(i)))
+            {
+                paintIndex = i;
+                PlayerPrefs.SetInt(PaintKey, paintIndex);
+                Play(sndPull);
+                return;
+            }
+        }
+
+        if (Clicked(StartRect()))
+            StartMatch();
+    }
+
+    void DrawMenu()
+    {
+        Rect safe = SafeScreen();
+        Rect card = new Rect(safe.x + 16f, safe.y + safe.height * 0.12f, safe.width - 32f, safe.height * 0.72f);
+        GUI.color = new Color(0.08f, 0.05f, 0.03f, 0.92f);
+        GUI.DrawTexture(card, pixel);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(card.x, card.y + 12f, card.width, 32f), "Halka Arabaları", label);
+        GUI.Label(new Rect(card.x, card.y + 44f, card.width, 20f), "En iyi " + best + "   Bugün " + dailyScore + "/" + DailyGoal, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 68f, card.width, 20f), ModelNames[modelIndex], hintStyle);
+        for (int i = 0; i < 3; i++)
+        {
+            Rect mr = ModelRect(i);
+            GUI.color = i == modelIndex ? new Color(0.94f, 0.64f, 0.02f, 1f) : new Color(0.22f, 0.12f, 0.07f, 1f);
+            GUI.DrawTexture(mr, pixel);
+            GUI.color = Color.white;
+            GUI.Label(mr, ModelNames[i].Replace(" ", "\n"), hintStyle);
+            Rect r = PaintRect(i);
+            GUI.color = CarColors[i];
+            GUI.DrawTexture(r, pixel);
+            if (i == paintIndex)
+            {
+                GUI.color = Color.white;
+                GUI.Box(r, "");
+            }
+        }
+
+        GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+        GUI.DrawTexture(StartRect(), pixel);
+        GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
+        GUI.Label(StartRect(), "Başla", label);
+        GUI.color = Color.white;
+    }
+
+    Rect PaintRect(int i)
+    {
+        Rect safe = SafeScreen();
+        float size = 44f;
+        float gap = 14f;
+        float total = size * 3f + gap * 2f;
+        float x = safe.x + (safe.width - total) * 0.5f + i * (size + gap);
+        return new Rect(x, safe.y + safe.height * 0.52f, size, size);
+    }
+
+    Rect ModelRect(int i)
+    {
+        Rect safe = SafeScreen();
+        float w = Mathf.Min(92f, (safe.width - 48f) / 3f);
+        float gap = 8f;
+        float total = w * 3f + gap * 2f;
+        float x = safe.x + (safe.width - total) * 0.5f + i * (w + gap);
+        return new Rect(x, safe.y + safe.height * 0.34f, w, 48f);
+    }
+
+    Rect StartRect()
+    {
+        Rect safe = SafeScreen();
+        float w = Mathf.Min(180f, safe.width - 48f);
+        return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + safe.height * 0.68f, w, 44f);
+    }
+
+    void LoadDaily()
+    {
+        string today = System.DateTime.Now.ToString("yyyyMMdd");
+        dailyDay = PlayerPrefs.GetString(DailyDayKey, "");
+        if (dailyDay != today)
+        {
+            dailyDay = today;
+            dailyScore = 0;
+            PlayerPrefs.SetString(DailyDayKey, dailyDay);
+            PlayerPrefs.SetInt(DailyKey, 0);
+        }
+        else dailyScore = PlayerPrefs.GetInt(DailyKey, 0);
+    }
+
+    void AddDaily(int points)
+    {
+        LoadDaily();
+        dailyScore += points;
+        PlayerPrefs.SetInt(DailyKey, dailyScore);
+    }
+
+    void PlacePickup()
+    {
+        HidePickup();
+        if (Random.value > 0.28f) return;
+        pickupKind = Random.value < 0.5f ? PickupKind.Boost : PickupKind.Traction;
+        pickupPos = new Vector2(Random.Range(-laneHalf * 0.45f, laneHalf * 0.45f), Mathf.Lerp(Spawn.y + 0.9f, House.y - 0.4f, Random.Range(0.25f, 0.7f)));
+        pickupAlive = true;
+        Color col = pickupKind == PickupKind.Boost ? new Color(0.25f, 0.85f, 0.45f, 0.95f) : new Color(0.95f, 0.55f, 0.15f, 0.95f);
+        pickupView = MakeSprite("Pickup", circleSprite, col, 8);
+        pickupView.transform.position = pickupPos;
+        pickupView.transform.localScale = Vector3.one * 0.28f;
+    }
+
+    void HidePickup()
+    {
+        pickupAlive = false;
+        pickupKind = PickupKind.None;
+        if (pickupView != null)
+        {
+            Destroy(pickupView.gameObject);
+            pickupView = null;
+        }
+    }
+
+    void TryCollectPickup()
+    {
+        if (!pickupAlive || current == null || !current.launched) return;
+        if (Vector2.Distance(current.pos, pickupPos) > CarRadius + 0.16f) return;
+        if (pickupKind == PickupKind.Boost) shotFriction = Friction * 0.55f;
+        else shotFriction = Friction * 1.85f;
+        Play(sndPick);
+        Buzz();
+        HidePickup();
+    }
+
+    void SetupAudio()
+    {
+        speaker = gameObject.AddComponent<AudioSource>();
+        speaker.playOnAwake = false;
+        sndPull = MakeTone(210f, 0.06f);
+        sndShot = MakeTone(170f, 0.12f);
+        sndHit = MakeTone(380f, 0.05f);
+        sndIn = MakeTone(560f, 0.16f);
+        sndOut = MakeTone(120f, 0.18f);
+        sndPick = MakeTone(440f, 0.10f);
+        music = gameObject.AddComponent<AudioSource>();
+        music.playOnAwake = false;
+        music.loop = true;
+        music.volume = 0.18f;
+        music.clip = MakeLoungeLoop();
+        music.Play();
+    }
+
+    AudioClip MakeTone(float freq, float seconds)
+    {
+        int rate = 44100;
+        int n = Mathf.Max(32, (int)(rate * seconds));
+        var clip = AudioClip.Create("ton", n, 1, rate, false);
+        var data = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)rate;
+            float env = 1f - t / seconds;
+            data[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.11f * env;
+        }
+
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    AudioClip MakeLoungeLoop()
+    {
+        int rate = 22050;
+        float bpm = 96f;
+        float beat = 60f / bpm;
+        int bars = 4;
+        int samples = (int)(rate * beat * 4f * bars);
+        var data = new float[samples];
+        float[] melody = { 261.63f, 329.63f, 392.00f, 523.25f, 392.00f, 329.63f, 349.23f, 261.63f };
+        float[] bass = { 130.81f, 130.81f, 196.00f, 174.61f };
+        for (int i = 0; i < samples; i++)
+        {
+            float t = i / (float)rate;
+            int eighth = Mathf.FloorToInt(t / (beat * 0.5f)) % melody.Length;
+            int beatI = Mathf.FloorToInt(t / beat) % bass.Length;
+            float envM = 1f - (t / (beat * 0.5f) % 1f);
+            float envB = 1f - (t / beat % 1f);
+            float m = Mathf.Sin(2f * Mathf.PI * melody[eighth] * t) * 0.045f * envM;
+            float b = Mathf.Sin(2f * Mathf.PI * bass[beatI] * t) * 0.05f * envB;
+            data[i] = (m + b) * (0.85f + 0.15f * Mathf.Sin(2f * Mathf.PI * t / 8f));
+        }
+
+        var clip = AudioClip.Create("lounge", samples, 1, rate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    void BurstScore(Vector2 world, int pts)
+    {
+        Color gold = pts >= 4 ? new Color(1f, 0.86f, 0.25f) : new Color(1f, 0.95f, 0.55f);
+        pops.Add(new ScorePop { world = world, text = "+" + pts, life = 0.9f, max = 0.9f, color = gold });
+        int n = 8 + pts * 7;
+        for (int i = 0; i < n; i++)
+        {
+            float ang = (i / (float)n) * Mathf.PI * 2f + Random.Range(-0.2f, 0.2f);
+            float sp = Random.Range(1.2f, 3.4f + pts);
+            bits.Add(new BurstBit
+            {
+                pos = world,
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp,
+                color = i % 2 == 0 ? gold : new Color(1f, 0.45f, 0.12f),
+                life = Random.Range(0.35f, 0.7f)
+            });
+            bits[bits.Count - 1].max = bits[bits.Count - 1].life;
+        }
+    }
+
+    void TickFx(float dt)
+    {
+        for (int i = pops.Count - 1; i >= 0; i--)
+        {
+            pops[i].life -= dt;
+            pops[i].world += Vector2.up * (1.1f * dt);
+            if (pops[i].life <= 0f) pops.RemoveAt(i);
+        }
+
+        for (int i = bits.Count - 1; i >= 0; i--)
+        {
+            bits[i].life -= dt;
+            bits[i].vel *= 0.92f;
+            bits[i].pos += bits[i].vel * dt;
+            if (bits[i].life <= 0f) bits.RemoveAt(i);
+        }
+    }
+
+    void DrawFx()
+    {
+        if (cam == null) return;
+        for (int i = 0; i < bits.Count; i++)
+        {
+            BurstBit b = bits[i];
+            Vector3 s = cam.WorldToScreenPoint(b.pos);
+            if (s.z < 0f) continue;
+            float t = Mathf.Clamp01(b.life / b.max);
+            float sz = 6f + 8f * t;
+            var r = new Rect(s.x - sz * 0.5f, Screen.height - s.y - sz * 0.5f, sz, sz);
+            Color c = b.color;
+            c.a = t;
+            GUI.color = c;
+            GUI.DrawTexture(r, pixel);
+        }
+
+        for (int i = 0; i < pops.Count; i++)
+        {
+            ScorePop p = pops[i];
+            Vector3 s = cam.WorldToScreenPoint(p.world);
+            if (s.z < 0f) continue;
+            float t = Mathf.Clamp01(p.life / p.max);
+            float grow = 1f + (1f - t) * 1.35f;
+            float w = 70f * grow;
+            float h = 36f * grow;
+            var r = new Rect(s.x - w * 0.5f, Screen.height - s.y - h * 0.5f, w, h);
+            Color c = p.color;
+            c.a = t;
+            GUI.color = c;
+            GUI.Label(r, p.text, popStyle != null ? popStyle : label);
+        }
+
+        GUI.color = Color.white;
+    }
+
+    void Play(AudioClip clip)
+    {
+        if (speaker == null || clip == null) return;
+        speaker.PlayOneShot(clip);
+    }
+
+    void Buzz()
+    {
+        if (Application.isMobilePlatform) Handheld.Vibrate();
     }
 
     SpriteRenderer MakeSprite(string name, Sprite sprite, Color color, int order)
@@ -880,18 +1324,19 @@ public class car : MonoBehaviour
         return Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), n);
     }
 
-    static Sprite MakeCarSprite(Color paint)
+    static Sprite MakeCarSprite(Color paint, int model)
     {
-        const int w = 128;
-        const int h = 64;
+        const int w = 160;
+        const int h = 72;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
         var pixels = new Color[w * h];
-        Color tire = new Color(0.12f, 0.12f, 0.12f, 1f);
-        Color well = new Color(0.18f, 0.18f, 0.18f, 1f);
-        Color glass = new Color(0.58f, 0.82f, 0.95f, 1f);
+        Color tire = new Color(0.10f, 0.10f, 0.10f, 1f);
+        Color chrome = new Color(0.82f, 0.84f, 0.88f, 1f);
+        Color glass = new Color(0.45f, 0.72f, 0.92f, 1f);
         Color lamp = new Color(1f, 0.94f, 0.55f, 1f);
-        Color roof = Color.Lerp(paint, Color.white, 0.10f);
+        Color gold = new Color(0.92f, 0.75f, 0.28f, 1f);
+        Color roof = Color.Lerp(paint, Color.white, 0.12f);
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -899,16 +1344,38 @@ public class car : MonoBehaviour
                 float nx = (x + 0.5f) / w * 2f - 1f;
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
-                bool body = Rounded(nx, ny, 0.82f, 0.58f, 0.18f);
-                bool leftTire = Rounded(nx, ny + 0.78f, 0.62f, 0.16f, 0.08f);
-                bool rightTire = Rounded(nx, ny - 0.78f, 0.62f, 0.16f, 0.08f);
-                bool cabin = Rounded(nx + 0.08f, ny, 0.28f, 0.36f, 0.10f);
-                bool window = Rounded(nx + 0.20f, ny, 0.14f, 0.28f, 0.08f);
-                bool lightL = Ellipse(nx + 0.68f, ny - 0.22f, 0.07f, 0.10f);
-                bool lightR = Ellipse(nx + 0.68f, ny + 0.22f, 0.07f, 0.10f);
-                if (leftTire || rightTire) c = Mathf.Abs(nx) > 0.55f ? well : tire;
+                bool leftTire = Rounded(nx - (model == 2 ? -0.12f : 0f), ny + 0.78f, model == 2 ? 0.72f : 0.58f, 0.15f, 0.07f);
+                bool rightTire = Rounded(nx - (model == 2 ? -0.12f : 0f), ny - 0.78f, model == 2 ? 0.72f : 0.58f, 0.15f, 0.07f);
+                bool body = false, cabin = false, window = false, extra = false, stripe = false;
+                if (model == 0)
+                {
+                    body = Rounded(nx, ny, 0.88f, 0.46f, 0.22f) && nx < 0.92f;
+                    cabin = Rounded(nx + 0.02f, ny, 0.22f, 0.30f, 0.08f);
+                    window = Rounded(nx + 0.16f, ny, 0.16f, 0.22f, 0.06f);
+                    extra = nx > 0.55f && Mathf.Abs(ny) < 0.22f && nx < 0.95f;
+                }
+                else if (model == 2)
+                {
+                    body = Rounded(nx, ny, 0.94f, 0.52f, 0.12f);
+                    cabin = Rounded(nx, ny, 0.42f, 0.34f, 0.08f);
+                    window = Rounded(nx + 0.22f, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx + 0.02f, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx - 0.20f, ny, 0.12f, 0.24f, 0.05f);
+                    stripe = Mathf.Abs(ny) < 0.06f && Mathf.Abs(nx) < 0.88f;
+                }
+                else
+                {
+                    body = Rounded(nx, ny, 0.84f, 0.55f, 0.16f);
+                    cabin = Rounded(nx + 0.06f, ny, 0.30f, 0.34f, 0.10f);
+                    window = Rounded(nx + 0.18f, ny, 0.14f, 0.26f, 0.07f);
+                    stripe = Mathf.Abs(ny) < 0.045f && nx > -0.2f && nx < 0.7f;
+                }
+
+                bool lightL = Ellipse(nx + 0.78f, ny - 0.20f, 0.07f, 0.10f);
+                bool lightR = Ellipse(nx + 0.78f, ny + 0.20f, 0.07f, 0.10f);
+                if (leftTire || rightTire) c = tire;
                 else if (window) c = glass;
                 else if (lightL || lightR) c = lamp;
+                else if (stripe) c = model == 2 ? gold : chrome;
+                else if (extra) c = chrome;
                 else if (cabin) c = roof;
                 else if (body) c = paint;
                 pixels[y * w + x] = c;

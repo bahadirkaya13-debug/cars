@@ -5,13 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Halka Arabaları</title>
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #523016;
-      color: #f4ece3;
-      font-family: "Segoe UI", sans-serif;
-    }
+    html, body { margin: 0; height: 100%; background: #523016; color: #f4ece3; font-family: "Segoe UI", sans-serif; }
     body { display: grid; place-items: center; }
     .stage {
       position: relative;
@@ -24,125 +18,94 @@
       touch-action: none;
     }
     canvas { width: 100%; height: 100%; display: block; }
-    .top, .bottom {
-      position: absolute;
-      left: 12px;
-      right: 12px;
-      display: flex;
-      pointer-events: none;
+    .hud {
+      position: absolute; left: 10px; right: 10px; top: max(8px, env(safe-area-inset-top));
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; pointer-events: none;
     }
-    .top {
-      top: max(10px, env(safe-area-inset-top));
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .top span {
-      flex: 1;
-      background: rgba(32, 16, 8, 0.82);
-      border-radius: 999px;
-      padding: 7px 10px;
-      font-size: 14px;
-      font-weight: 700;
-      text-align: center;
+    .hud span {
+      background: rgba(32, 16, 8, 0.82); border-radius: 999px; padding: 6px 8px;
+      font-size: 13px; font-weight: 700; text-align: center;
     }
     .bottom {
-      bottom: max(12px, env(safe-area-inset-bottom));
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
+      position: absolute; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
     }
     .bottom[hidden] { display: none; }
-    .bottom p {
-      margin: 0;
-      font-size: 14px;
-      font-weight: 700;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-    }
-    .power {
-      width: min(72%, 260px);
-      display: flex;
-      gap: 4px;
-    }
-    .power i {
-      flex: 1;
-      height: 16px;
-      border-radius: 3px;
-      background: rgba(18, 10, 6, 0.9);
-    }
+    .bottom p { margin: 0; font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+    .power { width: min(72%, 260px); display: flex; gap: 4px; }
+    .power i { flex: 1; height: 16px; border-radius: 3px; background: rgba(18, 10, 6, 0.9); }
     .power i.on:nth-child(1) { background: #59d173; }
     .power i.on:nth-child(2) { background: #8cc84a; }
     .power i.on:nth-child(3) { background: #e2c13a; }
     .power i.on:nth-child(4) { background: #e98332; }
     .power i.on:nth-child(5) { background: #f25938; }
-    .panel {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: rgba(28, 14, 6, 0.48);
-    }
+    .panel { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(28, 14, 6, 0.48); }
     .panel.hidden { display: none; }
     .card {
-      width: min(86%, 420px);
-      background: rgba(28, 16, 10, 0.94);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 18px;
-      padding: 26px 28px 22px;
-      text-align: center;
+      width: min(86%, 420px); background: rgba(28, 16, 10, 0.94);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 22px 24px; text-align: center;
     }
-    h1 { margin: 0 0 8px; font-size: 26px; }
-    .card p, .card li { color: #ead9c8; line-height: 1.45; }
-    ol { text-align: left; margin: 12px 0 16px; padding-left: 18px; }
-    button {
-      font: inherit;
-      font-weight: 800;
-      background: #f0a202;
-      color: #1a1203;
-      border: 0;
-      border-radius: 999px;
-      padding: 12px 28px;
-      cursor: pointer;
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    .card p, .card li { color: #ead9c8; line-height: 1.4; }
+    .paints { display: flex; justify-content: center; gap: 12px; margin: 14px 0; }
+    .paints button { width: 44px; height: 44px; border-radius: 10px; border: 3px solid transparent; padding: 0; }
+    .paints button.sel { border-color: #fff; }
+    .models { display: flex; justify-content: center; gap: 8px; margin: 10px 0; }
+    .models button {
+      flex: 1; font: inherit; font-size: 12px; font-weight: 800; padding: 8px 4px;
+      border-radius: 10px; border: 0; background: #3a2112; color: #f4ece3;
     }
-    #final { margin: 0; font-size: 28px; font-weight: 800; }
+    .models button.sel { background: #f0a202; color: #1a1203; }
+    button.main {
+      font: inherit; font-weight: 800; background: #f0a202; color: #1a1203;
+      border: 0; border-radius: 999px; padding: 12px 28px; cursor: pointer;
+    }
+    #final { margin: 0; font-size: 26px; font-weight: 800; }
   </style>
 </head>
 <body>
   <div class="stage" id="stage">
     <canvas id="c" width="720" height="1280"></canvas>
-    <header class="top">
+    <header class="hud" id="hud" hidden>
+      <span id="round">Tur 1/3</span>
       <span id="car">Araba 1/5</span>
       <span id="score">Skor 0</span>
+      <span id="daily">Bugün 0/20</span>
     </header>
     <footer class="bottom" id="bottom" hidden>
-      <p id="hint">Geri çek, bırak</p>
-      <div class="power" id="power" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <p id="hint">Üst halkaya at</p>
+      <div class="power" id="power"><i></i><i></i><i></i><i></i><i></i></div>
     </footer>
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <ol>
-          <li>Arabayı geri çek, bırak.</li>
-          <li>Üstteki halkaya yakın duran daha çok puan alır.</li>
-          <li>Halkanın içinde durursan sonraki arabayı atarsın.</li>
-          <li>Dışarıda durursa tur biter.</li>
-        </ol>
         <p id="menu-best"></p>
-        <button id="start" type="button">Başla</button>
+        <p>3 tur · lüks model ve renk seç</p>
+        <div class="models">
+          <button type="button" data-model="0">Sport GT</button>
+          <button type="button" data-model="1" class="sel">Lüks Sedan</button>
+          <button type="button" data-model="2">Limuzin</button>
+        </div>
+        <div class="paints">
+          <button type="button" data-paint="0" style="background:#db2e2e" class="sel"></button>
+          <button type="button" data-paint="1" style="background:#296be0"></button>
+          <button type="button" data-paint="2" style="background:#f5d11f"></button>
+        </div>
+        <button class="main" id="start" type="button">Başla</button>
       </div>
     </section>
     <section class="panel hidden" id="over">
       <div class="card">
-        <h1>Tur bitti</h1>
+        <h1 id="over-title">Tur bitti</h1>
         <p id="reason"></p>
         <p id="final">Skor 0</p>
         <p id="best-out"></p>
-        <button id="again" type="button">Tekrar</button>
+        <button class="main" id="again" type="button">Sonraki tur</button>
       </div>
     </section>
   </div>
   <script>
-    const W = 720, H = 1280;
-    const VIEW_H = 6.4, VIEW_W = VIEW_H * 9 / 16;
+    const W = 720, H = 1280, VIEW_H = 6.4, VIEW_W = VIEW_H * 9 / 16;
     const HOUSE = { x: 0, y: 0.34 * VIEW_H };
     const SPAWN = { x: 0, y: -0.36 * VIEW_H };
     const OUTER = 0.090 * VIEW_H;
@@ -150,68 +113,130 @@
     const RING_PTS = [1, 2, 3, 4];
     const RING_COL = ["#1e73db", "#b87538", "#d12929", "#1a6bd1"];
     const FRICTION = 1.70, MAX_PULL = 1.50, MIN_PULL = 0.22, MAX_SPEED = 4.60;
-    const BACK = 0.22, STOP_SPEED = 0.08, CURL = 1.20, POWER_STEPS = 5;
-    const CAR_R = 0.14, CAR_LEN = 0.44, CAR_WIDE = 0.22, LANE = 0.30 * VIEW_W;
-    const CARS_PER_ROUND = 5, BEST_KEY = "halka-arabalari-best";
-    const COLORS = ["#db2e2e", "#296be0", "#f5d11f", "#2e9e29", "#f27a1a", "#4dd1d6"];
+    const BACK = 0.22, STOP = 0.08, CURL = 1.20, STEPS = 5, CAR_R = 0.14;
+    const CAR_LEN = 0.44, CAR_WIDE = 0.22, LANE = 0.30 * VIEW_W;
+    const CARS = 5, ROUNDS = 3, GOAL = 20;
+    const COLORS = ["#db2e2e", "#296be0", "#f5d11f"];
+    const BEST_KEY = "halka-best", PAINT_KEY = "halka-paint", MODEL_KEY = "halka-model";
+    const DAY_KEY = "halka-day", DAILY_KEY = "halka-daily";
 
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d");
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
+    canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
     const board = new Image();
     board.src = "masa.jpg";
     let boardReady = false;
     board.onload = () => { boardReady = true; };
 
-    const stage = document.getElementById("stage");
     const menuEl = document.getElementById("menu");
     const overEl = document.getElementById("over");
+    const hudEl = document.getElementById("hud");
     const bottomEl = document.getElementById("bottom");
-    const hintEl = document.getElementById("hint");
-    const scoreEl = document.getElementById("score");
-    const carEl = document.getElementById("car");
     const powerCells = [...document.querySelectorAll("#power i")];
-    const reasonEl = document.getElementById("reason");
-    const finalEl = document.getElementById("final");
-    const bestOutEl = document.getElementById("best-out");
-    const menuBestEl = document.getElementById("menu-best");
 
-    let best = 0;
-    try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
-    menuBestEl.textContent = best > 0 ? "En iyi " + best : "İlk turun seni bekliyor.";
+    let best = Number(localStorage.getItem(BEST_KEY) || 0);
+    let paint = Number(localStorage.getItem(PAINT_KEY) || 0);
+    let model = Number(localStorage.getItem(MODEL_KEY) || 1);
+    let daily = 0, day = localStorage.getItem(DAY_KEY) || "";
+    const today = new Date().toISOString().slice(0, 10);
+    if (day !== today) { day = today; daily = 0; localStorage.setItem(DAY_KEY, day); localStorage.setItem(DAILY_KEY, "0"); }
+    else daily = Number(localStorage.getItem(DAILY_KEY) || 0);
+    paint = Math.max(0, Math.min(2, paint));
+    model = Math.max(0, Math.min(2, model));
+    document.getElementById("menu-best").textContent = "En iyi " + best + "   Bugün " + daily + "/" + GOAL;
+    document.querySelectorAll(".models button").forEach((b) => {
+      b.classList.toggle("sel", Number(b.dataset.model) === model);
+      b.onclick = () => {
+        model = Number(b.dataset.model);
+        localStorage.setItem(MODEL_KEY, String(model));
+        document.querySelectorAll(".models button").forEach((x) => x.classList.toggle("sel", x === b));
+        tone(210, 0.06);
+      };
+    });
+    document.querySelectorAll(".paints button").forEach((b) => {
+      b.classList.toggle("sel", Number(b.dataset.paint) === paint);
+      b.onclick = () => {
+        paint = Number(b.dataset.paint);
+        localStorage.setItem(PAINT_KEY, String(paint));
+        document.querySelectorAll(".paints button").forEach((x) => x.classList.toggle("sel", x === b));
+        tone(210, 0.06);
+      };
+    });
 
-    let cars = [], current = null, state = "menu", thrown = 0, calm = 0, devam = 0;
+    let cars = [], current = null, state = "menu";
+    let thrown = 0, matchRound = 1, matchScore = 0, streak = 0, matchOver = false;
+    let calm = 0, devam = 0, shotFric = FRICTION, lastBand = 0;
+    let pickup = null;
     const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
+    let actx = null, musicOn = false;
+    const pops = [], bits = [];
 
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-    function toPx(x, y) {
-      return { x: W * 0.5 + (x / VIEW_W) * W, y: H * 0.5 - (y / VIEW_H) * H };
-    }
-    function toWorld(px, py) {
-      return { x: (px - W * 0.5) / W * VIEW_W, y: (H * 0.5 - py) / H * VIEW_H };
-    }
+    function toPx(x, y) { return { x: W * 0.5 + (x / VIEW_W) * W, y: H * 0.5 - (y / VIEW_H) * H }; }
+    function toWorld(px, py) { return { x: (px - W * 0.5) / W * VIEW_W, y: (H * 0.5 - py) / H * VIEW_H }; }
     function pxR(r) { return r / VIEW_H * H; }
-
+    function buzz() { try { navigator.vibrate && navigator.vibrate(35); } catch (e) {} }
+    function tone(freq, dur) {
+      try {
+        if (!actx) actx = new AudioContext();
+        if (actx.state === "suspended") actx.resume();
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.frequency.setValueAtTime(freq, actx.currentTime);
+        g.gain.setValueAtTime(0.08, actx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+        o.connect(g); g.connect(actx.destination);
+        o.start(); o.stop(actx.currentTime + dur);
+      } catch (e) {}
+    }
+    function startMusic() {
+      if (musicOn) return;
+      try {
+        if (!actx) actx = new AudioContext();
+        actx.resume();
+        const melody = [261.63, 329.63, 392, 523.25, 392, 329.63, 349.23, 261.63];
+        const bass = [130.81, 130.81, 196, 174.61];
+        let step = 0;
+        const tick = () => {
+          if (!actx) return;
+          const t = actx.currentTime;
+          const mk = (freq, dur, vol) => {
+            const o = actx.createOscillator(), g = actx.createGain();
+            o.type = "triangle";
+            o.frequency.setValueAtTime(freq, t);
+            g.gain.setValueAtTime(vol, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+            o.connect(g); g.connect(actx.destination);
+            o.start(t); o.stop(t + dur);
+          };
+          mk(melody[step % melody.length], 0.28, 0.035);
+          if (step % 2 === 0) mk(bass[(step / 2) % bass.length], 0.4, 0.04);
+          step++;
+        };
+        tick();
+        setInterval(tick, 312);
+        musicOn = true;
+      } catch (e) {}
+    }
     function pointsAt(x, y) {
       const d = Math.hypot(x - HOUSE.x, y - HOUSE.y);
       for (let i = RING_R.length - 1; i >= 0; i--) if (d <= RING_R[i]) return RING_PTS[i];
       return 0;
     }
-    function totalScore() {
+    function scoreRound() {
       let s = 0;
       for (const c of cars) {
-        if (!c.launched || Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
+        if (!c.launched || c.round !== matchRound) continue;
+        if (Math.hypot(c.vx, c.vy) > STOP) continue;
         s += pointsAt(c.x, c.y);
       }
       return s;
     }
-    function powerBand(len) {
+    function liveScore() { return matchScore + (state === "over" ? 0 : scoreRound()); }
+    function band(len) {
       if (len < MIN_PULL) return 0;
-      return clamp(Math.ceil(clamp(len / MAX_PULL, 0, 1) * POWER_STEPS), 1, POWER_STEPS);
+      return clamp(Math.ceil(clamp(len / MAX_PULL, 0, 1) * STEPS), 1, STEPS);
     }
 
     function spawnCar() {
@@ -220,48 +245,89 @@
         const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * CAR_R * 2.2);
         if (!cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < CAR_R * 2 + 0.08)) { x = tx; break; }
       }
-      const car = {
-        x, y: SPAWN.y, homeX: x, homeY: SPAWN.y,
-        vx: 0, vy: 0, r: CAR_R, color: COLORS[thrown % COLORS.length],
-        angle: Math.PI / 2, curl: 0, launched: false
+      current = {
+        x, y: SPAWN.y, homeX: x, homeY: SPAWN.y, vx: 0, vy: 0, r: CAR_R,
+        color: COLORS[paint], angle: Math.PI / 2, curl: 0, launched: false, round: matchRound, model
       };
-      cars.push(car);
-      current = car;
+      cars.push(current);
       state = "aim";
     }
-    function startRound() {
-      cars = []; thrown = 0; calm = 0; pull.active = false; pull.x = 0; pull.y = 0; devam = 0;
-      menuEl.classList.add("hidden");
-      overEl.classList.add("hidden");
-      spawnCar();
+    function placePickup() {
+      pickup = null;
+      if (Math.random() > 0.28) return;
+      pickup = {
+        kind: Math.random() < 0.5 ? "boost" : "traction",
+        x: (Math.random() * 2 - 1) * LANE * 0.45,
+        y: SPAWN.y + 0.9 + Math.random() * Math.max(0.4, HOUSE.y - SPAWN.y - 1.3)
+      };
     }
-    function showOver(reason) {
+    function startRound() {
+      thrown = 0; calm = 0; devam = 0; shotFric = FRICTION; pull.active = false; pull.x = 0; pull.y = 0;
+      matchOver = false;
+      placePickup();
+      spawnCar();
+      overEl.classList.add("hidden");
+    }
+    function burstScore(x, y, pts) {
+      pops.push({ x, y, text: "+" + pts, life: 0.9, max: 0.9, gold: pts >= 4 });
+      const n = 8 + pts * 7;
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+        const sp = 1.2 + Math.random() * (2.2 + pts);
+        bits.push({
+          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+          life: 0.35 + Math.random() * 0.35, gold: i % 2 === 0
+        });
+      }
+    }
+    function startMatch() {
+      startMusic();
+      cars = []; matchRound = 1; matchScore = 0; streak = 0;
+      menuEl.classList.add("hidden");
+      startRound();
+    }
+    function addDaily(n) {
+      if (localStorage.getItem(DAY_KEY) !== today) { daily = 0; localStorage.setItem(DAY_KEY, today); }
+      daily += n;
+      localStorage.setItem(DAILY_KEY, String(daily));
+    }
+    function endRound(why) {
+      const now = scoreRound();
+      matchScore += now;
+      addDaily(now);
+      if (matchScore > best) { best = matchScore; localStorage.setItem(BEST_KEY, String(best)); }
+      pickup = null;
       state = "over";
       pull.active = false;
-      const s = totalScore();
-      if (s > best) {
-        best = s;
-        try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* */ }
+      if (matchRound >= ROUNDS) {
+        matchOver = true;
+        document.getElementById("over-title").textContent = "Maç bitti";
+        document.getElementById("reason").textContent = why + " Maç bitti.";
+        document.getElementById("again").textContent = "Tekrar";
+      } else {
+        matchOver = false;
+        matchRound += 1;
+        document.getElementById("over-title").textContent = "Tur bitti";
+        document.getElementById("reason").textContent = why;
+        document.getElementById("again").textContent = "Sonraki tur";
       }
-      reasonEl.textContent = reason;
-      finalEl.textContent = "Skor " + s;
-      bestOutEl.textContent = "En iyi " + best;
+      document.getElementById("final").textContent = "Maç " + matchScore;
+      document.getElementById("best-out").textContent = "En iyi " + best + "   Bugün " + daily + "/" + GOAL;
       overEl.classList.remove("hidden");
     }
     function settle() {
       thrown += 1;
-      if (pointsAt(current.x, current.y) <= 0) { showOver("Araba halkanın dışında durdu."); return; }
-      if (thrown >= CARS_PER_ROUND) { showOver("Beş araba da halkada."); return; }
-      devam = 0.9;
-      spawnCar();
+      if (pointsAt(current.x, current.y) <= 0) { streak = 0; tone(120, 0.18); endRound("Araba halkanın dışında durdu."); return; }
+      streak += 1;
+      burstScore(current.x, current.y, pointsAt(current.x, current.y));
+      tone(560, 0.16); buzz();
+      if (thrown >= CARS) { endRound("Beş araba da halkada."); return; }
+      shotFric = FRICTION; devam = 0.9; spawnCar();
     }
 
     function canvasPoint(e) {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (e.clientX - rect.left) * (W / rect.width),
-        y: (e.clientY - rect.top) * (H / rect.height)
-      };
+      const r = canvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) };
     }
     function onDown(e) {
       if (state !== "aim" || !current) return;
@@ -272,37 +338,31 @@
     function onMove(e) {
       if (!pull.active || state !== "aim") return;
       const p = toWorld(canvasPoint(e).x, canvasPoint(e).y);
-      pull.x = p.x - pull.sx;
-      pull.y = p.y - pull.sy;
+      pull.x = p.x - pull.sx; pull.y = p.y - pull.sy;
     }
     function launch() {
       const len = Math.hypot(pull.x, pull.y);
       pull.active = false;
       if (!current || state !== "aim") return;
       if (len < MIN_PULL) {
-        pull.x = 0; pull.y = 0;
-        current.x = current.homeX; current.y = current.homeY; current.angle = Math.PI / 2;
+        pull.x = 0; pull.y = 0; current.x = current.homeX; current.y = current.homeY; current.angle = Math.PI / 2;
         return;
       }
-      const speed = powerBand(len) / POWER_STEPS * MAX_SPEED;
-      const dirx = -pull.x / len, diry = -pull.y / len;
-      current.vx = dirx * speed;
-      current.vy = diry * speed;
+      const speed = band(len) / STEPS * MAX_SPEED;
+      current.vx = (-pull.x / len) * speed;
+      current.vy = (-pull.y / len) * speed;
       current.curl = clamp(-pull.x / MAX_PULL, -1, 1) * CURL;
       current.angle = Math.atan2(current.vy, current.vx);
       current.launched = true;
-      pull.x = 0; pull.y = 0;
-      state = "slide";
-      calm = 0;
+      pull.x = 0; pull.y = 0; state = "slide"; calm = 0; lastBand = 0;
+      tone(170, 0.12);
     }
-    function onUp() { if (pull.active) launch(); }
-
     canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); onDown(e); }, { passive: false });
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    document.getElementById("start").addEventListener("click", startRound);
-    document.getElementById("again").addEventListener("click", startRound);
+    window.addEventListener("pointerup", () => { if (pull.active) launch(); });
+    window.addEventListener("pointercancel", () => { if (pull.active) launch(); });
+    document.getElementById("start").onclick = startMatch;
+    document.getElementById("again").onclick = () => { if (matchOver) startMatch(); else startRound(); };
 
     function applyAim() {
       const len = Math.hypot(pull.x, pull.y);
@@ -311,9 +371,9 @@
         current.x = current.homeX + (pull.x / len) * back;
         current.y = current.homeY + (pull.y / len) * back;
         current.angle = Math.atan2(-pull.y, -pull.x);
-      } else {
-        current.x = current.homeX; current.y = current.homeY; current.angle = Math.PI / 2;
-      }
+        const b = band(len);
+        if (b !== lastBand) { lastBand = b; if (b > 0) tone(210, 0.05); }
+      } else { current.x = current.homeX; current.y = current.homeY; current.angle = Math.PI / 2; }
     }
     function stopAtBoard(c) {
       const minX = -LANE + CAR_R, maxX = LANE - CAR_R;
@@ -325,159 +385,185 @@
     }
     function glide(body, dt) {
       const sp = Math.hypot(body.vx, body.vy);
-      if (sp <= STOP_SPEED) { body.vx = 0; body.vy = 0; return false; }
+      if (sp <= STOP) { body.vx = 0; body.vy = 0; return false; }
       body.angle = Math.atan2(body.vy, body.vx);
-      const drop = FRICTION * dt;
+      const drop = ((body === current) ? shotFric : FRICTION) * dt;
       if (drop >= sp) { body.vx = 0; body.vy = 0; return false; }
-      body.vx -= (body.vx / sp) * drop;
-      body.vy -= (body.vy / sp) * drop;
+      body.vx -= (body.vx / sp) * drop; body.vy -= (body.vy / sp) * drop;
       const sp2 = Math.hypot(body.vx, body.vy);
       if (sp2 > 0 && body.curl) {
         const slow = 1 - Math.min(1, sp2 / MAX_SPEED);
-        const omega = (body.curl / 0.70) * slow * slow;
-        const ang = Math.atan2(body.vy, body.vx) + omega * dt;
-        body.vx = Math.cos(ang) * sp2;
-        body.vy = Math.sin(ang) * sp2;
+        const ang = Math.atan2(body.vy, body.vx) + (body.curl / 0.70) * slow * slow * dt;
+        body.vx = Math.cos(ang) * sp2; body.vy = Math.sin(ang) * sp2;
       }
-      body.x += body.vx * dt;
-      body.y += body.vy * dt;
-      stopAtBoard(body);
-      return Math.hypot(body.vx, body.vy) > STOP_SPEED;
+      body.x += body.vx * dt; body.y += body.vy * dt; stopAtBoard(body);
+      return Math.hypot(body.vx, body.vy) > STOP;
     }
     function resolve(a, b) {
       let dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy);
       const min = a.r + b.r;
-      if (dist === 0) { dx = 1; dy = 0; dist = 1; }
+      if (dist === 0) { dx = 1; dist = 1; }
       if (dist >= min) return;
-      const nx = dx / dist, ny = dy / dist, overlap = min - dist;
-      a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
-      b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
+      const nx = dx / dist, ny = dy / dist, ov = min - dist;
+      a.x -= nx * ov * 0.5; a.y -= ny * ov * 0.5;
+      b.x += nx * ov * 0.5; b.y += ny * ov * 0.5;
       const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
       if (rv >= 0) return;
       const j = -(1 + 0.88) * rv / 2;
-      a.vx -= j * nx; a.vy -= j * ny;
-      b.vx += j * nx; b.vy += j * ny;
+      a.vx -= j * nx; a.vy -= j * ny; b.vx += j * nx; b.vy += j * ny;
       a.curl *= 0.35; b.curl *= 0.35;
-    }
-    function stepPhysics(dt) {
-      for (const c of cars) if (c.launched) glide(c, dt);
-      for (let n = 0; n < 5; n++) {
-        for (let i = 0; i < cars.length; i++) {
-          for (let j = i + 1; j < cars.length; j++) {
-            if (cars[i].launched && cars[j].launched) resolve(cars[i], cars[j]);
-          }
-        }
-      }
-      for (const c of cars) if (c.launched) stopAtBoard(c);
+      if (rv < -0.35) { tone(380, 0.05); buzz(); }
     }
     function update(dt) {
       if (devam > 0) devam -= dt;
       if (state === "aim" && current) applyAim();
       else if (state === "slide") {
-        stepPhysics(dt);
-        const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP_SPEED);
-        if (moving) calm = 0;
-        else { calm += dt; if (calm >= 0.18) settle(); }
+        for (const c of cars) if (c.launched) glide(c, dt);
+        for (let n = 0; n < 5; n++)
+          for (let i = 0; i < cars.length; i++)
+            for (let j = i + 1; j < cars.length; j++)
+              if (cars[i].launched && cars[j].launched) resolve(cars[i], cars[j]);
+        for (const c of cars) if (c.launched) stopAtBoard(c);
+        if (pickup && current && current.launched && Math.hypot(current.x - pickup.x, current.y - pickup.y) < CAR_R + 0.16) {
+          shotFric = pickup.kind === "boost" ? FRICTION * 0.55 : FRICTION * 1.85;
+          tone(440, 0.1); buzz(); pickup = null;
+        }
+        const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP);
+        if (moving) calm = 0; else { calm += dt; if (calm >= 0.18) settle(); }
+      }
+      for (let i = pops.length - 1; i >= 0; i--) {
+        pops[i].life -= dt; pops[i].y += 1.1 * dt;
+        if (pops[i].life <= 0) pops.splice(i, 1);
+      }
+      for (let i = bits.length - 1; i >= 0; i--) {
+        bits[i].life -= dt; bits[i].vx *= 0.92; bits[i].vy *= 0.92;
+        bits[i].x += bits[i].vx * dt; bits[i].y += bits[i].vy * dt;
+        if (bits[i].life <= 0) bits.splice(i, 1);
       }
     }
-
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
     function drawBoard() {
       if (boardReady) ctx.drawImage(board, 0, 0, W, H);
       else { ctx.fillStyle = "#8b5a2b"; ctx.fillRect(0, 0, W, H); }
       const old = toPx(0, (0.548 - 0.5) * VIEW_H);
-      ctx.beginPath();
-      ctx.arc(old.x, old.y, 0.22 * H, 0, Math.PI * 2);
-      ctx.fillStyle = "#b37033";
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(old.x, old.y, 0.22 * H, 0, Math.PI * 2);
+      ctx.fillStyle = "#b37033"; ctx.fill();
       const h = toPx(HOUSE.x, HOUSE.y);
       for (let i = 0; i < RING_R.length; i++) {
-        ctx.beginPath();
-        ctx.arc(h.x, h.y, pxR(RING_R[i]), 0, Math.PI * 2);
-        ctx.fillStyle = RING_COL[i];
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.85)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(h.x, h.y, pxR(RING_R[i]), 0, Math.PI * 2);
+        ctx.fillStyle = RING_COL[i]; ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 2; ctx.stroke();
       }
-      ctx.strokeStyle = "rgba(255,255,255,0.9)";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(h.x - pxR(RING_R[0]) * 1.1, h.y);
-      ctx.lineTo(h.x + pxR(RING_R[0]) * 1.1, h.y);
-      ctx.moveTo(h.x, h.y - pxR(RING_R[0]) * 1.1);
-      ctx.lineTo(h.x, h.y + pxR(RING_R[0]) * 1.1);
+      ctx.moveTo(h.x - pxR(RING_R[0]) * 1.1, h.y); ctx.lineTo(h.x + pxR(RING_R[0]) * 1.1, h.y);
+      ctx.moveTo(h.x, h.y - pxR(RING_R[0]) * 1.1); ctx.lineTo(h.x, h.y + pxR(RING_R[0]) * 1.1);
       ctx.stroke();
-    }
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
+      if (pickup) {
+        const p = toPx(pickup.x, pickup.y);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+        ctx.fillStyle = pickup.kind === "boost" ? "#40d873" : "#f28c26";
+        ctx.fill();
+      }
     }
     function drawCar(c) {
       const p = toPx(c.x, c.y);
-      const len = CAR_LEN / VIEW_W * W;
-      const wide = CAR_WIDE / VIEW_H * H;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(-c.angle);
+      const m = c.model || 0;
+      const len = CAR_LEN / VIEW_W * W * (m === 2 ? 1.28 : m === 0 ? 1.08 : 1);
+      const wide = CAR_WIDE / VIEW_H * H * (m === 0 ? 0.86 : 1);
+      ctx.save(); ctx.globalAlpha = c.round < matchRound ? 0.55 : 1;
+      ctx.translate(p.x, p.y); ctx.rotate(-c.angle);
       ctx.fillStyle = "#1f1f1f";
       ctx.fillRect(-len * 0.32, -wide * 0.72, len * 0.64, wide * 0.22);
       ctx.fillRect(-len * 0.32, wide * 0.50, len * 0.64, wide * 0.22);
-      roundRect(-len * 0.46, -wide * 0.42, len * 0.92, wide * 0.84, 8);
-      ctx.fillStyle = c.color;
-      ctx.fill();
-      roundRect(-len * 0.06, -wide * 0.28, len * 0.36, wide * 0.56, 6);
-      ctx.fillStyle = "rgba(232,246,255,0.95)";
-      ctx.fill();
+      roundRect(-len * (m === 2 ? 0.5 : 0.46), -wide * (m === 0 ? 0.34 : 0.42), len * (m === 2 ? 1 : 0.92), wide * (m === 0 ? 0.68 : 0.84), m === 0 ? 12 : 8);
+      ctx.fillStyle = c.color; ctx.fill();
+      if (m === 2) {
+        ctx.fillStyle = "#ebc04a";
+        ctx.fillRect(-len * 0.4, -2, len * 0.8, 4);
+        ctx.fillStyle = "rgba(180,220,245,0.95)";
+        roundRect(-len * 0.28, -wide * 0.22, len * 0.16, wide * 0.44, 4); ctx.fill();
+        roundRect(-len * 0.06, -wide * 0.22, len * 0.16, wide * 0.44, 4); ctx.fill();
+        roundRect(len * 0.14, -wide * 0.22, len * 0.16, wide * 0.44, 4); ctx.fill();
+      } else if (m === 0) {
+        ctx.fillStyle = "#d8dde3";
+        ctx.beginPath(); ctx.moveTo(len * 0.18, -wide * 0.2); ctx.lineTo(len * 0.48, 0); ctx.lineTo(len * 0.18, wide * 0.2); ctx.fill();
+        roundRect(-len * 0.02, -wide * 0.2, len * 0.28, wide * 0.4, 5);
+        ctx.fillStyle = "rgba(180,220,245,0.95)"; ctx.fill();
+      } else {
+        ctx.fillStyle = "#cfd6dc";
+        ctx.fillRect(-len * 0.08, -2, len * 0.4, 3);
+        roundRect(-len * 0.06, -wide * 0.28, len * 0.36, wide * 0.56, 6);
+        ctx.fillStyle = "rgba(232,246,255,0.95)"; ctx.fill();
+      }
       ctx.fillStyle = "#ffe58a";
       ctx.fillRect(len * 0.34, -wide * 0.22, 7, 7);
       ctx.fillRect(len * 0.34, wide * 0.08, 7, 7);
       ctx.restore();
-      if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
-        const pts = pointsAt(c.x, c.y);
-        ctx.font = "700 14px Segoe UI, sans-serif";
-        ctx.textAlign = "center";
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(0,0,0,0.7)";
-        ctx.strokeText(String(pts), p.x, p.y - 28);
-        ctx.fillStyle = "#fff";
-        ctx.fillText(String(pts), p.x, p.y - 28);
+      if (c.launched && Math.hypot(c.vx, c.vy) <= STOP) {
+        ctx.globalAlpha = 1;
+        ctx.font = "700 14px Segoe UI, sans-serif"; ctx.textAlign = "center";
+        ctx.lineWidth = 3; ctx.strokeStyle = "#000"; ctx.strokeText(String(pointsAt(c.x, c.y)), p.x, p.y - 28);
+        ctx.fillStyle = "#fff"; ctx.fillText(String(pointsAt(c.x, c.y)), p.x, p.y - 28);
       }
     }
     function syncHud() {
-      scoreEl.textContent = "Skor " + totalScore();
-      const n = state === "over" ? thrown : thrown + 1;
-      carEl.textContent = "Araba " + clamp(n, 1, CARS_PER_ROUND) + "/" + CARS_PER_ROUND;
-      const band = state === "aim" && pull.active ? powerBand(Math.hypot(pull.x, pull.y)) : 0;
-      powerCells.forEach((el, i) => el.classList.toggle("on", i < band));
-      let hint = "Geri çek, bırak";
-      if (state === "slide") hint = "Kayıyor…";
-      else if (band === 1) hint = "Hafif";
-      else if (band === 2) hint = "Az";
-      else if (band === 3) hint = "Orta";
-      else if (band === 4) hint = "Güçlü";
-      else if (band === 5) hint = "Tam güç";
-      if (devam > 0) hint = "Devam";
-      hintEl.textContent = hint;
+      const playing = state !== "menu";
+      hudEl.hidden = !playing;
       bottomEl.hidden = state === "menu" || state === "over";
+      if (!playing) return;
+      const hudRound = (state === "over" && !matchOver) ? matchRound - 1 : matchRound;
+      document.getElementById("round").textContent = "Tur " + clamp(hudRound, 1, ROUNDS) + "/" + ROUNDS;
+      const n = state === "over" ? thrown : thrown + 1;
+      document.getElementById("car").textContent = "Araba " + clamp(n, 1, CARS) + "/" + CARS;
+      document.getElementById("score").textContent = "Skor " + liveScore();
+      document.getElementById("daily").textContent = "Bugün " + daily + "/" + GOAL;
+      const b = state === "aim" && pull.active ? band(Math.hypot(pull.x, pull.y)) : 0;
+      powerCells.forEach((el, i) => el.classList.toggle("on", i < b));
+      let hint = thrown === 0 && matchRound === 1 && !pull.active ? "Üst halkaya at" : "Geri çek, bırak";
+      if (state === "slide") hint = "Kayıyor…";
+      else if (shotFric < FRICTION * 0.9) hint = "Boost";
+      else if (shotFric > FRICTION * 1.1) hint = "Tutuş";
+      else if (b === 1) hint = "Hafif";
+      else if (b === 2) hint = "Az";
+      else if (b === 3) hint = "Orta";
+      else if (b === 4) hint = "Güçlü";
+      else if (b === 5) hint = "Tam güç";
+      if (devam > 0) hint = "Devam";
+      if (streak > 1) hint = "Seri " + streak;
+      document.getElementById("hint").textContent = hint;
     }
     function draw() {
       drawBoard();
-      if (state === "menu") drawCar({ x: SPAWN.x, y: SPAWN.y, angle: Math.PI / 2, color: COLORS[0], vx: 0, vy: 0, launched: false });
-      else for (const c of cars) drawCar(c);
+      for (const c of cars) drawCar(c);
+      for (const b of bits) {
+        const p = toPx(b.x, b.y);
+        ctx.globalAlpha = Math.max(0, b.life / 0.5);
+        ctx.fillStyle = b.gold ? "#ffdc4a" : "#ff7a28";
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+      }
+      for (const p of pops) {
+        const s = toPx(p.x, p.y);
+        const t = Math.max(0, p.life / p.max);
+        ctx.globalAlpha = t;
+        ctx.font = (22 + (1 - t) * 18) + "px Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = p.gold ? "#ffe566" : "#fff4c2";
+        ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = 4;
+        ctx.strokeText(p.text, s.x, s.y);
+        ctx.fillText(p.text, s.x, s.y);
+      }
+      ctx.globalAlpha = 1;
       syncHud();
     }
     let last = performance.now();
     function frame(now) {
       const dt = Math.min(0.033, (now - last) / 1000);
-      last = now;
-      update(dt);
-      draw();
-      requestAnimationFrame(frame);
+      last = now; update(dt); draw(); requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   </script>
