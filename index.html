@@ -128,6 +128,63 @@
       color: #fff;
     }
     #best-out { margin: 4px 0 16px; }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    button.ghost {
+      background: transparent;
+      color: #f0e6d8;
+      border: 2px solid rgba(255,255,255,0.28);
+    }
+    .card.wide { width: min(92%, 460px); }
+    .coll-meta {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #f0a202;
+    }
+    .coll-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+    .coll-item {
+      appearance: none;
+      border: 2px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.55);
+      color: #eef3f8;
+      padding: 10px 6px 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .coll-item .swatch {
+      width: 42px;
+      height: 28px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+    }
+    .coll-item.locked {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.85);
+    }
+    .coll-item.selected {
+      border-color: #f0a202;
+      box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
+    }
+    .coll-item .tag { font-size: 11px; color: #c5d0dc; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -154,7 +211,22 @@
           <li>Rakibi halkadan çıkar, 50→400 puan topla.</li>
         </ol>
         <p id="menu-best"></p>
-        <button id="start" type="button">Bota karşı oyna</button>
+        <div class="btn-row">
+          <button id="start" type="button">Bota karşı oyna</button>
+          <button id="open-collection" class="ghost" type="button">Koleksiyon</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel hidden" id="collection">
+      <div class="card wide">
+        <h1>Koleksiyon</h1>
+        <p class="coll-meta" id="coll-meta">0/8 araba</p>
+        <div class="coll-grid" id="coll-grid"></div>
+        <p id="coll-hint">Açık arabaya dokunarak seç.</p>
+        <div class="btn-row">
+          <button id="coll-play" type="button">Bu arabayla oyna</button>
+          <button id="coll-back" class="ghost" type="button">Geri</button>
+        </div>
       </div>
     </section>
     <section class="panel hidden" id="over">
@@ -163,7 +235,10 @@
         <p id="reason"></p>
         <p id="final">Skor 0</p>
         <p id="best-out"></p>
-        <button id="again" type="button">Tekrar oyna</button>
+        <div class="btn-row">
+          <button id="again" type="button">Tekrar oyna</button>
+          <button id="over-collection" class="ghost" type="button">Koleksiyon</button>
+        </div>
       </div>
     </section>
   </div>
@@ -195,6 +270,7 @@
     const UNLOCK_KEY = "halka-arabalari-unlocks";
     const SKIN_KEY = "halka-arabalari-skin";
     const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b", "#fa8cbd", "#f2f2f2"];
+    const PLAYER_NAMES = ["Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"];
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
     const CAR_LEN = 82;
     const CAR_WIDE = 48;
@@ -210,6 +286,7 @@
 
     const stage = document.getElementById("stage");
     const menuEl = document.getElementById("menu");
+    const collectionEl = document.getElementById("collection");
     const overEl = document.getElementById("over");
     const bottomEl = document.getElementById("bottom");
     const powerEl = document.getElementById("power");
@@ -222,6 +299,9 @@
     const finalEl = document.getElementById("final");
     const bestOutEl = document.getElementById("best-out");
     const menuBestEl = document.getElementById("menu-best");
+    const collGrid = document.getElementById("coll-grid");
+    const collMeta = document.getElementById("coll-meta");
+    const collHint = document.getElementById("coll-hint");
 
     const scratches = Array.from({ length: 16 }, () => ({
       x: 50 + Math.random() * 620,
@@ -238,9 +318,58 @@
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
     try { unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || 2, 2, PLAYER_COLORS.length); } catch (e) { unlockCount = 2; }
     try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
-    menuBestEl.textContent = best > 0
-      ? ("Rekor " + best + " · Arabalar " + unlockCount + "/" + PLAYER_COLORS.length)
-      : "Bota karşı ilk turun seni bekliyor.";
+    function refreshMenuBest() {
+      const name = PLAYER_NAMES[selectedSkin] || "Kızıl";
+      menuBestEl.textContent = best > 0
+        ? ("Rekor " + best + " · Koleksiyon " + unlockCount + "/" + PLAYER_COLORS.length + " · Seçili: " + name)
+        : ("Koleksiyon " + unlockCount + "/" + PLAYER_COLORS.length + " · Seçili: " + name);
+    }
+    refreshMenuBest();
+
+    function renderCollection() {
+      collGrid.innerHTML = "";
+      collMeta.textContent = unlockCount + "/" + PLAYER_COLORS.length + " araba açık";
+      for (let i = 0; i < PLAYER_COLORS.length; i++) {
+        const unlocked = i < unlockCount;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "coll-item" + (unlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
+        btn.innerHTML = '<span class="swatch" style="background:' + PLAYER_COLORS[i] + '"></span>'
+          + '<span>' + (unlocked ? PLAYER_NAMES[i] : "???") + '</span>'
+          + '<span class="tag">' + (unlocked ? (i === selectedSkin ? "Seçili" : "Açık") : "Kilitli") + '</span>';
+        if (unlocked) {
+          btn.addEventListener("click", () => {
+            selectedSkin = i;
+            try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
+            renderCollection();
+            refreshMenuBest();
+            collHint.textContent = PLAYER_NAMES[i] + " seçildi. Bu arabayla oyna!";
+          });
+        } else {
+          btn.addEventListener("click", () => {
+            collHint.textContent = "Botu yenerek aç: " + PLAYER_NAMES[i];
+          });
+        }
+        collGrid.appendChild(btn);
+      }
+      const sel = PLAYER_NAMES[selectedSkin] || "";
+      collHint.textContent = "Seçili: " + sel + " — açık arabaya dokunarak değiştir.";
+    }
+
+    function showCollection() {
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      collectionEl.classList.remove("hidden");
+      state = "collection";
+      renderCollection();
+    }
+
+    function hideCollectionToMenu() {
+      collectionEl.classList.add("hidden");
+      menuEl.classList.remove("hidden");
+      state = "menu";
+      refreshMenuBest();
+    }
 
     let cars = [];
     let current = null;
@@ -389,6 +518,7 @@
       pull.y = 0;
       menuEl.classList.add("hidden");
       overEl.classList.add("hidden");
+      collectionEl.classList.add("hidden");
       try { if (actx && actx.state === "suspended") actx.resume(); } catch (e) { /* yoksay */ }
       spawnCar(false);
     }
@@ -484,7 +614,6 @@
       let nextBot = !botTurn;
       if (nextBot && botThrown >= CARS_PER_SIDE) nextBot = false;
       if (!nextBot && playerThrown >= CARS_PER_SIDE) nextBot = true;
-      if (!nextBot) selectedSkin = (selectedSkin + 1) % unlockCount;
       spawnCar(nextBot);
     }
 
@@ -591,6 +720,10 @@
     window.addEventListener("pointercancel", onUp);
     document.getElementById("start").addEventListener("click", startRound);
     document.getElementById("again").addEventListener("click", startRound);
+    document.getElementById("open-collection").addEventListener("click", showCollection);
+    document.getElementById("over-collection").addEventListener("click", showCollection);
+    document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
+    document.getElementById("coll-play").addEventListener("click", startRound);
     window.addEventListener("keydown", (e) => {
       if ((e.key === "Enter" || e.key === "r" || e.key === "R") && (state === "menu" || state === "over")) {
         startRound();
@@ -976,15 +1109,23 @@
         powerCells[i].classList.toggle("on", on);
         powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
       }
-      bottomEl.hidden = state === "menu" || state === "over";
+      bottomEl.hidden = state === "menu" || state === "over" || state === "collection";
       stage.dataset.state = botTurn ? "bot" : state;
     }
 
     function draw() {
       drawRink();
       drawHouse();
-      if (state === "menu") {
-        drawCar({ x: SPAWN.x, y: SPAWN.y, angle: -Math.PI / 2, color: PLAYER_COLORS[0], vx: 0, vy: 0, launched: false });
+      if (state === "menu" || state === "collection") {
+        drawCar({
+          x: SPAWN.x,
+          y: SPAWN.y,
+          angle: -Math.PI / 2,
+          color: PLAYER_COLORS[selectedSkin % PLAYER_COLORS.length],
+          vx: 0,
+          vy: 0,
+          launched: false,
+        });
       } else {
         if (state === "aim" && current && !botTurn) drawAim();
         for (const c of cars) drawCar(c);
