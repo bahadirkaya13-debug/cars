@@ -5,10 +5,10 @@ using UnityEngine.InputSystem;
 public class car : MonoBehaviour
 {
     // Web (index.html) ile aynı ölçek: 1 birim ≈ 100 px
-    const float Friction = 1.60f;
+    const float BaseFriction = 1.60f;
     const float MaxPull = 1.50f;
     const float MinPull = 0.22f;
-    const float MaxSpeed = 7.40f;
+    const float BaseSpeed = 7.40f;
     const float Back = 0.22f;
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
@@ -17,14 +17,26 @@ public class car : MonoBehaviour
     const float CarWide = 0.96f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
-    const int CarsPerSide = 4;
+    const int BaseCars = 4;
     const int KnockBase = 75;
     const int BullseyeBonus = 100;
     const string BestKey = "halka-arabalari-best";
     const string UnlockKey = "halka-arabalari-unlocks";
     const string SkinKey = "halka-arabalari-skin";
     const string BodyKey = "halka-arabalari-body";
+    const string LevelKey = "halka-arabalari-level";
     static readonly string[] BodyNames = { "Sport GT", "Lüks Sedan", "Limuzin" };
+    static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
+    static readonly float[] LevelFriction = { 1.60f, 0.95f, 1.50f, 2.10f, 1.25f };
+    static readonly float[] LevelSpeed = { 7.40f, 8.20f, 7.00f, 9.00f, 7.80f };
+    static readonly float[] LevelRing = { 1f, 1f, 0.72f, 0.90f, 0.62f };
+    static readonly float[] LevelBot = { 0.52f, 0.68f, 0.78f, 0.86f, 0.94f };
+    static readonly int[] LevelCars = { 4, 4, 5, 5, 6 };
+    static readonly Color[] ConfettiColors =
+    {
+        new Color(1f, 0.30f, 0.43f), new Color(1f, 0.82f, 0.40f), new Color(0.02f, 0.84f, 0.63f),
+        new Color(0.30f, 0.79f, 0.94f), new Color(0.97f, 0.15f, 0.52f), new Color(1f, 0.90f, 0.40f), Color.white
+    };
 
     Vector2 House = new Vector2(0f, 0.35f);
     Vector2 Spawn = new Vector2(0f, -2.55f);
@@ -97,6 +109,11 @@ public class car : MonoBehaviour
         public Color color;
         public float life;
         public float max;
+        public bool paper;
+        public float rot;
+        public float spin;
+        public float w;
+        public float h;
     }
 
     Camera cam;
@@ -120,6 +137,12 @@ public class car : MonoBehaviour
     int unlockCount = 2;
     int selectedSkin;
     int bodyStyle;
+    int levelI;
+    float friction = BaseFriction;
+    float maxSpeed = BaseSpeed;
+    int carsPerSide = BaseCars;
+    float botSkill = 0.52f;
+    float ringMul = 1f;
     int playerBonus;
     int comboStreak;
     PowerUp activePower;
@@ -133,6 +156,8 @@ public class car : MonoBehaviour
     readonly List<Pop> pops = new List<Pop>();
     readonly List<BurstBit> bits = new List<BurstBit>();
     AudioSource music;
+    AudioSource sfx;
+    float lastHit;
     GUIStyle popStyle;
     GUIStyle label;
     GUIStyle hintStyle;
@@ -153,6 +178,8 @@ public class car : MonoBehaviour
         unlockCount = Mathf.Clamp(PlayerPrefs.GetInt(UnlockKey, 2), 2, PlayerColors.Length);
         selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
         bodyStyle = Mathf.Clamp(PlayerPrefs.GetInt(BodyKey, 1), 0, 2);
+        levelI = Mathf.Clamp(PlayerPrefs.GetInt(LevelKey, 0), 0, LevelNames.Length - 1);
+        ApplyLevel();
         pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
         pixel.SetPixel(0, 0, Color.white);
         pixel.Apply();
@@ -223,7 +250,7 @@ public class car : MonoBehaviour
 
         House = new Vector2(0f, midY + 0.34f * viewH);
         Spawn = new Vector2(0f, midY - 0.36f * viewH);
-        float outer = 0.090f * viewH;
+        float outer = 0.090f * viewH * ringMul;
         RingRadius[0] = outer;
         RingRadius[1] = outer * 0.73f;
         RingRadius[2] = outer * 0.51f;
@@ -291,8 +318,20 @@ public class car : MonoBehaviour
         }
     }
 
+    void ApplyLevel()
+    {
+        levelI = Mathf.Clamp(levelI, 0, LevelNames.Length - 1);
+        friction = LevelFriction[levelI];
+        maxSpeed = LevelSpeed[levelI];
+        carsPerSide = LevelCars[levelI];
+        botSkill = LevelBot[levelI];
+        ringMul = LevelRing[levelI];
+        FitCamera();
+    }
+
     void StartRound()
     {
+        ApplyLevel();
         for (int i = 0; i < stones.Count; i++)
         {
             if (stones[i].view != null) Destroy(stones[i].view);
@@ -388,17 +427,38 @@ public class car : MonoBehaviour
     {
         pops.Add(new Pop { text = text, world = world, life = 1.15f, max = 1.15f, color = color, boom = boom });
         if (!boom) return;
-        for (int i = 0; i < 16; i++)
+        PlayAsmr("pop");
+        for (int i = 0; i < 28; i++)
         {
-            float ang = (i / 16f) * Mathf.PI * 2f;
-            float sp = Random.Range(1.4f, 3.6f);
+            float ang = Random.Range(0f, Mathf.PI * 2f);
+            float sp = Random.Range(1.2f, 3.8f);
             bits.Add(new BurstBit
             {
                 pos = world,
-                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp,
-                color = i % 2 == 0 ? new Color(1f, 0.86f, 0.25f) : new Color(1f, 0.45f, 0.12f),
-                life = Random.Range(0.35f, 0.6f),
-                max = 0.55f
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp + Vector2.up * 0.6f,
+                color = ConfettiColors[i % ConfettiColors.Length],
+                life = Random.Range(0.55f, 1.0f),
+                max = 1f,
+                paper = true,
+                rot = Random.Range(0f, 6f),
+                spin = Random.Range(-10f, 10f),
+                w = Random.Range(6f, 12f),
+                h = Random.Range(8f, 16f)
+            });
+        }
+        for (int i = 0; i < 14; i++)
+        {
+            float ang = (i / 14f) * Mathf.PI * 2f;
+            bits.Add(new BurstBit
+            {
+                pos = world,
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 3.6f,
+                color = new Color(1f, 0.90f, 0.40f),
+                life = 0.35f,
+                max = 0.35f,
+                paper = false,
+                w = 8f,
+                h = 8f
             });
         }
     }
@@ -416,6 +476,18 @@ public class car : MonoBehaviour
                 {
                     bodyStyle = i;
                     PlayerPrefs.SetInt(BodyKey, bodyStyle);
+                    PlayAsmr("tap");
+                    return;
+                }
+            }
+            for (int i = 0; i < LevelNames.Length; i++)
+            {
+                if (Clicked(LevelRect(i)))
+                {
+                    levelI = i;
+                    PlayerPrefs.SetInt(LevelKey, levelI);
+                    ApplyLevel();
+                    PlayAsmr("tap");
                     return;
                 }
             }
@@ -454,10 +526,13 @@ public class car : MonoBehaviour
 
         for (int i = bits.Count - 1; i >= 0; i--)
         {
-            bits[i].life -= dt;
-            bits[i].vel *= 0.90f;
-            bits[i].pos += bits[i].vel * dt;
-            if (bits[i].life <= 0f) bits.RemoveAt(i);
+            BurstBit b = bits[i];
+            b.life -= dt;
+            b.vel.y -= (b.paper ? 2.8f : 0.6f) * dt;
+            b.vel.x *= 0.985f;
+            b.pos += b.vel * dt;
+            b.rot += b.spin * dt;
+            if (b.life <= 0f) bits.RemoveAt(i);
         }
 
         SyncStones();
@@ -587,11 +662,12 @@ public class car : MonoBehaviour
         if (len < 0.0001f) len = 0.0001f;
         // Sürekli güç: ince ayar kolay, 5 kademe sadece HUD.
         float t = Mathf.Clamp01(len / MaxPull);
-        float speed = t * MaxSpeed;
+        float speed = t * maxSpeed;
         Vector2 dir = -drag / len;
         stone.vel = dir * speed;
         stone.curl = Mathf.Clamp(-drag.x / MaxPull, -1f, 1f) * CurlPower;
         stone.angle = Mathf.Atan2(stone.vel.y, stone.vel.x);
+        PlayAsmr("whoosh");
     }
 
     static int PowerBand(float len)
@@ -661,7 +737,7 @@ public class car : MonoBehaviour
                 body.vel += toHouse.normalized * (1.35f * dt);
         }
 
-        float drop = Friction * Mathf.Max(0.35f, body.frictionMul) * dt;
+        float drop = friction * Mathf.Max(0.35f, body.frictionMul) * dt;
         float spNow = body.vel.magnitude;
         if (spNow <= StopSpeed)
         {
@@ -679,7 +755,7 @@ public class car : MonoBehaviour
         float sp2 = body.vel.magnitude;
         if (sp2 > 0f && Mathf.Abs(body.curl) > 0.0001f)
         {
-            float slow = 1f - Mathf.Min(1f, sp2 / MaxSpeed);
+            float slow = 1f - Mathf.Min(1f, sp2 / maxSpeed);
             float omega = (body.curl / 0.70f) * slow * slow;
             float ang = Mathf.Atan2(body.vel.y, body.vel.x) + omega * dt;
             body.vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp2;
@@ -726,6 +802,11 @@ public class car : MonoBehaviour
         b.vel += j * n;
         a.curl *= 0.35f;
         b.curl *= 0.35f;
+        if (rv < -0.5f && Time.time - lastHit > 0.09f)
+        {
+            lastHit = Time.time;
+            PlayAsmr("wood");
+        }
     }
 
     void Settle()
@@ -758,7 +839,7 @@ public class car : MonoBehaviour
                     int bonus = KnockBase + (comboStreak - 1) * 25;
                     playerBonus += bonus;
                     Vector2 at = current != null ? current.pos : House;
-                    AddPop("+" + bonus + " VURUŞ!", at + Vector2.up * (0.2f + k * 0.2f), new Color(1f, 0.75f, 0.2f));
+                    AddPop("+" + bonus + " VURUŞ!", at + Vector2.up * (0.2f + k * 0.2f), new Color(1f, 0.75f, 0.2f), true);
                 }
             }
             else comboStreak = 0;
@@ -772,6 +853,7 @@ public class car : MonoBehaviour
                 {
                     playerBonus += BullseyeBonus;
                     AddPop("+" + BullseyeBonus + " BULLSEYE!", current.pos + Vector2.up * 0.55f, new Color(0.45f, 1f, 0.65f), true);
+                    PlayAsmr("glass");
                 }
             }
         }
@@ -786,7 +868,7 @@ public class car : MonoBehaviour
         if (shooterBot) botThrown += 1;
         else playerThrown += 1;
 
-        if (playerThrown >= CarsPerSide && botThrown >= CarsPerSide)
+        if (playerThrown >= carsPerSide && botThrown >= carsPerSide)
         {
             int you = TeamScore(false);
             int bot = TeamScore(true);
@@ -797,8 +879,8 @@ public class car : MonoBehaviour
         }
 
         bool nextBot = !botTurn;
-        if (nextBot && botThrown >= CarsPerSide) nextBot = false;
-        if (!nextBot && playerThrown >= CarsPerSide) nextBot = true;
+        if (nextBot && botThrown >= carsPerSide) nextBot = false;
+        if (!nextBot && playerThrown >= carsPerSide) nextBot = true;
         SpawnStone(nextBot);
     }
 
@@ -822,7 +904,7 @@ public class car : MonoBehaviour
     void BotShoot()
     {
         if (current == null || phase != Phase.Aim || !botTurn) return;
-        Vector2 target = House + Random.insideUnitCircle * 0.18f;
+        Vector2 target = House + Random.insideUnitCircle * ((1.15f - botSkill) * 0.9f);
         Stone hit = null;
         float bestD = 999f;
         for (int i = 0; i < stones.Count; i++)
@@ -837,7 +919,7 @@ public class car : MonoBehaviour
             }
         }
 
-        if (hit != null && Random.value < 0.7f)
+        if (hit != null && Random.value < botSkill)
         {
             Vector2 outDir = (hit.pos - House).normalized;
             if (outDir.sqrMagnitude < 0.0001f) outDir = Vector2.right;
@@ -846,8 +928,8 @@ public class car : MonoBehaviour
 
         Vector2 delta = target - current.home;
         float dist = Mathf.Max(0.4f, delta.magnitude);
-        float need = Mathf.Sqrt(2f * Friction * dist) * Random.Range(0.92f, 1.12f);
-        float t = Mathf.Clamp(need / MaxSpeed, 0.38f, 0.98f);
+        float need = Mathf.Sqrt(2f * friction * dist) * Random.Range(0.92f, 1.12f);
+        float t = Mathf.Clamp(need / maxSpeed, 0.38f, 0.98f);
         Vector2 dir = delta.normalized;
         Vector2 drag = -dir * (t * MaxPull);
         drag.x += Random.Range(-0.10f, 0.10f) * MaxPull;
@@ -876,6 +958,8 @@ public class car : MonoBehaviour
         }
 
         unlockFlash = "";
+        if (playerWon) PlayAsmr("glass");
+        else PlayAsmr("tap");
         if (playerWon && unlockCount < PlayerColors.Length)
         {
             unlockCount++;
@@ -1032,7 +1116,7 @@ public class car : MonoBehaviour
     {
         Rect safe = SafeScreen();
         float w = Mathf.Min(420f, safe.width - 24f);
-        float h = 400f;
+        float h = 500f;
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
@@ -1048,7 +1132,17 @@ public class car : MonoBehaviour
         Rect card = MenuCard();
         float w = (card.width - 48f) / 3f;
         float x = card.x + 16f + i * (w + 8f);
-        return new Rect(x, card.yMax - 168f, w, 40f);
+        return new Rect(x, card.y + 214f, w, 36f);
+    }
+
+    Rect LevelRect(int i)
+    {
+        Rect card = MenuCard();
+        int col = i % 3;
+        int row = i / 3;
+        float w = (card.width - 48f) / 3f;
+        float x = card.x + 16f + col * (w + 8f);
+        return new Rect(x, card.y + 260f + row * 36f, w, 32f);
     }
 
     Rect MenuCollectionRect()
@@ -1123,8 +1217,10 @@ public class car : MonoBehaviour
         GUI.DrawTexture(card, pixel);
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 18f, card.width, 36f), "Halka Arabaları", label);
-        GUI.Label(new Rect(card.x + 18f, card.y + 64f, card.width - 36f, 90f),
-            "Bota karşı oyna.\nKazanırsan yeni araba açılır.\nKoleksiyondan arabanı seç.", hintStyle);
+        GUI.Label(new Rect(card.x + 18f, card.y + 52f, card.width - 36f, 22f),
+            "Sürüm 5  ·  Gerçekçi arabalar  ·  ASMR  ·  Seviyeler", hintStyle);
+        GUI.Label(new Rect(card.x + 18f, card.y + 76f, card.width - 36f, 70f),
+            "Bota karşı oyna. Kazanırsan yeni araba açılır.\nKoleksiyondan arabanı seç. Seviye seç.", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x, card.y + 160f, card.width, 24f),
             "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name, hintStyle);
@@ -1137,6 +1233,15 @@ public class car : MonoBehaviour
             GUI.DrawTexture(mr, pixel);
             GUI.color = i == bodyStyle ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
             GUI.Label(mr, BodyNames[i], hintStyle);
+        }
+
+        for (int i = 0; i < LevelNames.Length; i++)
+        {
+            Rect lr = LevelRect(i);
+            GUI.color = i == levelI ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
+            GUI.DrawTexture(lr, pixel);
+            GUI.color = i == levelI ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
+            GUI.Label(lr, LevelNames[i], hintStyle);
         }
 
         Rect play = MenuPlayRect();
@@ -1205,7 +1310,7 @@ public class car : MonoBehaviour
     void DrawHud()
     {
         Rect safe = SafeScreen();
-        int turn = Mathf.Clamp(Mathf.Max(playerThrown, botThrown) + (phase == Phase.Over ? 0 : 1), 1, CarsPerSide);
+        int turn = Mathf.Clamp(Mathf.Max(playerThrown, botThrown) + (phase == Phase.Over ? 0 : 1), 1, carsPerSide);
         float gap = 6f;
         float pad = 8f;
         float h = 26f;
@@ -1215,7 +1320,7 @@ public class car : MonoBehaviour
         float x = safe.x + pad;
         DrawPill(new Rect(x, y, w, h), "Sen " + TeamScore(false));
         DrawPill(new Rect(x + w + gap, y, w, h), "Bot " + TeamScore(true));
-        DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), "Tur " + turn + "/" + CarsPerSide);
+        DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), LevelNames[levelI] + " " + turn + "/" + carsPerSide);
         string turnHint = botTurn ? "Bot oynuyor…" : "Senin sıran";
         if (phase == Phase.Slide) turnHint = "Kayıyor…";
         if (phase != Phase.Over)
@@ -1321,11 +1426,23 @@ public class car : MonoBehaviour
             Vector3 s = cam.WorldToScreenPoint(b.pos);
             if (s.z < 0f) continue;
             float t = Mathf.Clamp01(b.life / Mathf.Max(0.01f, b.max));
-            float sz = 5f + 7f * t;
             Color c = b.color;
             c.a = t;
             GUI.color = c;
-            GUI.DrawTexture(new Rect(s.x - sz * 0.5f, Screen.height - s.y - sz * 0.5f, sz, sz), pixel);
+            float px = s.x;
+            float py = Screen.height - s.y;
+            if (b.paper)
+            {
+                Matrix4x4 old = GUI.matrix;
+                GUIUtility.RotateAroundPivot(b.rot * Mathf.Rad2Deg, new Vector2(px, py));
+                GUI.DrawTexture(new Rect(px - b.w * 0.5f, py - b.h * 0.5f, b.w, b.h), pixel);
+                GUI.matrix = old;
+            }
+            else
+            {
+                float sz = 5f + 7f * t;
+                GUI.DrawTexture(new Rect(px - sz * 0.5f, py - sz * 0.5f, sz, sz), pixel);
+            }
         }
 
         for (int i = 0; i < pops.Count; i++)
@@ -1433,6 +1550,46 @@ public class car : MonoBehaviour
         clip.SetData(data, 0);
         music.clip = clip;
         music.Play();
+        sfx = gameObject.AddComponent<AudioSource>();
+        sfx.playOnAwake = false;
+        sfx.loop = false;
+        sfx.volume = 0.7f;
+    }
+
+    void PlayAsmr(string kind)
+    {
+        if (sfx == null) return;
+        int rate = 22050;
+        float seconds = kind == "whoosh" ? 0.22f : (kind == "glass" || kind == "pop" ? 0.20f : 0.12f);
+        int n = Mathf.Max(64, (int)(rate * seconds));
+        var data = new float[n];
+        if (kind == "wood" || kind == "whoosh" || kind == "tap")
+        {
+            float b = 0f;
+            bool brown = kind == "wood";
+            for (int i = 0; i < n; i++)
+            {
+                float w = Random.Range(-1f, 1f);
+                b = brown ? (b + 0.02f * w) / 1.02f : 0.7f * b + 0.3f * w;
+                float env = 1f - i / (float)n;
+                data[i] = b * env * (kind == "whoosh" ? 0.22f : kind == "tap" ? 0.10f : 0.16f);
+            }
+        }
+        else
+        {
+            float f0 = kind == "pop" ? 740f : 980f;
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)rate;
+                float env = Mathf.Exp(-t * 16f);
+                float freq = Mathf.Lerp(f0, 220f, t / seconds);
+                data[i] = Mathf.Sin(t * freq * Mathf.PI * 2f) * env * 0.12f;
+            }
+        }
+
+        var clip = AudioClip.Create("asmr-" + kind, n, 1, rate, false);
+        clip.SetData(data, 0);
+        sfx.PlayOneShot(clip, 0.85f);
     }
 
     SpriteRenderer MakeSprite(string name, Sprite sprite, Color color, int order)
@@ -1522,20 +1679,23 @@ public class car : MonoBehaviour
         return tex;
     }
 
-    // Üstten görünüm: uzun gövde, orta kalınlık; tekerlek yok.
     static Sprite MakeCarSprite(Color paint, int model = 1)
     {
-        const int w = 256;
-        const int h = 128;
+        const int w = 280;
+        const int h = 148;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
         tex.filterMode = FilterMode.Trilinear;
         tex.anisoLevel = 8;
         var pixels = new Color[w * h];
-        Color glass = new Color(0.62f, 0.86f, 0.98f, 1f);
-        Color lamp = new Color(1f, 0.95f, 0.62f, 1f);
-        Color roof = Color.Lerp(paint, Color.white, 0.14f);
-        Color trim = Color.Lerp(paint, Color.black, 0.28f);
-        Color gold = new Color(0.92f, 0.75f, 0.28f, 1f);
+        Color glass = new Color(0.72f, 0.88f, 0.98f, 1f);
+        Color glassDark = new Color(0.16f, 0.28f, 0.40f, 0.95f);
+        Color lamp = new Color(1f, 0.96f, 0.72f, 1f);
+        Color lampR = new Color(0.78f, 0.16f, 0.16f, 1f);
+        Color roof = Color.Lerp(paint, Color.white, 0.18f);
+        Color trim = Color.Lerp(paint, Color.black, 0.32f);
+        Color gold = new Color(0.83f, 0.69f, 0.22f, 1f);
+        Color tire = new Color(0.08f, 0.08f, 0.09f, 1f);
+        Color rim = new Color(0.42f, 0.43f, 0.46f, 1f);
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -1543,38 +1703,52 @@ public class car : MonoBehaviour
                 float nx = (x + 0.5f) / w * 2f - 1f;
                 float ny = (y + 0.5f) / h * 2f - 1f;
                 Color c = Color.clear;
+                bool wheel =
+                    Ellipse(nx + 0.22f, ny - 0.78f, 0.16f, 0.20f) || Ellipse(nx - 0.28f, ny - 0.78f, 0.16f, 0.20f) ||
+                    Ellipse(nx + 0.22f, ny + 0.78f, 0.16f, 0.20f) || Ellipse(nx - 0.28f, ny + 0.78f, 0.16f, 0.20f);
+                bool hub =
+                    Ellipse(nx + 0.22f, ny - 0.78f, 0.07f, 0.08f) || Ellipse(nx - 0.28f, ny - 0.78f, 0.07f, 0.08f) ||
+                    Ellipse(nx + 0.22f, ny + 0.78f, 0.07f, 0.08f) || Ellipse(nx - 0.28f, ny + 0.78f, 0.07f, 0.08f);
                 bool body, cabin, window, extra = false;
                 if (model == 0)
                 {
-                    body = Rounded(nx, ny, 0.92f, 0.58f, 0.22f);
-                    cabin = Rounded(nx + 0.02f, ny, 0.22f, 0.32f, 0.08f);
-                    window = Rounded(nx + 0.16f, ny, 0.16f, 0.22f, 0.06f);
-                    extra = nx > 0.55f && Mathf.Abs(ny) < 0.2f && nx < 0.95f;
+                    body = Rounded(nx, ny, 0.90f, 0.52f, 0.26f);
+                    cabin = Rounded(nx + 0.02f, ny, 0.20f, 0.28f, 0.08f);
+                    window = nx > 0.05f && nx < 0.62f && Mathf.Abs(ny) < 0.28f * (1f - (nx - 0.05f));
+                    extra = nx > 0.58f && Mathf.Abs(ny) < 0.16f && nx < 0.92f;
                 }
                 else if (model == 2)
                 {
-                    body = Rounded(nx, ny, 0.94f, 0.62f, 0.12f);
-                    cabin = Rounded(nx, ny, 0.40f, 0.36f, 0.08f);
-                    window = Rounded(nx + 0.22f, ny, 0.12f, 0.26f, 0.05f) || Rounded(nx, ny, 0.12f, 0.26f, 0.05f) || Rounded(nx - 0.22f, ny, 0.12f, 0.26f, 0.05f);
-                    extra = Mathf.Abs(ny) < 0.06f && Mathf.Abs(nx) < 0.88f;
+                    body = Rounded(nx, ny, 0.94f, 0.56f, 0.12f);
+                    cabin = Rounded(nx, ny, 0.42f, 0.34f, 0.08f);
+                    window = Rounded(nx + 0.22f, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx, ny, 0.12f, 0.24f, 0.05f) || Rounded(nx - 0.22f, ny, 0.12f, 0.24f, 0.05f);
+                    extra = Mathf.Abs(ny) < 0.05f && Mathf.Abs(nx) < 0.86f;
                 }
                 else
                 {
-                    body = Rounded(nx, ny, 0.90f, 0.72f, 0.20f);
-                    cabin = Rounded(nx + 0.06f, ny, 0.28f, 0.42f, 0.10f);
-                    window = Rounded(nx + 0.18f, ny, 0.14f, 0.30f, 0.08f);
+                    body = Rounded(nx, ny, 0.88f, 0.62f, 0.18f);
+                    cabin = Rounded(nx + 0.06f, ny, 0.28f, 0.38f, 0.10f);
+                    window = Rounded(nx + 0.18f, ny, 0.14f, 0.28f, 0.08f);
                 }
-                bool lightL = Ellipse(nx + 0.76f, ny - 0.28f, 0.07f, 0.12f);
-                bool lightR = Ellipse(nx + 0.76f, ny + 0.28f, 0.07f, 0.12f);
-                bool bumper = Rounded(nx + 0.82f, ny, 0.08f, 0.52f, 0.07f);
-                if (window) c = glass;
+                bool lightL = Ellipse(nx + 0.78f, ny - 0.28f, 0.07f, 0.12f);
+                bool lightR = Ellipse(nx + 0.78f, ny + 0.28f, 0.07f, 0.12f);
+                bool tailL = Ellipse(nx - 0.80f, ny - 0.26f, 0.06f, 0.10f);
+                bool tailR = Ellipse(nx - 0.80f, ny + 0.26f, 0.06f, 0.10f);
+                bool bumper = Rounded(nx + 0.84f, ny, 0.08f, 0.48f, 0.06f);
+                bool gloss = Rounded(nx - 0.08f, ny - 0.38f, 0.42f, 0.08f, 0.05f);
+                if (hub) c = rim;
+                else if (wheel) c = tire;
+                else if (window) c = Color.Lerp(glass, glassDark, (ny + 1f) * 0.5f);
                 else if (lightL || lightR) c = lamp;
+                else if (tailL || tailR) c = lampR;
                 else if (extra) c = model == 2 ? gold : trim;
+                else if (gloss && body) c = Color.Lerp(paint, Color.white, 0.42f);
                 else if (cabin) c = roof;
                 else if (bumper) c = trim;
                 else if (body)
                 {
-                    float shade = 0.86f + 0.14f * (1f - Mathf.Abs(ny));
+                    float shade = 0.55f + 0.50f * (1f - Mathf.Abs(ny));
+                    if (ny < -0.12f) shade += 0.12f;
                     c = new Color(paint.r * shade, paint.g * shade, paint.b * shade, 1f);
                 }
 
