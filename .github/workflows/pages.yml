@@ -21,6 +21,7 @@ jobs:
         run: |
           mkdir _site
           cp index.html _site/index.html
+          cp "Assets/StreamingAssets/masa.jpg" _site/masa.jpg
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
