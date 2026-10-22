@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,8 +14,8 @@ public class car : MonoBehaviour
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
     const float CarRadius = 0.26f;
-    const float CarLen = 0.82f;
-    const float CarWide = 0.96f;
+    const float CarLen = 0.95f;
+    const float CarWide = 0.52f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int BaseCars = 4;
@@ -125,6 +126,7 @@ public class car : MonoBehaviour
     Sprite circleSprite;
     Sprite[] playerSprites;
     Sprite[] botSprites;
+    Sprite[] hwSprites;
     readonly List<Stone> stones = new List<Stone>();
     readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
     readonly List<Vector2> preview = new List<Vector2>();
@@ -190,6 +192,7 @@ public class car : MonoBehaviour
         QualitySettings.vSyncCount = 1;
         Screen.orientation = ScreenOrientation.Portrait;
         circleSprite = MakeCircleSprite();
+        LoadCarPhotos();
         playerSprites = new Sprite[PlayerColors.Length];
         for (int i = 0; i < PlayerColors.Length; i++)
             playerSprites[i] = MakeCarSprite(PlayerColors[i], 1);
@@ -343,6 +346,7 @@ public class car : MonoBehaviour
         HideDots();
         current = null;
         phase = Phase.Menu;
+        if (music != null) music.Stop();
         PlayAsmr("tap");
     }
 
@@ -371,6 +375,7 @@ public class car : MonoBehaviour
         reason = "";
         phase = Phase.Aim;
         HideDots();
+        if (music != null && !music.isPlaying) music.Play();
         SpawnStone(false);
     }
 
@@ -421,8 +426,16 @@ public class car : MonoBehaviour
         var body = stone.view.AddComponent<SpriteRenderer>();
         int model = forBot ? 1 : bodyStyle;
         Color paint = forBot ? BotColors[idx % BotColors.Length] : PlayerColors[idx % PlayerColors.Length];
-        body.sprite = MakeCarSprite(paint, model);
-        body.color = Color.white;
+        if (hwSprites != null && model >= 0 && model < hwSprites.Length && hwSprites[model] != null)
+        {
+            body.sprite = hwSprites[model];
+            body.color = Color.white;
+        }
+        else
+        {
+            body.sprite = MakeCarSprite(paint, model);
+            body.color = Color.white;
+        }
         body.sortingOrder = 12;
         stones.Add(stone);
         current = stone;
@@ -1035,9 +1048,13 @@ public class car : MonoBehaviour
             if (stone.view == null) continue;
             stone.view.transform.position = stone.pos;
             stone.view.transform.rotation = Quaternion.Euler(0f, 0f, stone.angle * Mathf.Rad2Deg);
-            float len = CarLen * (stone.body == 2 ? 1.28f : stone.body == 0 ? 1.08f : 1f);
-            float wide = CarWide * (stone.body == 0 ? 0.86f : 1f);
-            stone.view.transform.localScale = new Vector3(len, wide, 1f);
+            var sr = stone.view.GetComponent<SpriteRenderer>();
+            Vector2 sz = sr != null && sr.sprite != null ? (Vector2)sr.sprite.bounds.size : Vector2.one;
+            if (sz.x < 0.001f) sz.x = 1f;
+            if (sz.y < 0.001f) sz.y = 1f;
+            float len = CarLen * (stone.body == 2 ? 1.18f : stone.body == 0 ? 1.08f : 1.02f);
+            float wide = len * (sz.y / sz.x);
+            stone.view.transform.localScale = new Vector3(len / sz.x, wide / sz.y, 1f);
         }
     }
 
@@ -1233,7 +1250,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 6  ·  Hot Wheels  ·  Menü", hintStyle);
+            "Sürüm 7  ·  Müzik oyunda  ·  Gerçek araba", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
             "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
@@ -1568,7 +1585,6 @@ public class car : MonoBehaviour
         var clip = AudioClip.Create("lounge", samples, 1, rate, false);
         clip.SetData(data, 0);
         music.clip = clip;
-        music.Play();
         sfx = gameObject.AddComponent<AudioSource>();
         sfx.playOnAwake = false;
         sfx.loop = false;
@@ -1696,6 +1712,87 @@ public class car : MonoBehaviour
         tex.SetPixels(pixels);
         tex.Apply(true);
         return tex;
+    }
+
+    void LoadCarPhotos()
+    {
+        hwSprites = new Sprite[3];
+        hwSprites[0] = LoadHwSprite("muscle.jpg");
+        hwSprites[1] = LoadHwSprite("hatch.jpg");
+        hwSprites[2] = hwSprites[0];
+    }
+
+    Sprite LoadHwSprite(string file)
+    {
+        try
+        {
+            string path = Path.Combine(Application.streamingAssetsPath, file);
+            if (!File.Exists(path)) path = Path.Combine(Directory.GetCurrentDirectory(), file);
+            if (!File.Exists(path)) return null;
+            byte[] bytes = File.ReadAllBytes(path);
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!tex.LoadImage(bytes)) return null;
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex = PunchWhite(tex);
+            return Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    static Texture2D PunchWhite(Texture2D src)
+    {
+        int w = src.width;
+        int h = src.height;
+        Color32[] px = src.GetPixels32();
+        int minX = w, minY = h, maxX = 0, maxY = 0;
+        for (int i = 0; i < px.Length; i++)
+        {
+            int r = px[i].r, g = px[i].g, b = px[i].b;
+            int avg = (r + g + b) / 3;
+            bool gray = Mathf.Abs(r - g) < 14 && Mathf.Abs(g - b) < 14;
+            if (gray && avg > 232) px[i].a = 0;
+            else if (gray && avg > 200) px[i].a = (byte)Mathf.Max(0, 255 - (avg - 190) * 6);
+            if (px[i].a > 32)
+            {
+                int x = i % w;
+                int y = i / w;
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+        }
+
+        if (maxX <= minX)
+        {
+            src.SetPixels32(px);
+            src.Apply(true);
+            return src;
+        }
+
+        int pad = 6;
+        minX = Mathf.Max(0, minX - pad);
+        minY = Mathf.Max(0, minY - pad);
+        maxX = Mathf.Min(w - 1, maxX + pad);
+        maxY = Mathf.Min(h - 1, maxY + pad);
+        int nw = maxX - minX + 1;
+        int nh = maxY - minY + 1;
+        var dst = new Texture2D(nw, nh, TextureFormat.RGBA32, false);
+        var np = new Color32[nw * nh];
+        for (int y = 0; y < nh; y++)
+        {
+            for (int x = 0; x < nw; x++)
+                np[y * nw + x] = px[(minY + y) * w + (minX + x)];
+        }
+        dst.filterMode = FilterMode.Bilinear;
+        dst.wrapMode = TextureWrapMode.Clamp;
+        dst.SetPixels32(np);
+        dst.Apply(true);
+        return dst;
     }
 
     static Sprite MakeCarSprite(Color paint, int model = 1)

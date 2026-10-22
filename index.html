@@ -236,7 +236,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 6 · Hot Wheels · Menü</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 7 · Oyunda müzik · Gerçek araba fotoğrafı</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Araba</p>
@@ -320,8 +320,56 @@
     const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b", "#fa8cbd", "#f2f2f2"];
     const PLAYER_NAMES = ["Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"];
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
-    const CAR_LEN = 82;
-    const CAR_WIDE = 48;
+    const CAR_LEN = 112;
+    const CAR_WIDE = 62;
+    const carSheets = [null, null, null];
+    function punchCrop(img) {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const src = document.createElement("canvas");
+      src.width = w; src.height = h;
+      const s = src.getContext("2d");
+      s.drawImage(img, 0, 0);
+      const data = s.getImageData(0, 0, w, h);
+      const d = data.data;
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const avg = (r + g + b) / 3;
+        const gray = Math.abs(r - g) < 14 && Math.abs(g - b) < 14;
+        if (gray && avg > 232) d[i + 3] = 0;
+        else if (gray && avg > 200) d[i + 3] = Math.max(0, 255 - (avg - 190) * 6);
+        if (d[i + 3] > 32) {
+          const p = i / 4;
+          const px = p % w;
+          const py = (p / w) | 0;
+          if (px < minX) minX = px;
+          if (py < minY) minY = py;
+          if (px > maxX) maxX = px;
+          if (py > maxY) maxY = py;
+        }
+      }
+      s.putImageData(data, 0, 0);
+      if (maxX <= minX) return src;
+      const pad = 6;
+      const x0 = Math.max(0, minX - pad);
+      const y0 = Math.max(0, minY - pad);
+      const cw = Math.min(w, maxX + pad) - x0;
+      const ch = Math.min(h, maxY + pad) - y0;
+      const out = document.createElement("canvas");
+      out.width = cw; out.height = ch;
+      out.getContext("2d").drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch);
+      return out;
+    }
+    ["muscle.jpg", "hatch.jpg"].forEach((src, i) => {
+      const im = new Image();
+      im.onload = () => {
+        const sheet = punchCrop(im);
+        carSheets[i] = sheet;
+        if (i === 0) carSheets[2] = sheet;
+      };
+      im.src = src + "?v=7";
+    });
 
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
@@ -432,6 +480,7 @@
       overEl.classList.add("hidden");
       collectionEl.classList.add("hidden");
       refreshMenuBest();
+      stopMusic();
       asmr("tap");
     }
 
@@ -607,6 +656,7 @@
         }
       } catch (e) {}
     }
+    let musicTimer = null;
     function startMusic() {
       if (musicOn) return;
       try {
@@ -616,7 +666,7 @@
         const bass = [130.81, 130.81, 196, 174.61];
         let step = 0;
         const tick = () => {
-          if (!actx) return;
+          if (!musicOn || !actx) return;
           const t = actx.currentTime;
           const mk = (freq, dur, vol) => {
             const o = actx.createOscillator(), g = actx.createGain();
@@ -632,9 +682,13 @@
           step++;
         };
         tick();
-        setInterval(tick, 312);
+        musicTimer = setInterval(tick, 312);
         musicOn = true;
       } catch (e) {}
+    }
+    function stopMusic() {
+      musicOn = false;
+      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
     }
 
     function roundRect(x, y, w, h, r) {
@@ -1195,13 +1249,34 @@
 
     function drawCar(c) {
       const m = c.body == null ? bodyStyle : c.body;
+      const sheet = carSheets[m] || carSheets[1] || carSheets[0];
       const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08);
-      const wide = CAR_WIDE * (m === 1 ? 0.86 : 0.80);
+      const wide = sheet ? len * (sheet.height / sheet.width) : CAR_WIDE * (m === 1 ? 0.86 : 0.80);
       const halfL = len * 0.5;
       const halfW = wide * 0.5;
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
+      if (sheet) {
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.beginPath();
+        ctx.ellipse(2, 8, halfL * 0.88, halfW * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.drawImage(sheet, -halfL, -halfW, len, wide);
+        ctx.restore();
+        if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
+          const pts = pointsAt(c.x, c.y);
+          ctx.font = "700 13px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "alphabetic";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(0,0,0,0.65)";
+          ctx.strokeText(String(pts), c.x, c.y - 22);
+          ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
+          ctx.fillText(String(pts), c.x, c.y - 22);
+        }
+        return;
+      }
       ctx.fillStyle = "rgba(0,0,0,0.28)";
       ctx.beginPath();
       ctx.ellipse(2, 8, halfL * 0.9, halfW * 0.7, 0, 0, Math.PI * 2);
