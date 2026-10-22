@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Halka Arabaları</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #0c1218;
+      color: #eef3f8;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
+    .stage {
+      position: relative;
+      width: min(96vw, calc(96vh * 9 / 16));
+      aspect-ratio: 9 / 16;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+      user-select: none;
+      touch-action: none;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .top, .bottom {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      pointer-events: none;
+    }
+    .top {
+      top: 12px;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .top span {
+      background: rgba(8, 12, 18, 0.62);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .bottom {
+      bottom: 14px;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .bottom[hidden] { display: none; }
+    .stage[data-state="aim"] canvas { cursor: grab; }
+    .bottom p {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+    }
+    .power {
+      width: min(72%, 320px);
+      height: 16px;
+      border-radius: 999px;
+      background: #0e1520;
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      overflow: hidden;
+    }
+    .power > div {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #3ddc97, #f4d35e 62%, #ee6c4d);
+    }
+    .panel {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(8, 12, 18, 0.5);
+    }
+    .panel.hidden { display: none; }
+    .card {
+      width: min(86%, 420px);
+      background: rgba(16, 24, 34, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 26px 28px 22px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .card p, .card li {
+      color: #d5dee8;
+      line-height: 1.45;
+    }
+    ol {
+      text-align: left;
+      margin: 12px 0 16px;
+      padding-left: 18px;
+    }
+    button {
+      font: inherit;
+      font-weight: 800;
+      background: #f0a202;
+      color: #1a1203;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 28px;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.06); }
+    #reason { margin: 0 0 6px; }
+    #final {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+    }
+    #best-out { margin: 4px 0 16px; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <canvas id="c" width="720" height="1280"></canvas>
+    <header class="top">
+      <span>Halka Arabaları</span>
+      <span id="car">Araba 1/5</span>
+      <span id="score">Skor 0</span>
+    </header>
+    <footer class="bottom" id="bottom" hidden>
+      <div class="power" aria-hidden="true"><div id="fill"></div></div>
+      <p id="hint">Geri çek ve bırak</p>
+    </footer>
+    <section class="panel" id="menu">
+      <div class="card">
+        <h1>Halka Arabaları</h1>
+        <ol>
+          <li>Arabayı geri çek, bırak. Yan çekersen sona doğru kıvrılır.</li>
+          <li>Ortaya yakın duran daha çok puan alır.</li>
+          <li>Halkanın içinde durursan sonraki arabayı atarsın.</li>
+          <li>Dışarıda durursa tur biter.</li>
+        </ol>
+        <p id="menu-best"></p>
+        <button id="start" type="button">Başla</button>
+      </div>
+    </section>
+    <section class="panel hidden" id="over">
+      <div class="card">
+        <h1>Tur bitti</h1>
+        <p id="reason"></p>
+        <p id="final">Skor 0</p>
+        <p id="best-out"></p>
+        <button id="again" type="button">Tekrar oyna</button>
+      </div>
+    </section>
+  </div>
+  <script>
+    const W = 720;
+    const H = 1280;
+    const INSET = 24;
+    const HOUSE = { x: 360, y: 280 };
+    const SPAWN = { x: 360, y: 1080 };
+    const RINGS = [
+      { r: 168, points: 10, color: "#34506a" },
+      { r: 120, points: 25, color: "#e15a3a" },
+      { r: 78, points: 50, color: "#f0a202" },
+      { r: 36, points: 100, color: "#f6f1e4" },
+    ];
+    const FRICTION = 170;
+    const MAX_PULL = 150;
+    const MIN_PULL = 22;
+    const MAX_SPEED = 460;
+    const BACK = 0.22;
+    const STOP_SPEED = 8;
+    const CURL = 120;
+    const CARS_PER_ROUND = 5;
+    const BEST_KEY = "halka-arabalari-best";
+    const COLORS = ["#4cc9f0", "#f72585", "#80b918", "#c77dff", "#ffd166"];
+
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const stage = document.getElementById("stage");
+    const menuEl = document.getElementById("menu");
+    const overEl = document.getElementById("over");
+    const bottomEl = document.getElementById("bottom");
+    const fillEl = document.getElementById("fill");
+    const hintEl = document.getElementById("hint");
+    const scoreEl = document.getElementById("score");
+    const carEl = document.getElementById("car");
+    const reasonEl = document.getElementById("reason");
+    const finalEl = document.getElementById("final");
+    const bestOutEl = document.getElementById("best-out");
+    const menuBestEl = document.getElementById("menu-best");
+
+    const scratches = Array.from({ length: 16 }, () => ({
+      x: 50 + Math.random() * 620,
+      y: 70 + Math.random() * 1140,
+      a: Math.random() * Math.PI,
+      len: 28 + Math.random() * 70,
+    }));
+
+    let best = 0;
+    try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
+    menuBestEl.textContent = best > 0 ? "En iyi " + best : "İlk turun seni bekliyor.";
+
+    let cars = [];
+    let current = null;
+    let state = "menu";
+    let thrown = 0;
+    let calm = 0;
+    let actx = null;
+    let lastHit = 0;
+    const pops = [];
+    const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
+
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+    function pointsAt(x, y) {
+      const d = Math.hypot(x - HOUSE.x, y - HOUSE.y);
+      for (let i = RINGS.length - 1; i >= 0; i--) {
+        if (d <= RINGS[i].r) return RINGS[i].points;
+      }
+      return 0;
+    }
+
+    function totalScore() {
+      let s = 0;
+      for (const c of cars) {
+        if (!c.launched) continue;
+        if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
+        s += pointsAt(c.x, c.y);
+      }
+      return s;
+    }
+
+    function boardLimits(r) {
+      return {
+        left: INSET + r,
+        right: W - INSET - r,
+        top: INSET + r,
+        bot: H - INSET - r,
+      };
+    }
+
+    function tone(freq, dur) {
+      try {
+        if (!actx) actx = new AudioContext();
+        if (actx.state === "suspended") actx.resume();
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(freq, actx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(Math.max(48, freq * 0.55), actx.currentTime + dur);
+        g.gain.setValueAtTime(0.07, actx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+        o.connect(g);
+        g.connect(actx.destination);
+        o.start();
+        o.stop(actx.currentTime + dur);
+      } catch (e) { /* sessiz kal */ }
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function spawnCar() {
+      let x = SPAWN.x;
+      for (let i = 0; i < 7; i++) {
+        const tx = SPAWN.x + (i === 0 ? 0 : (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 48);
+        const blocked = cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < c.r * 2 + 8);
+        if (!blocked) { x = tx; break; }
+      }
+      const car = {
+        x: x,
+        y: SPAWN.y,
+        homeX: x,
+        homeY: SPAWN.y,
+        vx: 0,
+        vy: 0,
+        r: 16,
+        color: COLORS[thrown % COLORS.length],
+        angle: -Math.PI / 2,
+        curl: 0,
+        launched: false,
+      };
+      cars.push(car);
+      current = car;
+      state = "aim";
+    }
+
+    function startRound() {
+      cars = [];
+      thrown = 0;
+      calm = 0;
+      pops.length = 0;
+      pull.active = false;
+      pull.x = 0;
+      pull.y = 0;
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      try { if (actx && actx.state === "suspended") actx.resume(); } catch (e) { /* yoksay */ }
+      spawnCar();
+    }
+
+    function showOver(reason, win) {
+      state = "over";
+      pull.active = false;
+      const s = totalScore();
+      if (s > best) {
+        best = s;
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
+      }
+      reasonEl.textContent = reason;
+      finalEl.textContent = "Skor " + s;
+      bestOutEl.textContent = "En iyi " + best;
+      overEl.classList.remove("hidden");
+      tone(win ? 560 : 120, 0.2);
+    }
+
+    function settle() {
+      const inside = pointsAt(current.x, current.y) > 0;
+      thrown += 1;
+      if (!inside) {
+        showOver("Araba halkanın dışında durdu.", false);
+        return;
+      }
+      if (thrown >= CARS_PER_ROUND) {
+        showOver("Beş araba da halkada.", true);
+        return;
+      }
+      pops.push({ text: "Devam", x: W / 2, y: 86, life: 0.95 });
+      spawnCar();
+    }
+
+    function canvasPoint(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (W / rect.width),
+        y: (e.clientY - rect.top) * (H / rect.height),
+      };
+    }
+
+    function onDown(e) {
+      if (state !== "aim" || !current) return;
+      pull.active = true;
+      const p = canvasPoint(e);
+      pull.sx = p.x;
+      pull.sy = p.y;
+      pull.x = 0;
+      pull.y = 0;
+    }
+
+    function onMove(e) {
+      if (!pull.active || state !== "aim") return;
+      const p = canvasPoint(e);
+      pull.x = p.x - pull.sx;
+      pull.y = p.y - pull.sy;
+    }
+
+    function launch() {
+      const len = Math.hypot(pull.x, pull.y);
+      pull.active = false;
+      if (!current || state !== "aim") return;
+      if (len < MIN_PULL) {
+        pull.x = 0;
+        pull.y = 0;
+        current.x = current.homeX;
+        current.y = current.homeY;
+        current.angle = -Math.PI / 2;
+        return;
+      }
+      const shot = shotFromPull(current.x, current.y, pull.x, pull.y);
+      current.vx = shot.vx;
+      current.vy = shot.vy;
+      current.curl = shot.curl;
+      current.angle = Math.atan2(current.vy, current.vx);
+      current.launched = true;
+      pull.x = 0;
+      pull.y = 0;
+      state = "slide";
+      calm = 0;
+      tone(170, 0.12);
+    }
+
+    function onUp() {
+      if (!pull.active) return;
+      launch();
+    }
+
+    canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); onDown(e); }, { passive: false });
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    document.getElementById("start").addEventListener("click", startRound);
+    document.getElementById("again").addEventListener("click", startRound);
+    window.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === "r" || e.key === "R") && (state === "menu" || state === "over")) {
+        startRound();
+      }
+    });
+
+    function applyAim() {
+      const len = Math.hypot(pull.x, pull.y);
+      if (pull.active && len > 0) {
+        const back = Math.min(len, MAX_PULL) * BACK;
+        current.x = current.homeX + (pull.x / len) * back;
+        current.y = current.homeY + (pull.y / len) * back;
+        current.angle = Math.atan2(-pull.y, -pull.x);
+      } else {
+        current.x = current.homeX;
+        current.y = current.homeY;
+        current.angle = -Math.PI / 2;
+      }
+    }
+
+    function stopAtBoard(c) {
+      const b = boardLimits(c.r);
+      if (c.x < b.left) { c.x = b.left; c.vx = 0; }
+      if (c.x > b.right) { c.x = b.right; c.vx = 0; }
+      if (c.y < b.top) { c.y = b.top; c.vy = 0; }
+      if (c.y > b.bot) { c.y = b.bot; c.vy = 0; }
+    }
+
+    function resolve(a, b) {
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      let dist = Math.hypot(dx, dy);
+      const min = a.r + b.r;
+      if (dist === 0) { dx = 1; dy = 0; dist = 1; }
+      if (dist >= min) return;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const overlap = min - dist;
+      a.x -= nx * overlap * 0.5;
+      a.y -= ny * overlap * 0.5;
+      b.x += nx * overlap * 0.5;
+      b.y += ny * overlap * 0.5;
+      const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (rv >= 0) return;
+      if (rv < -50) {
+        const now = performance.now();
+        if (now - lastHit > 90) {
+          lastHit = now;
+          tone(380, 0.05);
+        }
+      }
+      const j = -(1 + 0.88) * rv / 2;
+      a.vx -= j * nx;
+      a.vy -= j * ny;
+      b.vx += j * nx;
+      b.vy += j * ny;
+      a.curl *= 0.35;
+      b.curl *= 0.35;
+    }
+
+    function shotFromPull(x, y, px, py) {
+      const len = Math.hypot(px, py) || 1;
+      const speed = (Math.min(len, MAX_PULL) / MAX_PULL) * MAX_SPEED;
+      return {
+        x: x,
+        y: y,
+        vx: (-px / len) * speed,
+        vy: (-py / len) * speed,
+        curl: clamp(px / MAX_PULL, -1, 1) * CURL,
+      };
+    }
+
+    function glide(body, dt) {
+      const sp = Math.hypot(body.vx, body.vy);
+      if (sp <= STOP_SPEED) {
+        body.vx = 0;
+        body.vy = 0;
+        return false;
+      }
+      body.angle = Math.atan2(body.vy, body.vx);
+      const drop = FRICTION * dt;
+      if (drop >= sp) {
+        body.vx = 0;
+        body.vy = 0;
+        return false;
+      }
+      body.vx -= (body.vx / sp) * drop;
+      body.vy -= (body.vy / sp) * drop;
+      const sp2 = Math.hypot(body.vx, body.vy);
+      if (sp2 > 0 && body.curl) {
+        const slow = 1 - Math.min(1, sp2 / MAX_SPEED);
+        const omega = (body.curl / 70) * slow * slow;
+        const ang = Math.atan2(body.vy, body.vx) + omega * dt;
+        body.vx = Math.cos(ang) * sp2;
+        body.vy = Math.sin(ang) * sp2;
+      }
+      body.x += body.vx * dt;
+      body.y += body.vy * dt;
+      const b = boardLimits(body.r || 16);
+      let blocked = false;
+      if (body.x < b.left) { body.x = b.left; body.vx = 0; blocked = true; }
+      if (body.x > b.right) { body.x = b.right; body.vx = 0; blocked = true; }
+      if (body.y < b.top) { body.y = b.top; body.vy = 0; blocked = true; }
+      if (body.y > b.bot) { body.y = b.bot; body.vy = 0; blocked = true; }
+      return !blocked && Math.hypot(body.vx, body.vy) > STOP_SPEED;
+    }
+
+    function stepPhysics(dt) {
+      for (const c of cars) {
+        if (!c.launched) continue;
+        glide(c, dt);
+      }
+      for (let n = 0; n < 5; n++) {
+        for (let i = 0; i < cars.length; i++) {
+          for (let j = i + 1; j < cars.length; j++) {
+            if (!cars[i].launched || !cars[j].launched) continue;
+            resolve(cars[i], cars[j]);
+          }
+        }
+      }
+      for (const c of cars) if (c.launched) stopAtBoard(c);
+    }
+
+    function update(dt) {
+      if (state === "aim" && current) applyAim();
+      else if (state === "slide") {
+        stepPhysics(dt);
+        const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP_SPEED);
+        if (moving) calm = 0;
+        else {
+          calm += dt;
+          if (calm >= 0.18) settle();
+        }
+      }
+      for (let i = pops.length - 1; i >= 0; i--) {
+        pops[i].life -= dt;
+        pops[i].y -= 16 * dt;
+        if (pops[i].life <= 0) pops.splice(i, 1);
+      }
+    }
+
+    function previewPath() {
+      if (!current || !pull.active) return null;
+      const len = Math.hypot(pull.x, pull.y);
+      if (len < 8) return null;
+      const body = shotFromPull(current.x, current.y, pull.x, pull.y);
+      body.r = current.r;
+      const pts = [{ x: body.x, y: body.y }];
+      const dt = 1 / 60;
+      for (let i = 0; i < 260; i++) {
+        const moving = glide(body, dt);
+        if (i % 2 === 1) pts.push({ x: body.x, y: body.y });
+        if (!moving) break;
+      }
+      pts.push({ x: body.x, y: body.y });
+      return pts;
+    }
+
+    function drawRink() {
+      ctx.fillStyle = "#101820";
+      ctx.fillRect(0, 0, W, H);
+      roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
+      const g = ctx.createLinearGradient(0, INSET, 0, H - INSET);
+      g.addColorStop(0, "#3e546b");
+      g.addColorStop(1, "#2a3c4e");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 2;
+      for (const s of scratches) {
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
+        ctx.stroke();
+      }
+      ctx.restore();
+      roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    function drawHouse() {
+      for (const ring of RINGS) {
+        ctx.beginPath();
+        ctx.arc(HOUSE.x, HOUSE.y, ring.r, 0, Math.PI * 2);
+        ctx.fillStyle = ring.color;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(HOUSE.x, HOUSE.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#1b2430";
+      ctx.fill();
+      const labels = [
+        { text: "10", x: HOUSE.x - 144, y: HOUSE.y, dark: false },
+        { text: "25", x: HOUSE.x - 98, y: HOUSE.y, dark: false },
+        { text: "50", x: HOUSE.x - 56, y: HOUSE.y, dark: false },
+        { text: "100", x: HOUSE.x, y: HOUSE.y - 14, dark: true },
+      ];
+      ctx.font = "700 14px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const lb of labels) {
+        if (lb.dark) {
+          ctx.fillStyle = "#1c2430";
+          ctx.fillText(lb.text, lb.x, lb.y);
+        } else {
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(0,0,0,0.45)";
+          ctx.strokeText(lb.text, lb.x, lb.y);
+          ctx.fillStyle = "#fff";
+          ctx.fillText(lb.text, lb.x, lb.y);
+        }
+      }
+      ctx.textBaseline = "alphabetic";
+      ctx.setLineDash([7, 10]);
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(HOUSE.x, HOUSE.y + RINGS[0].r + 16);
+      ctx.lineTo(SPAWN.x, SPAWN.y - 28);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawCar(c) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.angle);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.beginPath();
+      ctx.ellipse(0, 8, 14, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#161616";
+      ctx.fillRect(-13, -12, 7, 4);
+      ctx.fillRect(5, -12, 7, 4);
+      ctx.fillRect(-13, 8, 7, 4);
+      ctx.fillRect(5, 8, 7, 4);
+      roundRect(-16, -9, 32, 18, 5);
+      ctx.fillStyle = c.color;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      roundRect(2, -6, 8, 12, 2);
+      ctx.fillStyle = "rgba(232,246,255,0.95)";
+      ctx.fill();
+      ctx.fillStyle = "#fff3bf";
+      ctx.fillRect(14, -6, 3, 3);
+      ctx.fillRect(14, 3, 3, 3);
+      ctx.restore();
+
+      if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
+        const pts = pointsAt(c.x, c.y);
+        ctx.font = "700 13px Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(0,0,0,0.65)";
+        ctx.strokeText(String(pts), c.x, c.y - 22);
+        ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
+        ctx.fillText(String(pts), c.x, c.y - 22);
+      }
+    }
+
+    function drawAim() {
+      const path = previewPath();
+      if (!path) {
+        if (thrown === 0 && !pull.active) {
+          ctx.font = "700 15px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "rgba(0,0,0,0.55)";
+          ctx.lineWidth = 3;
+          ctx.strokeText("Aşağı çek", current.x, current.y - 28);
+          ctx.fillText("Aşağı çek", current.x, current.y - 28);
+        }
+        return;
+      }
+      const p = path[path.length - 1];
+      const pts = pointsAt(p.x, p.y);
+      ctx.save();
+      ctx.setLineDash([5, 7]);
+      ctx.strokeStyle = "rgba(255,255,255,0.8)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+      ctx.fillStyle = pts ? "rgba(128, 237, 153, 0.4)" : "rgba(239, 71, 111, 0.4)";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = pts ? "#80ed99" : "#ff8fa3";
+      ctx.stroke();
+      ctx.font = "700 12px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(String(pts), p.x, p.y);
+      ctx.restore();
+    }
+
+    function drawPops() {
+      ctx.font = "800 22px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const p of pops) {
+        ctx.globalAlpha = clamp(p.life, 0, 1);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(0,0,0,0.45)";
+        ctx.strokeText(p.text, p.x, p.y);
+        ctx.fillStyle = "#f0a202";
+        ctx.fillText(p.text, p.x, p.y);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function syncHud() {
+      scoreEl.textContent = "Skor " + totalScore();
+      const n = state === "over" ? thrown : thrown + 1;
+      carEl.textContent = "Araba " + clamp(n, 1, CARS_PER_ROUND) + "/" + CARS_PER_ROUND;
+      const len = Math.hypot(pull.x, pull.y);
+      const t = state === "aim" && pull.active ? Math.min(1, len / MAX_PULL) : 0;
+      fillEl.style.width = (t * 100).toFixed(1) + "%";
+      const side = len > 0 ? Math.abs(pull.x) / len : 0;
+      let hint = "Geri çek ve bırak";
+      if (state === "slide") hint = "Kayıyor…";
+      else if (pull.active && len >= MIN_PULL && side > 0.16) hint = "Sona doğru kıvrılır";
+      else if (pull.active && len >= MIN_PULL) hint = "Bırak";
+      else if (pull.active) hint = "Biraz daha çek";
+      hintEl.textContent = hint;
+      bottomEl.hidden = state === "menu" || state === "over";
+      stage.dataset.state = state;
+    }
+
+    function draw() {
+      drawRink();
+      drawHouse();
+      if (state === "menu") {
+        drawCar({ x: SPAWN.x, y: SPAWN.y, angle: -Math.PI / 2, color: COLORS[0], vx: 0, vy: 0, launched: false });
+      } else {
+        if (state === "aim" && current) drawAim();
+        for (const c of cars) drawCar(c);
+        drawPops();
+      }
+      syncHud();
+    }
+
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
