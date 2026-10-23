@@ -196,7 +196,6 @@ public class car : MonoBehaviour
     readonly List<BurstBit> bits = new List<BurstBit>();
     AudioSource music;
     AudioSource sfx;
-    AudioSource exhaust;
     float lastHit;
     GUIStyle popStyle;
     GUIStyle label;
@@ -418,7 +417,6 @@ public class car : MonoBehaviour
         current = null;
         phase = Phase.Menu;
         if (music != null) music.Stop();
-        StopExhaust();
         PlayAsmr("tap");
     }
 
@@ -468,7 +466,6 @@ public class car : MonoBehaviour
             soundEnabled = false;
             PlayerPrefs.SetInt(SoundKey, 0);
             if (music != null) music.Stop();
-            StopExhaust();
         }
     }
 
@@ -701,7 +698,6 @@ public class car : MonoBehaviour
 
         if (HumanCanAim()) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
-        else StopExhaust();
 
         for (int i = pops.Count - 1; i >= 0; i--)
         {
@@ -867,8 +863,6 @@ public class car : MonoBehaviour
         stone.vel = dir * speed;
         stone.curl = Mathf.Clamp(-drag.x / MaxPull, -1f, 1f) * CurlPower;
         stone.angle = Mathf.Atan2(stone.vel.y, stone.vel.x);
-        PlayAsmr("gas");
-        SyncExhaust(1f);
     }
 
     static int PowerBand(float len)
@@ -909,25 +903,21 @@ public class car : MonoBehaviour
             if (stones[i].launched && !stones[i].fallen) StopAtBoard(stones[i]);
         }
 
-        float maxSp = 0f;
+        bool moving = false;
         for (int i = 0; i < stones.Count; i++)
         {
-            if (!stones[i].launched || stones[i].fallen) continue;
-            maxSp = Mathf.Max(maxSp, stones[i].vel.magnitude);
+            if (stones[i].launched && !stones[i].fallen && stones[i].vel.magnitude > StopSpeed)
+            {
+                moving = true;
+                break;
+            }
         }
 
-        bool moving = maxSp > StopSpeed;
-        // F1 egzoz kayma boyunca sürekli devam eder
-        SyncExhaust(maxSp / Mathf.Max(0.01f, maxSpeed));
         if (moving) calm = 0f;
         else
         {
             calm += dt;
-            if (calm >= 0.18f)
-            {
-                StopExhaust();
-                Settle();
-            }
+            if (calm >= 0.18f) Settle();
         }
     }
 
@@ -1961,47 +1951,6 @@ public class car : MonoBehaviour
         sfx.playOnAwake = false;
         sfx.loop = false;
         sfx.volume = 0.7f;
-
-        exhaust = gameObject.AddComponent<AudioSource>();
-        exhaust.playOnAwake = false;
-        exhaust.loop = true;
-        exhaust.volume = 0f;
-        // Tok F1 egzoz: kalın gövde + orta tiz
-        int exN = rate / 2;
-        var exData = new float[exN];
-        float b = 0f;
-        for (int i = 0; i < exN; i++)
-        {
-            float t = i / (float)rate;
-            float w = Random.Range(-1f, 1f);
-            b = (b + 0.03f * w) / 1.03f;
-            float flutter = 1f + 0.05f * Mathf.Sin(t * 12f * Mathf.PI * 2f);
-            float tone = Mathf.Sin(t * 95f * Mathf.PI * 2f) * 0.26f
-                + Mathf.Sin(t * 190f * Mathf.PI * 2f * flutter) * 0.22f
-                + Mathf.Sin(t * 380f * Mathf.PI * 2f) * 0.12f
-                + Mathf.Sin(t * 570f * Mathf.PI * 2f) * 0.06f;
-            exData[i] = tone + b * 0.32f;
-        }
-        var exClip = AudioClip.Create("exhaust-tok", exN, 1, rate, false);
-        exClip.SetData(exData, 0);
-        exhaust.clip = exClip;
-    }
-
-    void SyncExhaust(float speed01)
-    {
-        if (!soundEnabled || exhaust == null) return;
-        float s = Mathf.Clamp(0.5f + speed01 * 0.5f, 0.5f, 1f);
-        if (!exhaust.isPlaying) exhaust.Play();
-        exhaust.pitch = 0.85f + s * 0.55f;
-        exhaust.volume = 0.22f + s * 0.2f;
-    }
-
-    void StopExhaust()
-    {
-        if (exhaust == null) return;
-        if (exhaust.isPlaying) exhaust.Stop();
-        exhaust.volume = 0f;
-        exhaust.pitch = 1f;
     }
 
     int pullBandHeard;
