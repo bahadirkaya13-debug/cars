@@ -216,6 +216,38 @@
       color: #f0a202;
       text-transform: uppercase;
     }
+    .turn-banner {
+      position: absolute;
+      top: 86px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      min-width: min(78%, 320px);
+      text-align: center;
+      padding: 10px 18px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      border: 2px solid rgba(255,255,255,0.18);
+    }
+    .turn-banner[hidden] { display: none; }
+    .turn-banner.you {
+      background: rgba(210, 55, 55, 0.92);
+      color: #fff7f5;
+    }
+    .turn-banner.bot {
+      background: rgba(35, 95, 200, 0.92);
+      color: #eef6ff;
+    }
+    .turn-banner.slide {
+      background: rgba(30, 28, 24, 0.88);
+      color: #f0e6d8;
+    }
+    .howto ol { margin: 8px 0 14px; }
+    .howto li { margin: 6px 0; }
   </style>
 </head>
 <body>
@@ -226,6 +258,7 @@
       <span id="car">Tur 1/4</span>
       <span id="score">Bot 0</span>
     </header>
+    <div id="turn-banner" class="turn-banner you" hidden>Sıra sende</div>
     <button id="to-menu" class="hud-back" type="button" hidden>Menü</button>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
@@ -236,7 +269,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 7 · Oyunda müzik · Gerçek araba fotoğrafı</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8 · Sıra paneli · Mini öğretici</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Araba</p>
@@ -276,6 +309,18 @@
           <button id="over-collection" class="ghost" type="button">Koleksiyon</button>
           <button id="over-menu" class="ghost" type="button">Menü</button>
         </div>
+      </div>
+    </section>
+    <section class="panel" id="howto">
+      <div class="card howto">
+        <h1>Nasıl oynanır?</h1>
+        <ol>
+          <li><b>Sen kırmızı</b>, bot mavi — sıra paneli kimin oynadığını gösterir.</li>
+          <li>Arabayı <b>geri çek, bırak</b>. Güç ortada dursun.</li>
+          <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>.</li>
+          <li>Rakibi vurup halkadan çıkar; nadiren <b>BUZ</b> veya <b>MIKNATIS</b> gelir.</li>
+        </ol>
+        <button id="howto-ok" type="button">Anladım, başla</button>
       </div>
     </section>
   </div>
@@ -384,6 +429,8 @@
     const menuEl = document.getElementById("menu");
     const collectionEl = document.getElementById("collection");
     const overEl = document.getElementById("over");
+    const howtoEl = document.getElementById("howto");
+    const turnBanner = document.getElementById("turn-banner");
     const bottomEl = document.getElementById("bottom");
     const powerEl = document.getElementById("power");
     const powerCells = powerEl ? Array.from(powerEl.querySelectorAll("span")) : [];
@@ -479,6 +526,8 @@
       menuEl.classList.remove("hidden");
       overEl.classList.add("hidden");
       collectionEl.classList.add("hidden");
+      howtoEl.classList.add("hidden");
+      if (turnBanner) turnBanner.hidden = true;
       refreshMenuBest();
       stopMusic();
       asmr("tap");
@@ -486,7 +535,8 @@
 
     let cars = [];
     let current = null;
-    let state = "menu";
+    let state = "howto";
+    menuEl.classList.add("hidden");
     let playerThrown = 0;
     let botThrown = 0;
     let botTurn = false;
@@ -970,6 +1020,11 @@
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
+    document.getElementById("howto-ok").addEventListener("click", () => {
+      howtoEl.classList.add("hidden");
+      menuEl.classList.remove("hidden");
+      state = "menu";
+    });
     document.getElementById("start").addEventListener("click", startRound);
     document.getElementById("again").addEventListener("click", startRound);
     document.getElementById("open-collection").addEventListener("click", showCollection);
@@ -1476,15 +1531,31 @@
         powerCells[i].classList.toggle("on", on);
         powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
       }
-      bottomEl.hidden = state === "menu" || state === "over" || state === "collection";
-      document.getElementById("to-menu").hidden = state === "menu" || state === "collection";
+      bottomEl.hidden = state === "menu" || state === "over" || state === "collection" || state === "howto";
+      document.getElementById("to-menu").hidden = state === "menu" || state === "collection" || state === "howto";
+      const inMatch = state === "aim" || state === "slide";
+      if (!inMatch) {
+        turnBanner.hidden = true;
+      } else if (state === "slide") {
+        turnBanner.hidden = false;
+        turnBanner.className = "turn-banner slide";
+        turnBanner.textContent = botTurn ? "Bot’un atışı kayıyor…" : "Senin atışın kayıyor…";
+      } else if (botTurn) {
+        turnBanner.hidden = false;
+        turnBanner.className = "turn-banner bot";
+        turnBanner.textContent = "Sıra BOT’ta — nişan alıyor";
+      } else {
+        turnBanner.hidden = false;
+        turnBanner.className = "turn-banner you";
+        turnBanner.textContent = "Sıra SENDE — geri çek, bırak";
+      }
       stage.dataset.state = botTurn ? "bot" : state;
     }
 
     function draw() {
       drawRink();
       drawHouse();
-      if (state === "menu" || state === "collection") {
+      if (state === "menu" || state === "collection" || state === "howto") {
         drawCar({
           x: SPAWN.x,
           y: SPAWN.y,

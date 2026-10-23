@@ -155,6 +155,8 @@ public class car : MonoBehaviour
     Vector2 pull;
     string reason = "";
     string unlockFlash = "";
+    bool showTutorial = true;
+    float turnBannerPulse;
     readonly List<Pop> pops = new List<Pop>();
     readonly List<BurstBit> bits = new List<BurstBit>();
     AudioSource music;
@@ -500,6 +502,17 @@ public class car : MonoBehaviour
 
         if (phase == Phase.Menu)
         {
+            if (showTutorial)
+            {
+                if (Clicked(TutorialOkRect()))
+                {
+                    showTutorial = false;
+                    PlayAsmr("tap");
+                }
+
+                return;
+            }
+
             for (int i = 0; i < 3; i++)
             {
                 if (Clicked(ModelRect(i)))
@@ -1225,7 +1238,8 @@ public class car : MonoBehaviour
         EnsureStyles();
         if (phase == Phase.Menu)
         {
-            DrawMenu();
+            if (showTutorial) DrawTutorial();
+            else DrawMenu();
             return;
         }
 
@@ -1242,6 +1256,42 @@ public class car : MonoBehaviour
         DrawPops();
     }
 
+    Rect TutorialCard()
+    {
+        Rect safe = SafeScreen();
+        float w = Mathf.Min(440f, safe.width - 20f);
+        float h = Mathf.Min(420f, safe.height - 40f);
+        return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
+    }
+
+    Rect TutorialOkRect()
+    {
+        Rect card = TutorialCard();
+        float w = Mathf.Min(220f, card.width - 40f);
+        return new Rect(card.x + (card.width - w) * 0.5f, card.yMax - 58f, w, 42f);
+    }
+
+    void DrawTutorial()
+    {
+        Rect card = TutorialCard();
+        GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.96f);
+        GUI.DrawTexture(card, pixel);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Nasıl oynanır?", label);
+        GUI.Label(new Rect(card.x + 18f, card.y + 58f, card.width - 36f, 260f),
+            "1) Sen kırmızı, bot mavi.\n    Üstteki sıra paneli kimin oynadığını gösterir.\n\n"
+            + "2) Arabayı geri çek, bırak.\n    Güç ortada dursun.\n\n"
+            + "3) Puan: dış 50 → içe 100 / 200 / 400.\n\n"
+            + "4) Rakibi vurup halkadan çıkar.\n    Nadiren BUZ veya MIKNATIS gelir.",
+            hintStyle);
+        Rect ok = TutorialOkRect();
+        GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+        GUI.DrawTexture(ok, pixel);
+        GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
+        GUI.Label(ok, "Anladım, başla", label);
+        GUI.color = Color.white;
+    }
+
     void DrawMenu()
     {
         Rect card = MenuCard();
@@ -1250,7 +1300,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 7  ·  Müzik oyunda  ·  Gerçek araba", hintStyle);
+            "Sürüm 8  ·  Sıra paneli  ·  Mini öğretici", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
             "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
@@ -1357,11 +1407,36 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
         GUI.Label(back, "Menü", hudStyle);
         GUI.color = Color.white;
-        string turnHint = botTurn ? "Bot oynuyor…" : "Senin sıran";
-        if (phase == Phase.Slide) turnHint = "Kayıyor…";
+
         if (phase != Phase.Over)
-            DrawPill(new Rect(safe.x + (safe.width - 140f) * 0.5f, y + h + 6f, 140f, h), turnHint);
-        float y2 = y + h + 36f;
+        {
+            turnBannerPulse += Time.deltaTime;
+            float bw = Mathf.Min(320f, safe.width - 28f);
+            float bh = 40f;
+            var banner = new Rect(safe.x + (safe.width - bw) * 0.5f, y + h + 8f, bw, bh);
+            string turnText;
+            if (phase == Phase.Slide)
+            {
+                GUI.color = new Color(0.12f, 0.11f, 0.09f, 0.92f);
+                turnText = botTurn ? "Bot’un atışı kayıyor…" : "Senin atışın kayıyor…";
+            }
+            else if (botTurn)
+            {
+                GUI.color = new Color(0.14f, 0.37f, 0.78f, 0.94f);
+                turnText = "Sıra BOT’ta — nişan alıyor";
+            }
+            else
+            {
+                GUI.color = new Color(0.82f, 0.22f, 0.22f, 0.94f);
+                turnText = "Sıra SENDE — geri çek, bırak";
+            }
+
+            GUI.DrawTexture(banner, pixel);
+            GUI.color = Color.white;
+            GUI.Label(banner, turnText, label);
+        }
+
+        float y2 = y + h + 56f;
         DrawPill(new Rect(safe.x + pad, y2, 110f, h), "Arabalar " + unlockCount + "/" + PlayerColors.Length);
         if (comboStreak > 0)
             DrawPill(new Rect(safe.x + pad + 118f, y2, 90f, h), "Kombo x" + comboStreak);
