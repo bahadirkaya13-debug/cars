@@ -196,6 +196,7 @@ public class car : MonoBehaviour
     readonly List<BurstBit> bits = new List<BurstBit>();
     AudioSource music;
     AudioSource sfx;
+    AudioSource exhaust;
     float lastHit;
     GUIStyle popStyle;
     GUIStyle label;
@@ -417,6 +418,7 @@ public class car : MonoBehaviour
         current = null;
         phase = Phase.Menu;
         if (music != null) music.Stop();
+        StopExhaust();
         PlayAsmr("tap");
     }
 
@@ -466,6 +468,7 @@ public class car : MonoBehaviour
             soundEnabled = false;
             PlayerPrefs.SetInt(SoundKey, 0);
             if (music != null) music.Stop();
+            StopExhaust();
         }
     }
 
@@ -698,6 +701,7 @@ public class car : MonoBehaviour
 
         if (HumanCanAim()) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
+        else StopExhaust();
 
         for (int i = pops.Count - 1; i >= 0; i--)
         {
@@ -904,19 +908,22 @@ public class car : MonoBehaviour
             if (stones[i].launched && !stones[i].fallen) StopAtBoard(stones[i]);
         }
 
-        bool moving = false;
+        float maxSp = 0f;
         for (int i = 0; i < stones.Count; i++)
         {
-            if (stones[i].launched && !stones[i].fallen && stones[i].vel.magnitude > StopSpeed)
-            {
-                moving = true;
-                break;
-            }
+            if (!stones[i].launched || stones[i].fallen) continue;
+            maxSp = Mathf.Max(maxSp, stones[i].vel.magnitude);
         }
 
-        if (moving) calm = 0f;
+        bool moving = maxSp > StopSpeed;
+        if (moving)
+        {
+            calm = 0f;
+            SyncExhaust(maxSp / Mathf.Max(0.01f, maxSpeed));
+        }
         else
         {
+            StopExhaust();
             calm += dt;
             if (calm >= 0.18f) Settle();
         }
@@ -1952,6 +1959,44 @@ public class car : MonoBehaviour
         sfx.playOnAwake = false;
         sfx.loop = false;
         sfx.volume = 0.7f;
+
+        exhaust = gameObject.AddComponent<AudioSource>();
+        exhaust.playOnAwake = false;
+        exhaust.loop = true;
+        exhaust.volume = 0f;
+        int exN = rate / 3;
+        var exData = new float[exN];
+        float b = 0f;
+        for (int i = 0; i < exN; i++)
+        {
+            float t = i / (float)rate;
+            float w = Random.Range(-1f, 1f);
+            b = (b + 0.025f * w) / 1.025f;
+            float tone = Mathf.Sin(t * 70f * Mathf.PI * 2f) * 0.22f
+                + Mathf.Sin(t * 35f * Mathf.PI * 2f) * 0.12f
+                + Mathf.Sin(t * 105f * Mathf.PI * 2f) * 0.06f;
+            exData[i] = tone + b * 0.35f;
+        }
+        var exClip = AudioClip.Create("exhaust", exN, 1, rate, false);
+        exClip.SetData(exData, 0);
+        exhaust.clip = exClip;
+    }
+
+    void SyncExhaust(float speed01)
+    {
+        if (!soundEnabled || exhaust == null) return;
+        float s = Mathf.Clamp(speed01, 0.04f, 1f);
+        if (!exhaust.isPlaying) exhaust.Play();
+        exhaust.pitch = 0.75f + s * 0.85f;
+        exhaust.volume = 0.08f + s * 0.28f;
+    }
+
+    void StopExhaust()
+    {
+        if (exhaust == null) return;
+        if (exhaust.isPlaying) exhaust.Stop();
+        exhaust.volume = 0f;
+        exhaust.pitch = 1f;
     }
 
     int pullBandHeard;
