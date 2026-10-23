@@ -29,6 +29,7 @@ public class car : MonoBehaviour
     const int StartUnlock = 3;
     static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
+    static readonly string[] LevelThemes = { "salon", "ice", "narrow", "storm", "master" };
     static readonly float[] LevelFriction = { 1.60f, 0.95f, 1.50f, 2.10f, 1.25f };
     static readonly float[] LevelSpeed = { 7.40f, 8.20f, 7.00f, 9.00f, 7.80f };
     static readonly float[] LevelRing = { 1f, 1f, 0.72f, 0.90f, 0.62f };
@@ -298,16 +299,41 @@ public class car : MonoBehaviour
 
     void LoadTable()
     {
-        // Ahşap zemin: yüksek çözünürlüklü tahta dokusu.
-        boardTex = MakeWoodTexture(1280, 2280);
+        boardTex = MakeThemeTexture(1280, 2280, levelI);
         boardTex.filterMode = FilterMode.Trilinear;
         boardTex.wrapMode = TextureWrapMode.Clamp;
         boardTex.anisoLevel = 8;
     }
 
+    void RefreshBoardTheme()
+    {
+        if (boardTex != null) Destroy(boardTex);
+        boardTex = MakeThemeTexture(1280, 2280, levelI);
+        boardTex.filterMode = FilterMode.Trilinear;
+        boardTex.wrapMode = TextureWrapMode.Clamp;
+        boardTex.anisoLevel = 8;
+        if (board != null)
+        {
+            float ppu = boardTex.height / 6.4f;
+            board.sprite = Sprite.Create(
+                boardTex,
+                new Rect(0f, 0f, boardTex.width, boardTex.height),
+                new Vector2(0.5f, 0.5f),
+                ppu);
+        }
+        if (cam != null)
+        {
+            if (levelI == 1) cam.backgroundColor = new Color(0.05f, 0.10f, 0.14f);
+            else if (levelI == 2) cam.backgroundColor = new Color(0.05f, 0.05f, 0.07f);
+            else if (levelI == 3) cam.backgroundColor = new Color(0.04f, 0.05f, 0.08f);
+            else if (levelI == 4) cam.backgroundColor = new Color(0.06f, 0.04f, 0.03f);
+            else cam.backgroundColor = new Color(0.28f, 0.16f, 0.08f);
+        }
+    }
+
     void BuildRink()
     {
-        if (boardTex == null) boardTex = MakeWoodTexture(1024, 2048);
+        if (boardTex == null) boardTex = MakeThemeTexture(1024, 2048, levelI);
         float ppu = boardTex.height / 6.4f;
         var sprite = Sprite.Create(
             boardTex,
@@ -363,6 +389,7 @@ public class car : MonoBehaviour
         carsPerSide = LevelCars[levelI];
         botSkill = LevelBot[levelI];
         ringMul = LevelRing[levelI];
+        RefreshBoardTheme();
         FitCamera();
     }
 
@@ -1842,38 +1869,98 @@ public class car : MonoBehaviour
         return Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), n);
     }
 
-    static Texture2D MakeWoodTexture(int w, int h)
+    static Texture2D MakeThemeTexture(int w, int h, int themeI)
     {
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, true);
         tex.filterMode = FilterMode.Trilinear;
         tex.wrapMode = TextureWrapMode.Clamp;
         tex.anisoLevel = 8;
         var pixels = new Color[w * h];
+        string theme = (themeI >= 0 && themeI < LevelThemes.Length) ? LevelThemes[themeI] : "salon";
         int planks = 7;
         float plankW = w / (float)planks;
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
             {
-                int plank = Mathf.Clamp(Mathf.FloorToInt(x / plankW), 0, planks - 1);
-                float local = (x - plank * plankW) / plankW;
-                float seam = Mathf.SmoothStep(0f, 1f, Mathf.Min(local, 1f - local) * 18f);
-                float grain = Mathf.Sin((y + plank * 37f) * 0.085f + Mathf.Sin(y * 0.021f + plank) * 2.4f);
-                grain = 0.55f + 0.45f * grain;
-                float wave = 0.92f + 0.08f * Mathf.Sin(y * 0.011f + plank * 1.7f);
-                float shade = 0.78f + 0.22f * seam;
-                float tone = (0.70f + 0.08f * (plank % 3)) * grain * wave * shade;
-                float r = Mathf.Clamp01(0.52f * tone + 0.10f);
-                float g = Mathf.Clamp01(0.32f * tone + 0.05f);
-                float b = Mathf.Clamp01(0.14f * tone + 0.02f);
-                if (local < 0.018f || local > 0.982f)
+                float u = x / (float)Mathf.Max(1, w - 1);
+                float v = y / (float)Mathf.Max(1, h - 1);
+                Color c;
+                if (theme == "ice")
                 {
-                    r *= 0.62f;
-                    g *= 0.62f;
-                    b *= 0.62f;
+                    float band = 0.55f + 0.20f * Mathf.Sin(v * 28f) + 0.08f * Mathf.Sin(u * 40f + v * 12f);
+                    float frost = Mathf.Pow(Mathf.Abs(Mathf.Sin(u * 55f + v * 33f)), 8f) * 0.25f;
+                    float r = Mathf.Clamp01(0.45f + 0.35f * band + frost);
+                    float g = Mathf.Clamp01(0.62f + 0.28f * band + frost);
+                    float b = Mathf.Clamp01(0.72f + 0.25f * band + frost * 0.5f);
+                    // Sarkıtlar (üst kenar)
+                    float top = 1f - v;
+                    if (top < 0.08f)
+                    {
+                        float ic = Mathf.Abs(Mathf.Sin(u * 40f));
+                        float tip = top / 0.08f;
+                        if (ic > 0.55f && tip < ic)
+                        {
+                            r = Mathf.Lerp(r, 0.95f, 0.85f);
+                            g = Mathf.Lerp(g, 0.98f, 0.85f);
+                            b = Mathf.Lerp(b, 1f, 0.85f);
+                        }
+                    }
+                    c = new Color(r, g, b, 1f);
+                }
+                else if (theme == "narrow")
+                {
+                    float edge = Mathf.Min(u, 1f - u);
+                    float lane = Mathf.SmoothStep(0f, 1f, edge * 4.5f);
+                    float grain = 0.5f + 0.5f * Mathf.Sin(v * 20f + u * 8f);
+                    float tone = Mathf.Lerp(0.08f, 0.28f, lane) * (0.85f + 0.15f * grain);
+                    c = new Color(tone * 0.9f, tone * 0.85f, tone * 1.05f, 1f);
+                }
+                else if (theme == "storm")
+                {
+                    float swirl = 0.5f + 0.5f * Mathf.Sin((u + v) * 18f);
+                    float rain = Mathf.Pow(Mathf.Abs(Mathf.Sin((u * 1.2f - v) * 90f)), 12f);
+                    float r = 0.10f + 0.08f * swirl;
+                    float g = 0.12f + 0.06f * swirl;
+                    float b = 0.20f + 0.12f * swirl + rain * 0.25f;
+                    c = new Color(r, g, b, 1f);
+                }
+                else if (theme == "master")
+                {
+                    int plank = Mathf.Clamp(Mathf.FloorToInt(x / plankW), 0, planks - 1);
+                    float local = (x - plank * plankW) / plankW;
+                    float seam = Mathf.SmoothStep(0f, 1f, Mathf.Min(local, 1f - local) * 18f);
+                    float grain = 0.55f + 0.45f * Mathf.Sin((y + plank * 37f) * 0.085f);
+                    float tone = (0.45f + 0.08f * (plank % 3)) * grain * (0.78f + 0.22f * seam);
+                    float r = Mathf.Clamp01(0.38f * tone + 0.04f);
+                    float g = Mathf.Clamp01(0.22f * tone + 0.02f);
+                    float b = Mathf.Clamp01(0.10f * tone + 0.01f);
+                    float gold = Mathf.Pow(Mathf.Abs(Mathf.Sin(u * Mathf.PI)), 10f) * 0.12f;
+                    c = new Color(r + gold, g + gold * 0.7f, b + gold * 0.2f, 1f);
+                }
+                else
+                {
+                    int plank = Mathf.Clamp(Mathf.FloorToInt(x / plankW), 0, planks - 1);
+                    float local = (x - plank * plankW) / plankW;
+                    float seam = Mathf.SmoothStep(0f, 1f, Mathf.Min(local, 1f - local) * 18f);
+                    float grain = Mathf.Sin((y + plank * 37f) * 0.085f + Mathf.Sin(y * 0.021f + plank) * 2.4f);
+                    grain = 0.55f + 0.45f * grain;
+                    float wave = 0.92f + 0.08f * Mathf.Sin(y * 0.011f + plank * 1.7f);
+                    float shade = 0.78f + 0.22f * seam;
+                    float tone = (0.70f + 0.08f * (plank % 3)) * grain * wave * shade;
+                    float r = Mathf.Clamp01(0.52f * tone + 0.10f);
+                    float g = Mathf.Clamp01(0.32f * tone + 0.05f);
+                    float b = Mathf.Clamp01(0.14f * tone + 0.02f);
+                    if (local < 0.018f || local > 0.982f)
+                    {
+                        r *= 0.62f;
+                        g *= 0.62f;
+                        b *= 0.62f;
+                    }
+                    c = new Color(r, g, b, 1f);
                 }
 
-                pixels[y * w + x] = new Color(r, g, b, 1f);
+                pixels[y * w + x] = c;
             }
         }
 

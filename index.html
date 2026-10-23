@@ -152,19 +152,66 @@
       border-radius: 14px;
       background: rgba(8, 12, 18, 0.55);
       color: #eef3f8;
-      padding: 14px 14px 12px;
+      padding: 12px 12px 10px;
       cursor: pointer;
       text-align: left;
       font: inherit;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
     }
     .track-item strong { font-size: 16px; }
     .track-item span { font-size: 12px; color: #c5d0dc; font-weight: 600; }
     .track-item.selected {
       border-color: #f0a202;
       box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
+    }
+    .track-swatch {
+      height: 52px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      position: relative;
+      overflow: hidden;
+    }
+    .track-swatch.salon {
+      background: linear-gradient(90deg, #5a3416 0%, #8a5528 45%, #4e2c12 100%);
+    }
+    .track-swatch.ice {
+      background: linear-gradient(180deg, #d9f4ff 0%, #8ec8e8 40%, #5a9ec4 100%);
+    }
+    .track-swatch.ice::before,
+    .track-swatch.ice::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 18px solid rgba(230, 248, 255, 0.95);
+    }
+    .track-swatch.ice::before { left: 18%; }
+    .track-swatch.ice::after { left: 62%; border-top-width: 14px; }
+    .track-swatch.narrow {
+      background: linear-gradient(90deg, #1a1c22 0%, #3a3540 50%, #15171c 100%);
+      box-shadow: inset 48px 0 0 rgba(0,0,0,0.35), inset -48px 0 0 rgba(0,0,0,0.35);
+    }
+    .track-swatch.storm {
+      background: linear-gradient(160deg, #1a2030 0%, #3a2a48 50%, #121820 100%);
+    }
+    .track-swatch.storm::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        -18deg,
+        transparent 0 10px,
+        rgba(180, 210, 255, 0.12) 10px 12px
+      );
+    }
+    .track-swatch.master {
+      background: linear-gradient(135deg, #1a100c 0%, #4a2818 40%, #120c08 100%);
+      box-shadow: inset 0 0 0 2px rgba(212, 168, 75, 0.45);
     }
     .trophy-stat {
       display: grid;
@@ -488,7 +535,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 22 · Menü sayfaları</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 23 · Pist temaları</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <div class="menu-entries">
@@ -610,11 +657,11 @@
     const POWER_STEPS = 5;
     const BASE_CARS = 4;
     const LEVELS = [
-      { name: "Salon", friction: 160, speed: 740, ring: 1, bot: 0.52, cars: 4 },
-      { name: "Buz", friction: 95, speed: 820, ring: 1, bot: 0.68, cars: 4 },
-      { name: "Dar halka", friction: 150, speed: 700, ring: 0.72, bot: 0.78, cars: 5 },
-      { name: "Fırtına", friction: 210, speed: 900, ring: 0.9, bot: 0.86, cars: 5 },
-      { name: "Usta", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 6 },
+      { name: "Salon", theme: "salon", blurb: "Klasik ahşap salon", friction: 160, speed: 740, ring: 1, bot: 0.52, cars: 4 },
+      { name: "Buz", theme: "ice", blurb: "Kaygan buz · sarkıtlar", friction: 95, speed: 820, ring: 1, bot: 0.68, cars: 4 },
+      { name: "Dar halka", theme: "narrow", blurb: "Dar koridor · sıkı halka", friction: 150, speed: 700, ring: 0.72, bot: 0.78, cars: 5 },
+      { name: "Fırtına", theme: "storm", blurb: "Rüzgarlı karanlık pist", friction: 210, speed: 900, ring: 0.9, bot: 0.86, cars: 5 },
+      { name: "Usta", theme: "master", blurb: "Parlak usta salonu", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 6 },
     ];
     const LEVEL_KEY = "halka-arabalari-level";
     const RING_BASE = [168, 120, 78, 36];
@@ -638,7 +685,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=22";
+      return "cars/" + file + "?v=23";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -685,12 +732,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=22";
+      im.src = src + "?v=23";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=22";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=23";
         return im;
       });
     }
@@ -707,13 +754,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=22")
+    fetch("cars/atlas.json?v=23")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=22";
+        img.src = "cars/atlas.png?v=23";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -762,6 +809,19 @@
       y: 70 + Math.random() * 1140,
       a: Math.random() * Math.PI,
       len: 28 + Math.random() * 70,
+    }));
+    const icicles = Array.from({ length: 14 }, (_, i) => ({
+      x: INSET + 28 + i * 46 + (i % 3) * 8,
+      len: 28 + (i * 17) % 42,
+      w: 7 + (i % 4) * 2,
+      side: i % 5 === 0 ? "left" : i % 5 === 1 ? "right" : "top",
+      yOff: (i * 53) % 220,
+    }));
+    const frostCracks = Array.from({ length: 10 }, () => ({
+      x: INSET + 40 + Math.random() * (W - INSET * 2 - 80),
+      y: INSET + 80 + Math.random() * (H - INSET * 2 - 160),
+      a: Math.random() * Math.PI,
+      len: 40 + Math.random() * 90,
     }));
 
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -865,8 +925,10 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "track-item" + (i === levelI ? " selected" : "");
-        btn.innerHTML = "<strong>" + L.name + "</strong><span>" +
-          (i + 1) + "/" + LEVELS.length +
+        btn.innerHTML =
+          "<div class=\"track-swatch " + (L.theme || "salon") + "\" aria-hidden=\"true\"></div>" +
+          "<strong>" + L.name + "</strong><span>" +
+          (L.blurb || "") +
           " · Araba " + L.cars +
           " · Bot " + Math.round(L.bot * 100) + "%" +
           (i === levelI ? " · Seçili" : "") +
@@ -1650,41 +1712,216 @@
       return pts;
     }
 
+    function drawIcicles() {
+      const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.002);
+      for (const ic of icicles) {
+        ctx.save();
+        if (ic.side === "top") {
+          ctx.translate(ic.x, INSET + 2);
+        } else if (ic.side === "left") {
+          ctx.translate(INSET + 2, INSET + 90 + ic.yOff);
+          ctx.rotate(-Math.PI / 2);
+        } else {
+          ctx.translate(W - INSET - 2, INSET + 90 + ic.yOff);
+          ctx.rotate(Math.PI / 2);
+        }
+        const len = ic.len * pulse;
+        const g = ctx.createLinearGradient(0, 0, 0, len);
+        g.addColorStop(0, "rgba(255,255,255,0.92)");
+        g.addColorStop(0.45, "rgba(190,230,250,0.75)");
+        g.addColorStop(1, "rgba(140,200,230,0.05)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(-ic.w * 0.5, 0);
+        ctx.lineTo(ic.w * 0.5, 0);
+        ctx.lineTo(0, len);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.35)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     function drawRink() {
-      ctx.fillStyle = "#24140a";
-      ctx.fillRect(0, 0, W, H);
-      roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
+      const theme = (LEVELS[levelI] && LEVELS[levelI].theme) || "salon";
+      const rw = W - INSET * 2;
+      const rh = H - INSET * 2;
+
+      if (theme === "ice") {
+        ctx.fillStyle = "#0c1a24";
+        ctx.fillRect(0, 0, W, H);
+      } else if (theme === "narrow") {
+        ctx.fillStyle = "#0c0d12";
+        ctx.fillRect(0, 0, W, H);
+      } else if (theme === "storm") {
+        ctx.fillStyle = "#0a0c14";
+        ctx.fillRect(0, 0, W, H);
+      } else if (theme === "master") {
+        ctx.fillStyle = "#100a08";
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        ctx.fillStyle = "#24140a";
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      roundRect(INSET, INSET, rw, rh, 26);
       ctx.save();
       ctx.clip();
-      const planks = 7;
-      const plankW = (W - INSET * 2) / planks;
-      for (let i = 0; i < planks; i++) {
-        const x = INSET + i * plankW;
-        const tone = 0.70 + 0.08 * (i % 3);
-        const g = ctx.createLinearGradient(x, 0, x + plankW, 0);
-        g.addColorStop(0, `rgb(${82 * tone | 0},${50 * tone | 0},${22 * tone | 0})`);
-        g.addColorStop(0.5, `rgb(${110 * tone | 0},${68 * tone | 0},${30 * tone | 0})`);
-        g.addColorStop(1, `rgb(${78 * tone | 0},${46 * tone | 0},${20 * tone | 0})`);
+
+      if (theme === "ice") {
+        const base = ctx.createLinearGradient(INSET, INSET, INSET + rw, INSET + rh);
+        base.addColorStop(0, "#c8eaf8");
+        base.addColorStop(0.35, "#8ec4de");
+        base.addColorStop(0.7, "#6aa8c8");
+        base.addColorStop(1, "#4e88a8");
+        ctx.fillStyle = base;
+        ctx.fillRect(INSET, INSET, rw, rh);
+        const bands = 9;
+        for (let i = 0; i < bands; i++) {
+          const y = INSET + (rh / bands) * i;
+          const g = ctx.createLinearGradient(INSET, y, INSET, y + rh / bands);
+          g.addColorStop(0, "rgba(255,255,255," + (0.08 + (i % 2) * 0.05) + ")");
+          g.addColorStop(1, "rgba(120,180,210,0.06)");
+          ctx.fillStyle = g;
+          ctx.fillRect(INSET, y, rw, rh / bands + 1);
+        }
+        ctx.strokeStyle = "rgba(255,255,255,0.22)";
+        ctx.lineWidth = 1.4;
+        for (const s of frostCracks) {
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(s.x + s.len * 0.35 * Math.cos(s.a), s.y + s.len * 0.35 * Math.sin(s.a));
+          ctx.lineTo(
+            s.x + s.len * 0.35 * Math.cos(s.a) + Math.cos(s.a + 0.9) * 18,
+            s.y + s.len * 0.35 * Math.sin(s.a) + Math.sin(s.a + 0.9) * 18
+          );
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        for (let i = 0; i < 40; i++) {
+          const px = INSET + ((i * 97) % rw);
+          const py = INSET + ((i * 61) % rh);
+          ctx.beginPath();
+          ctx.arc(px, py, 1.2 + (i % 3) * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        drawIcicles();
+      } else if (theme === "narrow") {
+        const g = ctx.createLinearGradient(INSET, 0, INSET + rw, 0);
+        g.addColorStop(0, "#12141a");
+        g.addColorStop(0.22, "#2a2630");
+        g.addColorStop(0.5, "#3c3544");
+        g.addColorStop(0.78, "#2a2630");
+        g.addColorStop(1, "#12141a");
         ctx.fillStyle = g;
-        ctx.fillRect(x, INSET, plankW + 1, H - INSET * 2);
-        ctx.strokeStyle = "rgba(40,22,10,0.55)";
+        ctx.fillRect(INSET, INSET, rw, rh);
+        ctx.fillStyle = "rgba(0,0,0,0.38)";
+        ctx.fillRect(INSET, INSET, rw * 0.16, rh);
+        ctx.fillRect(INSET + rw * 0.84, INSET, rw * 0.16, rh);
+        ctx.strokeStyle = "rgba(220,200,160,0.10)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(x + 0.5, INSET);
-        ctx.lineTo(x + 0.5, H - INSET);
+        ctx.moveTo(INSET + rw * 0.18, INSET);
+        ctx.lineTo(INSET + rw * 0.18, INSET + rh);
+        ctx.moveTo(INSET + rw * 0.82, INSET);
+        ctx.lineTo(INSET + rw * 0.82, INSET + rh);
         ctx.stroke();
+        ctx.strokeStyle = "rgba(180,170,200,0.08)";
+        for (const s of scratches) {
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
+          ctx.stroke();
+        }
+      } else if (theme === "storm") {
+        const g = ctx.createLinearGradient(INSET, INSET, INSET + rw, INSET + rh);
+        g.addColorStop(0, "#1a2238");
+        g.addColorStop(0.45, "#2e2448");
+        g.addColorStop(1, "#121820");
+        ctx.fillStyle = g;
+        ctx.fillRect(INSET, INSET, rw, rh);
+        const t = performance.now() * 0.04;
+        ctx.strokeStyle = "rgba(170,200,255,0.14)";
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 28; i++) {
+          const x = INSET + ((i * 53 + t) % rw);
+          ctx.beginPath();
+          ctx.moveTo(x, INSET);
+          ctx.lineTo(x - 90, INSET + rh);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        for (let i = 0; i < 50; i++) {
+          const px = INSET + ((i * 89 + t * 2) % rw);
+          const py = INSET + ((i * 47 + t * 3) % rh);
+          ctx.fillRect(px, py, 2, 6);
+        }
+      } else if (theme === "master") {
+        const planks = 7;
+        const plankW = rw / planks;
+        for (let i = 0; i < planks; i++) {
+          const x = INSET + i * plankW;
+          const tone = 0.55 + 0.1 * (i % 3);
+          const g = ctx.createLinearGradient(x, 0, x + plankW, 0);
+          g.addColorStop(0, `rgb(${48 * tone | 0},${28 * tone | 0},${16 * tone | 0})`);
+          g.addColorStop(0.5, `rgb(${78 * tone | 0},${44 * tone | 0},${24 * tone | 0})`);
+          g.addColorStop(1, `rgb(${40 * tone | 0},${22 * tone | 0},${12 * tone | 0})`);
+          ctx.fillStyle = g;
+          ctx.fillRect(x, INSET, plankW + 1, rh);
+          ctx.strokeStyle = "rgba(212,168,75,0.12)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, INSET);
+          ctx.lineTo(x + 0.5, INSET + rh);
+          ctx.stroke();
+        }
+        const gloss = ctx.createLinearGradient(INSET, INSET, INSET + rw, INSET);
+        gloss.addColorStop(0, "rgba(255,220,150,0)");
+        gloss.addColorStop(0.5, "rgba(255,220,150,0.07)");
+        gloss.addColorStop(1, "rgba(255,220,150,0)");
+        ctx.fillStyle = gloss;
+        ctx.fillRect(INSET, INSET, rw, rh);
+      } else {
+        const planks = 7;
+        const plankW = rw / planks;
+        for (let i = 0; i < planks; i++) {
+          const x = INSET + i * plankW;
+          const tone = 0.70 + 0.08 * (i % 3);
+          const g = ctx.createLinearGradient(x, 0, x + plankW, 0);
+          g.addColorStop(0, `rgb(${82 * tone | 0},${50 * tone | 0},${22 * tone | 0})`);
+          g.addColorStop(0.5, `rgb(${110 * tone | 0},${68 * tone | 0},${30 * tone | 0})`);
+          g.addColorStop(1, `rgb(${78 * tone | 0},${46 * tone | 0},${20 * tone | 0})`);
+          ctx.fillStyle = g;
+          ctx.fillRect(x, INSET, plankW + 1, rh);
+          ctx.strokeStyle = "rgba(40,22,10,0.55)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, INSET);
+          ctx.lineTo(x + 0.5, INSET + rh);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = "rgba(255,220,160,0.08)";
+        ctx.lineWidth = 1.5;
+        for (const s of scratches) {
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
+          ctx.stroke();
+        }
       }
-      ctx.strokeStyle = "rgba(255,220,160,0.08)";
-      ctx.lineWidth = 1.5;
-      for (const s of scratches) {
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x + Math.cos(s.a) * s.len, s.y + Math.sin(s.a) * s.len);
-        ctx.stroke();
-      }
+
       ctx.restore();
-      roundRect(INSET, INSET, W - INSET * 2, H - INSET * 2, 26);
-      ctx.strokeStyle = "rgba(255, 210, 150, 0.28)";
+      roundRect(INSET, INSET, rw, rh, 26);
+      if (theme === "ice") ctx.strokeStyle = "rgba(200, 240, 255, 0.55)";
+      else if (theme === "narrow") ctx.strokeStyle = "rgba(160, 150, 180, 0.35)";
+      else if (theme === "storm") ctx.strokeStyle = "rgba(140, 170, 220, 0.40)";
+      else if (theme === "master") ctx.strokeStyle = "rgba(212, 168, 75, 0.55)";
+      else ctx.strokeStyle = "rgba(255, 210, 150, 0.28)";
       ctx.lineWidth = 3;
       ctx.stroke();
     }
