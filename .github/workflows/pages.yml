@@ -26,6 +26,7 @@ jobs:
           cp hatch.jpg _site/hatch.jpg
           cp cars/atlas.png _site/cars/atlas.png
           cp cars/atlas.json _site/cars/atlas.json
+          cp cars/car_*.png _site/cars/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

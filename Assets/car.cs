@@ -1353,7 +1353,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 10  ·  Üstten Arabalarım", hintStyle);
+            "Sürüm 11  ·  Tam araba sayfası", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
             "Arabalarım " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name

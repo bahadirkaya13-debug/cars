@@ -103,27 +103,42 @@
       place-items: center;
       background: rgba(8, 12, 18, 0.5);
     }
-    /* Menü/koleksiyon: altta tahta + seçili araba görünsün */
-    #menu.panel, #collection.panel {
+    #menu.panel {
       align-content: start;
       align-items: center;
-      padding: 4% 0 34%;
+      padding: 6% 0 28%;
       background: linear-gradient(
         to bottom,
         rgba(8, 12, 18, 0.78) 0%,
-        rgba(8, 12, 18, 0.55) 58%,
-        rgba(8, 12, 18, 0.12) 82%,
+        rgba(8, 12, 18, 0.5) 60%,
+        rgba(8, 12, 18, 0.1) 85%,
         rgba(8, 12, 18, 0) 100%
       );
       pointer-events: none;
     }
-    #menu.panel .card, #collection.panel .card {
+    #menu.panel .card { pointer-events: auto; }
+    /* Arabalarım: tam sayfa */
+    #collection.panel {
+      place-items: stretch;
+      padding: 0;
+      background: rgba(10, 14, 20, 0.96);
       pointer-events: auto;
+    }
+    #collection .card.garage-page {
+      width: 100%;
+      max-width: none;
+      height: 100%;
+      max-height: none;
+      border-radius: 0;
+      border: 0;
+      overflow-y: auto;
+      padding: 16px 14px 22px;
+      box-shadow: none;
     }
     .panel.hidden { display: none; }
     .card {
       width: min(86%, 420px);
-      max-height: 68%;
+      max-height: 72%;
       overflow-y: auto;
       background: rgba(16, 24, 34, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -132,25 +147,64 @@
       text-align: center;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     }
+    .garage-entry {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      padding: 12px 14px;
+      margin: 0 0 12px;
+      border-radius: 14px;
+      border: 2px solid rgba(240, 162, 2, 0.45);
+      background: rgba(8, 12, 18, 0.55);
+      color: #eef3f8;
+      cursor: pointer;
+      font: inherit;
+    }
+    .garage-entry img {
+      width: 96px;
+      height: 52px;
+      object-fit: contain;
+      background: #15202c;
+      border-radius: 8px;
+      flex: 0 0 auto;
+    }
+    .garage-entry .ge-text { flex: 1; min-width: 0; }
+    .garage-entry .ge-text strong {
+      display: block;
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .garage-entry .ge-text span {
+      display: block;
+      font-size: 12px;
+      color: #c5d0dc;
+      font-weight: 600;
+    }
+    .garage-entry .ge-chev {
+      font-size: 22px;
+      color: #f0a202;
+      font-weight: 800;
+    }
     .sel-preview {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 6px;
-      margin: 0 0 12px;
-      padding: 10px 12px;
+      margin: 0 0 14px;
+      padding: 12px;
       border-radius: 14px;
       background: rgba(8, 12, 18, 0.45);
       border: 1px solid rgba(240, 162, 2, 0.35);
     }
-    .sel-preview .sel-car {
-      width: 168px;
-      height: 80px;
-      border-radius: 10px;
-      background-color: #1a2430;
-      background-repeat: no-repeat;
-      background-position: center;
-      image-rendering: auto;
+    .sel-preview img {
+      width: min(92%, 280px);
+      height: auto;
+      max-height: 120px;
+      object-fit: contain;
+      display: block;
     }
     .sel-preview p {
       margin: 0;
@@ -211,41 +265,38 @@
     }
     .coll-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
       margin: 0 0 14px;
-      max-height: min(52vh, 420px);
-      overflow-y: auto;
+      max-height: none;
+      overflow: visible;
       padding: 2px;
     }
     .coll-item {
       appearance: none;
       border: 2px solid rgba(255,255,255,0.14);
-      border-radius: 12px;
+      border-radius: 14px;
       background: rgba(8, 12, 18, 0.55);
       color: #eef3f8;
-      padding: 8px 4px 6px;
+      padding: 10px 8px 8px;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       font: inherit;
       font-weight: 700;
-      font-size: 10px;
+      font-size: 12px;
       min-width: 0;
     }
-    .coll-item .swatch {
-      width: 52px;
-      height: 29px;
-      border-radius: 6px;
-      background-color: #243040;
-      background-repeat: no-repeat;
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
-      image-rendering: auto;
-    }
-    .coll-item .swatch.fallback {
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+    .coll-item img.car-full {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 2 / 1;
+      object-fit: contain;
+      display: block;
+      background: #15202c;
+      border-radius: 10px;
     }
     .coll-item.locked {
       opacity: 0.42;
@@ -383,33 +434,34 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 10 · Üstten Arabalarım</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 11 · Tam araba sayfası</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
-        <div class="sel-preview" id="sel-preview">
-          <div class="sel-car" id="sel-car-thumb"></div>
-          <p id="sel-car-name">Seçili araba</p>
-        </div>
-        <p class="section-lab">Arabalarım</p>
-        <div class="garage-strip" id="garage-strip"></div>
+        <button id="open-collection" class="garage-entry" type="button">
+          <img id="menu-car-img" alt="" width="96" height="52">
+          <span class="ge-text">
+            <strong>Arabalarım</strong>
+            <span id="menu-car-sub">Seçmek için dokun</span>
+          </span>
+          <span class="ge-chev" aria-hidden="true">›</span>
+        </button>
         <p class="section-lab">Seviye</p>
         <div class="models" id="levels"></div>
         <div class="btn-row">
           <button id="start" type="button">Bu arabayla oyna</button>
-          <button id="open-collection" class="ghost" type="button">Tüm arabalarım</button>
         </div>
       </div>
     </section>
     <section class="panel hidden" id="collection">
-      <div class="card wide">
+      <div class="card wide garage-page">
         <h1>Arabalarım</h1>
         <p class="coll-meta" id="coll-meta">0/10 araba</p>
         <div class="sel-preview" id="coll-sel-preview">
-          <div class="sel-car" id="coll-sel-thumb"></div>
+          <img id="coll-sel-img" alt="">
           <p id="coll-sel-name">Seçili araba</p>
         </div>
         <div class="coll-grid" id="coll-grid"></div>
-        <p id="coll-hint">Açık arabaya dokunarak seç; oyunda o görünür.</p>
+        <p id="coll-hint">Açık arabaya dokunarak seç; oyunda tam görünür.</p>
         <div class="btn-row">
           <button id="coll-play" type="button">Bu arabayla oyna</button>
           <button id="coll-back" class="ghost" type="button">Geri</button>
@@ -448,7 +500,7 @@
     const INSET = 24;
     // Unity car.cs ile aynı kurallar (1 birim ≈ 100 px)
     const HOUSE = { x: 360, y: 280 };
-    const SPAWN = { x: 360, y: 1080 };
+    const SPAWN = { x: 360, y: 980 };
     const RINGS = [
       { r: 168, points: 50, color: "#1f73db" },
       { r: 120, points: 100, color: "#b87538" },
@@ -482,14 +534,19 @@
     const BODY_KEY = "halka-arabalari-body";
     const START_UNLOCK = 3;
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
-    const CAR_LEN = 112;
+    const CAR_LEN = 128;
     const CAR_WIDE = 62;
     const carSheets = [null, null, null];
     let ATLAS = null;
     let atlasImg = null;
+    let carImages = [];
     let PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b"];
     let PLAYER_NAMES = ["Bordo 1", "Lacivert 1", "Yeşil 1", "Gümüş 1", "Kızıl 1", "Lacivert 2"];
     let CAR_COUNT = PLAYER_COLORS.length;
+    function carFileUrl(i) {
+      const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
+      return "cars/" + file + "?v=11";
+    }
     function punchCrop(img) {
       const w = img.naturalWidth;
       const h = img.naturalHeight;
@@ -535,29 +592,35 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=10";
+      im.src = src + "?v=11";
     });
+    function loadCarImages(meta) {
+      carImages = meta.cars.map((c, i) => {
+        const im = new Image();
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=11";
+        return im;
+      });
+    }
     function applyAtlas(meta, img) {
       ATLAS = meta;
       atlasImg = img;
       CAR_COUNT = meta.count;
       PLAYER_COLORS = meta.cars.map((c) => c.color);
       PLAYER_NAMES = meta.cars.map((c) => c.name);
-      // Eski 110’luk kayıtları yeni 10’luk sete indir
+      loadCarImages(meta);
       unlockCount = clamp(Math.min(unlockCount, CAR_COUNT), START_UNLOCK, CAR_COUNT);
-      if (unlockCount > CAR_COUNT) unlockCount = CAR_COUNT;
       selectedSkin = clamp(selectedSkin, 0, unlockCount - 1);
       try { localStorage.setItem(UNLOCK_KEY, String(unlockCount)); } catch (e) { /* yoksay */ }
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=10")
+    fetch("cars/atlas.json?v=11")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=10";
+        img.src = "cars/atlas.png?v=11";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -614,87 +677,54 @@
       menuBestEl.textContent = best > 0
         ? ("Rekor " + best + " · Arabalarım " + unlockCount + "/" + CAR_COUNT + " · " + name)
         : ("Arabalarım " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
-      renderGarageStrip();
       updateSelectedPreview();
-    }
-
-    function carThumbStyle(i, dw) {
-      dw = dw || 52;
-      if (!ATLAS || !ATLAS.cars[i]) {
-        return 'background:' + (PLAYER_COLORS[i] || "#445");
-      }
-      const cell = ATLAS.cars[i];
-      const aw = ATLAS.cols * ATLAS.cellW;
-      const ah = ATLAS.rows * ATLAS.cellH;
-      const scale = dw / cell.w;
-      return "background-image:url(cars/atlas.png?v=10);"
-        + "background-size:" + (aw * scale) + "px " + (ah * scale) + "px;"
-        + "background-position:-" + (cell.sx * scale) + "px -" + (cell.sy * scale) + "px;"
-        + "width:" + dw + "px;height:" + Math.round(cell.h * scale) + "px;";
     }
 
     function updateSelectedPreview() {
       const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
-      const style = carThumbStyle(selectedSkin, 168);
-      const thumb = document.getElementById("sel-car-thumb");
-      const nameEl = document.getElementById("sel-car-name");
-      if (thumb) thumb.setAttribute("style", style);
-      if (nameEl) nameEl.textContent = "Oyunda: " + name;
-      const cThumb = document.getElementById("coll-sel-thumb");
+      const url = carFileUrl(selectedSkin);
+      const menuImg = document.getElementById("menu-car-img");
+      const menuSub = document.getElementById("menu-car-sub");
+      if (menuImg) menuImg.src = url;
+      if (menuSub) menuSub.textContent = unlockCount + "/" + CAR_COUNT + " açık · " + name;
+      const cImg = document.getElementById("coll-sel-img");
       const cName = document.getElementById("coll-sel-name");
-      if (cThumb) cThumb.setAttribute("style", style);
+      if (cImg) cImg.src = url;
       if (cName) cName.textContent = "Oyunda: " + name;
-    }
-
-    const garageStrip = document.getElementById("garage-strip");
-    function renderGarageStrip() {
-      if (!garageStrip) return;
-      garageStrip.innerHTML = "";
-      const show = Math.min(unlockCount, CAR_COUNT);
-      for (let i = 0; i < show; i++) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "garage-chip" + (i === selectedSkin ? " selected" : "");
-        btn.innerHTML = '<span class="swatch" style="' + carThumbStyle(i, 56) + '"></span>'
-          + '<span>' + (PLAYER_NAMES[i] || ("#" + (i + 1))) + '</span>';
-        btn.addEventListener("click", () => {
-          selectedSkin = i;
-          try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
-          refreshMenuBest();
-          asmr("tap");
-        });
-        garageStrip.appendChild(btn);
-      }
-      if (CAR_COUNT > show) {
-        const more = document.createElement("button");
-        more.type = "button";
-        more.className = "garage-more";
-        more.textContent = "+" + (CAR_COUNT - show) + "\nTümü";
-        more.addEventListener("click", showCollection);
-        garageStrip.appendChild(more);
-      }
     }
     refreshMenuBest();
 
     function renderCollection() {
       collGrid.innerHTML = "";
       collMeta.textContent = unlockCount + "/" + CAR_COUNT + " araba açık · Botu yen, bir sonraki açılsın";
+      updateSelectedPreview();
       for (let i = 0; i < CAR_COUNT; i++) {
         const unlocked = i < unlockCount;
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "coll-item" + (unlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
         const name = unlocked ? (PLAYER_NAMES[i] || ("#" + (i + 1))) : "???";
-        btn.innerHTML = '<span class="swatch" style="' + carThumbStyle(i) + '"></span>'
-          + '<span class="name">' + name + '</span>'
-          + '<span class="tag">' + (unlocked ? (i === selectedSkin ? "Seçili" : "Açık") : "Kilitli") + '</span>';
+        const img = document.createElement("img");
+        img.className = "car-full";
+        img.alt = name;
+        img.src = carFileUrl(i);
+        img.draggable = false;
+        btn.appendChild(img);
+        const nameEl = document.createElement("span");
+        nameEl.className = "name";
+        nameEl.textContent = name;
+        btn.appendChild(nameEl);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = unlocked ? (i === selectedSkin ? "Seçili" : "Açık") : "Kilitli";
+        btn.appendChild(tag);
         if (unlocked) {
           btn.addEventListener("click", () => {
             selectedSkin = i;
             try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
             renderCollection();
             refreshMenuBest();
-            collHint.textContent = PLAYER_NAMES[i] + " seçildi — oyunda bu araba görünür.";
+            collHint.textContent = PLAYER_NAMES[i] + " seçildi — oyunda tam görünür.";
           });
         } else {
           btn.addEventListener("click", () => {
@@ -705,7 +735,7 @@
         collGrid.appendChild(btn);
       }
       const sel = PLAYER_NAMES[selectedSkin] || "";
-      collHint.textContent = "Seçili: " + sel + " — oyunda üstten bu fotoğraf kullanılır.";
+      collHint.textContent = "Seçili: " + sel + " — dokun, sonra Bu arabayla oyna.";
     }
 
     function showCollection() {
@@ -1524,11 +1554,16 @@
 
     function drawCar(c) {
       const skin = c.skin == null ? -1 : c.skin;
-      if (!c.bot && atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin]) {
-        const cell = ATLAS.cars[skin];
-        const previewBoost = c.preview ? 1.38 : 1;
-        const len = CAR_LEN * 1.12 * previewBoost;
-        const wide = len * (cell.h / cell.w);
+      const sprite = (!c.bot && skin >= 0 && carImages[skin] && carImages[skin].complete && carImages[skin].naturalWidth)
+        ? carImages[skin]
+        : null;
+      if (sprite || (!c.bot && atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin])) {
+        const cell = ATLAS && ATLAS.cars[skin] ? ATLAS.cars[skin] : null;
+        const sw = sprite ? sprite.naturalWidth : (cell.fw || cell.w);
+        const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
+        const previewBoost = c.preview ? 1.28 : 1;
+        const len = CAR_LEN * 1.08 * previewBoost;
+        const wide = len * (sh / sw);
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();
@@ -1538,7 +1573,8 @@
         ctx.beginPath();
         ctx.ellipse(2, 8, halfL * 0.88, halfW * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
+        if (sprite) ctx.drawImage(sprite, -halfL, -halfW, len, wide);
+        else ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
         ctx.restore();
         if (c.preview) {
           ctx.font = "800 15px Segoe UI, sans-serif";
