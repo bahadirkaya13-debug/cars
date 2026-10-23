@@ -916,16 +916,17 @@ public class car : MonoBehaviour
         }
 
         bool moving = maxSp > StopSpeed;
-        if (moving)
-        {
-            calm = 0f;
-            SyncExhaust(maxSp / Mathf.Max(0.01f, maxSpeed));
-        }
+        // F1 egzoz kayma boyunca sürekli devam eder
+        SyncExhaust(maxSp / Mathf.Max(0.01f, maxSpeed));
+        if (moving) calm = 0f;
         else
         {
-            StopExhaust();
             calm += dt;
-            if (calm >= 0.18f) Settle();
+            if (calm >= 0.18f)
+            {
+                StopExhaust();
+                Settle();
+            }
         }
     }
 
@@ -1964,20 +1965,22 @@ public class car : MonoBehaviour
         exhaust.playOnAwake = false;
         exhaust.loop = true;
         exhaust.volume = 0f;
-        int exN = rate / 3;
+        // F1 tarzı tiz egzoz döngüsü
+        int exN = rate / 2;
         var exData = new float[exN];
         float b = 0f;
         for (int i = 0; i < exN; i++)
         {
             float t = i / (float)rate;
             float w = Random.Range(-1f, 1f);
-            b = (b + 0.025f * w) / 1.025f;
-            float tone = Mathf.Sin(t * 70f * Mathf.PI * 2f) * 0.22f
-                + Mathf.Sin(t * 35f * Mathf.PI * 2f) * 0.12f
-                + Mathf.Sin(t * 105f * Mathf.PI * 2f) * 0.06f;
-            exData[i] = tone + b * 0.35f;
+            b = 0.82f * b + 0.18f * w;
+            float flutter = 1f + 0.08f * Mathf.Sin(t * 18f * Mathf.PI * 2f);
+            float tone = Mathf.Sin(t * 880f * Mathf.PI * 2f * flutter) * 0.18f
+                + Mathf.Sin(t * 1760f * Mathf.PI * 2f) * 0.1f
+                + Mathf.Sin(t * 440f * Mathf.PI * 2f) * 0.08f;
+            exData[i] = tone + (w * 0.2f + b * 0.15f);
         }
-        var exClip = AudioClip.Create("exhaust", exN, 1, rate, false);
+        var exClip = AudioClip.Create("exhaust-f1", exN, 1, rate, false);
         exClip.SetData(exData, 0);
         exhaust.clip = exClip;
     }
@@ -1985,10 +1988,11 @@ public class car : MonoBehaviour
     void SyncExhaust(float speed01)
     {
         if (!soundEnabled || exhaust == null) return;
-        float s = Mathf.Clamp(speed01, 0.04f, 1f);
+        // Kayma boyunca sürekli; hız düşse bile F1 tizi kalır
+        float s = Mathf.Clamp(0.55f + speed01 * 0.45f, 0.55f, 1f);
         if (!exhaust.isPlaying) exhaust.Play();
-        exhaust.pitch = 0.75f + s * 0.85f;
-        exhaust.volume = 0.08f + s * 0.28f;
+        exhaust.pitch = 1.15f + s * 0.95f;
+        exhaust.volume = 0.16f + s * 0.2f;
     }
 
     void StopExhaust()

@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 30 · Egzoz</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 31 · F1 egzoz</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -759,7 +759,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=30";
+      return "cars/" + file + "?v=31";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=30";
+      im.src = src + "?v=31";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=30";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=31";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=30")
+    fetch("cars/atlas.json?v=31")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=30";
+        img.src = "cars/atlas.png?v=31";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1408,45 +1408,59 @@
         const t = ctx.currentTime;
         const master = ctx.createGain();
         master.gain.setValueAtTime(0.001, t);
+        // F1: tiz çığlık + metalik egzoz
+        const hp = ctx.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.value = 280;
         const lp = ctx.createBiquadFilter();
         lp.type = "lowpass";
-        lp.frequency.value = 480;
-        lp.Q.value = 0.7;
+        lp.frequency.value = 4200;
+        lp.Q.value = 0.8;
         const o1 = ctx.createOscillator();
         o1.type = "sawtooth";
-        o1.frequency.value = 70;
+        o1.frequency.value = 880;
         const o2 = ctx.createOscillator();
-        o2.type = "square";
-        o2.frequency.value = 35;
-        const g1 = ctx.createGain();
-        g1.gain.value = 0.2;
-        const g2 = ctx.createGain();
-        g2.gain.value = 0.09;
-        const nLen = Math.floor(ctx.sampleRate * 0.4);
+        o2.type = "sawtooth";
+        o2.frequency.value = 1760;
+        const o3 = ctx.createOscillator();
+        o3.type = "square";
+        o3.frequency.value = 440;
+        const g1 = ctx.createGain(); g1.gain.value = 0.14;
+        const g2 = ctx.createGain(); g2.gain.value = 0.08;
+        const g3 = ctx.createGain(); g3.gain.value = 0.05;
+        // Hızlı flutter (F1 crackle hissi)
+        const lfo = ctx.createOscillator();
+        lfo.type = "sine";
+        lfo.frequency.value = 18;
+        const lfoG = ctx.createGain();
+        lfoG.gain.value = 55;
+        lfo.connect(lfoG); lfoG.connect(o1.frequency);
+        const nLen = Math.floor(ctx.sampleRate * 0.25);
         const buf = ctx.createBuffer(1, nLen, ctx.sampleRate);
         const d = buf.getChannelData(0);
         let b = 0;
         for (let i = 0; i < nLen; i++) {
           const w = Math.random() * 2 - 1;
-          b = (b + 0.025 * w) / 1.025;
-          d[i] = b;
+          b = 0.82 * b + 0.18 * w;
+          d[i] = w * 0.55 + b * 0.45;
         }
         const noise = ctx.createBufferSource();
         noise.buffer = buf;
         noise.loop = true;
         const nf = ctx.createBiquadFilter();
         nf.type = "bandpass";
-        nf.frequency.value = 220;
-        nf.Q.value = 0.55;
+        nf.frequency.value = 2400;
+        nf.Q.value = 0.9;
         const ng = ctx.createGain();
-        ng.gain.value = 0.28;
-        o1.connect(g1); g1.connect(lp);
-        o2.connect(g2); g2.connect(lp);
-        noise.connect(nf); nf.connect(ng); ng.connect(lp);
-        lp.connect(master); master.connect(ctx.destination);
-        o1.start(); o2.start(); noise.start();
-        master.gain.exponentialRampToValueAtTime(0.14, t + 0.07);
-        exhaustNodes = { o1, o2, noise, master, lp, nf, ng };
+        ng.gain.value = 0.2;
+        o1.connect(g1); g1.connect(hp);
+        o2.connect(g2); g2.connect(hp);
+        o3.connect(g3); g3.connect(hp);
+        noise.connect(nf); nf.connect(ng); ng.connect(hp);
+        hp.connect(lp); lp.connect(master); master.connect(ctx.destination);
+        o1.start(); o2.start(); o3.start(); lfo.start(); noise.start();
+        master.gain.exponentialRampToValueAtTime(0.2, t + 0.05);
+        exhaustNodes = { o1, o2, o3, lfo, noise, master, lp, nf, ng, hp };
       } catch (e) { exhaustNodes = null; }
     }
 
@@ -1454,14 +1468,16 @@
       if (!exhaustNodes || !actx) return;
       try {
         const t = actx.currentTime;
-        const s = clamp(speed01, 0.04, 1);
-        const rpm = 52 + s * 175;
-        exhaustNodes.o1.frequency.setTargetAtTime(rpm, t, 0.05);
-        exhaustNodes.o2.frequency.setTargetAtTime(rpm * 0.48, t, 0.05);
-        exhaustNodes.lp.frequency.setTargetAtTime(300 + s * 1000, t, 0.07);
-        exhaustNodes.nf.frequency.setTargetAtTime(150 + s * 320, t, 0.07);
-        exhaustNodes.ng.gain.setTargetAtTime(0.16 + s * 0.22, t, 0.06);
-        exhaustNodes.master.gain.setTargetAtTime(0.05 + s * 0.17, t, 0.05);
+        // Kayma boyunca F1 sesi sürekli — hız düşse bile tiz kalır
+        const s = clamp(0.55 + speed01 * 0.45, 0.55, 1);
+        const rpm = 720 + s * 1500;
+        exhaustNodes.o1.frequency.setTargetAtTime(rpm, t, 0.04);
+        exhaustNodes.o2.frequency.setTargetAtTime(rpm * 2.02, t, 0.04);
+        exhaustNodes.o3.frequency.setTargetAtTime(rpm * 0.5, t, 0.04);
+        exhaustNodes.lp.frequency.setTargetAtTime(2800 + s * 2200, t, 0.05);
+        exhaustNodes.nf.frequency.setTargetAtTime(1800 + s * 1600, t, 0.05);
+        exhaustNodes.ng.gain.setTargetAtTime(0.14 + s * 0.16, t, 0.05);
+        exhaustNodes.master.gain.setTargetAtTime(0.14 + s * 0.12, t, 0.04);
       } catch (e) { /* yoksay */ }
     }
 
@@ -1473,10 +1489,12 @@
         const t = actx ? actx.currentTime : 0;
         nodes.master.gain.cancelScheduledValues(t);
         nodes.master.gain.setValueAtTime(Math.max(0.001, nodes.master.gain.value), t);
-        nodes.master.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-        const stopAt = t + 0.14;
+        nodes.master.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+        const stopAt = t + 0.2;
         nodes.o1.stop(stopAt);
         nodes.o2.stop(stopAt);
+        nodes.o3.stop(stopAt);
+        nodes.lfo.stop(stopAt);
         nodes.noise.stop(stopAt);
       } catch (e) { /* yoksay */ }
     }
@@ -2042,14 +2060,16 @@
           maxSp = Math.max(maxSp, Math.hypot(c.vx, c.vy));
         }
         const moving = maxSp > STOP_SPEED;
-        if (moving) {
-          calm = 0;
-          if (!exhaustNodes) startExhaust();
-          syncExhaust(maxSp / Math.max(1, maxSpeed));
-        } else {
-          stopExhaust();
+        // F1 egzoz kayma boyunca sürekli devam eder
+        if (!exhaustNodes) startExhaust();
+        syncExhaust(maxSp / Math.max(1, maxSpeed));
+        if (moving) calm = 0;
+        else {
           calm += dt;
-          if (calm >= 0.18) settle();
+          if (calm >= 0.18) {
+            stopExhaust();
+            settle();
+          }
         }
       } else {
         stopExhaust();
