@@ -82,19 +82,21 @@
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
     }
     .power {
-      width: min(72%, 320px);
-      height: 16px;
-      display: flex;
-      gap: 4px;
+      width: min(38%, 148px);
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(18, 10, 5, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
     }
-    .power span {
-      flex: 1;
-      border-radius: 4px;
-      background: rgba(18, 10, 5, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-    }
-    .power span.on {
-      border-color: transparent;
+    .power .fill {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #59d173, #f4d35e 55%, #ee6c4d);
+      transition: width 0.05s linear;
     }
     .panel {
       position: absolute;
@@ -508,8 +510,19 @@
       background: rgba(210, 55, 55, 0.88);
       color: #fff7f5;
     }
-    .turn-banner.bot {
+    .turn-banner.bot,
+    .turn-banner.p2 {
       background: rgba(35, 95, 200, 0.88);
+      color: #eef6ff;
+    }
+    .btn-row.split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .btn-row.split button { width: 100%; }
+    button.alt {
+      background: #2a6fdb;
       color: #eef6ff;
     }
     .howto ol { margin: 8px 0 14px; }
@@ -528,15 +541,15 @@
     <button id="to-menu" class="hud-back" type="button" hidden>Menü</button>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span>
+        <span class="fill" id="power-fill"></span>
       </div>
       <p id="hint">Geri çek ve bırak</p>
     </footer>
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 24 · Lava & buz</p>
-        <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 25 · Menü</p>
+        <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Bot veya 2 kişi — aynı oyunun menüsünden.</p>
         <p id="menu-best"></p>
         <div class="menu-entries">
           <button id="open-collection" class="garage-entry" type="button">
@@ -561,9 +574,20 @@
             </span>
             <span class="ge-chev" aria-hidden="true">›</span>
           </button>
-        </div>
-        <div class="btn-row">
-          <button id="start" type="button">Oyna</button>
+          <button id="start" class="garage-entry" type="button">
+            <span class="ge-text" style="padding-left:4px">
+              <strong>Bot’a karşı</strong>
+              <span>Tek kişi · Bot ile oyna</span>
+            </span>
+            <span class="ge-chev" aria-hidden="true">›</span>
+          </button>
+          <button id="start-2p" class="garage-entry" type="button">
+            <span class="ge-text" style="padding-left:4px">
+              <strong>2 Kişi</strong>
+              <span>Aynı telefon · Sıra ile oyna</span>
+            </span>
+            <span class="ge-chev" aria-hidden="true">›</span>
+          </button>
         </div>
       </div>
     </section>
@@ -625,9 +649,9 @@
       <div class="card howto">
         <h1>Nasıl oynanır?</h1>
         <ol>
-          <li><b>Sen kırmızı</b>, bot mavi — sıra paneli kimin oynadığını gösterir.</li>
-          <li>Arabayı <b>geri çek, bırak</b>. Güç ortada dursun.</li>
-          <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>.</li>
+          <li><b>Bot’a karşı</b> veya <b>2 Kişi</b> — aynı telefonda sıra ile oynayın.</li>
+          <li>Arabayı <b>geri çek, bırak</b>. Kısa güç çubuğu çektikçe dolar.</li>
+          <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>. Yüksek puanda konfeti!</li>
           <li>Rakibi vurup halkadan çıkar; nadiren <b>BUZ</b> veya <b>MIKNATIS</b> gelir.</li>
         </ol>
         <button id="howto-ok" type="button">Anladım, başla</button>
@@ -685,7 +709,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=24";
+      return "cars/" + file + "?v=25";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -732,12 +756,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=24";
+      im.src = src + "?v=25";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=24";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=25";
         return im;
       });
     }
@@ -754,13 +778,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=24")
+    fetch("cars/atlas.json?v=25")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=24";
+        img.src = "cars/atlas.png?v=25";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -784,7 +808,7 @@
     const turnBanner = document.getElementById("turn-banner");
     const bottomEl = document.getElementById("bottom");
     const powerEl = document.getElementById("power");
-    const powerCells = powerEl ? Array.from(powerEl.querySelectorAll("span")) : [];
+    const powerFill = document.getElementById("power-fill");
     const hintEl = document.getElementById("hint");
     const scoreEl = document.getElementById("score");
     const youEl = document.getElementById("you");
@@ -1042,12 +1066,13 @@
     let current = null;
     let state = "howto";
     menuEl.classList.add("hidden");
+    let vsHuman = false; // aynı telefon 2 kişi
     let playerThrown = 0;
     let botThrown = 0;
     let botTurn = false;
     let botThinkAt = 0;
-    let playerBonus = 0;
-    let comboStreak = 0;
+    let sideBonus = [0, 0]; // P1, P2/Bot tarafı
+    let comboStreak = [0, 0];
     let activePower = "none"; // none | ice | magnet
     let unlockFlash = "";
     let calm = 0;
@@ -1057,6 +1082,20 @@
     const bits = [];
     let bodyStyle = 1;
     let musicOn = false;
+    let selectedSkin2 = 1;
+
+    function labelP1() { return vsHuman ? "Oyuncu 1" : "Sen"; }
+    function labelP2() { return vsHuman ? "Oyuncu 2" : "Bot"; }
+    function sideIndex(isBot) { return isBot ? 1 : 0; }
+    function pickP2Skin() {
+      if (unlockCount <= 1) return selectedSkin;
+      let s = selectedSkin2 % unlockCount;
+      if (s === selectedSkin) s = (s + 1) % unlockCount;
+      return s;
+    }
+    function humanControlsTurn() {
+      return state === "aim" && current && (!botTurn || vsHuman);
+    }
     try { bodyStyle = clamp(Number(localStorage.getItem(BODY_KEY)) || 1, 0, 2); } catch (e) { bodyStyle = 1; }
     try { levelI = clamp(Number(localStorage.getItem(LEVEL_KEY)) || 0, 0, LEVELS.length - 1); } catch (e) { levelI = 0; }
     function applyLevel() {
@@ -1103,34 +1142,72 @@
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
         s += pointsAt(c.x, c.y);
       }
-      if (!isBot) s += playerBonus;
+      s += sideBonus[sideIndex(isBot)] || 0;
       return s;
     }
 
-    const CONFETTI = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffe566", "#ffffff"];
-    function addPop(text, x, y, color, boom) {
-      pops.push({ text, x, y, life: 1.15, max: 1.15, color: color || "#f0a202", boom: !!boom });
-      if (!boom) return;
-      asmr("pop");
-      for (let i = 0; i < 28; i++) {
+    const CONFETTI = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffe566", "#ffffff", "#ff9f1c", "#2ec4b6"];
+    function burstConfetti(x, y, strength) {
+      const n = Math.round(18 + strength * 42);
+      const spark = Math.round(8 + strength * 22);
+      asmr(strength >= 0.75 ? "glass" : "pop");
+      for (let i = 0; i < n; i++) {
         const ang = Math.random() * Math.PI * 2;
-        const sp = 70 + Math.random() * 160;
+        const sp = 90 + Math.random() * (140 + strength * 220);
         bits.push({
-          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 40,
-          life: 0.55 + Math.random() * 0.45, max: 1,
-          w: 5 + Math.random() * 7, h: 8 + Math.random() * 10,
-          rot: Math.random() * 6, spin: (Math.random() - 0.5) * 10,
-          color: CONFETTI[i % CONFETTI.length], paper: true
+          x, y,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp - 60 - strength * 80,
+          life: 0.65 + Math.random() * (0.45 + strength * 0.5),
+          max: 1.2,
+          w: 4 + Math.random() * (6 + strength * 6),
+          h: 7 + Math.random() * (10 + strength * 8),
+          rot: Math.random() * 6,
+          spin: (Math.random() - 0.5) * (12 + strength * 10),
+          color: CONFETTI[i % CONFETTI.length],
+          paper: true
         });
       }
-      for (let i = 0; i < 14; i++) {
-        const ang = (i / 14) * Math.PI * 2;
+      for (let i = 0; i < spark; i++) {
+        const ang = (i / spark) * Math.PI * 2 + Math.random() * 0.2;
+        const sp = 140 + strength * 220;
         bits.push({
-          x, y, vx: Math.cos(ang) * 180, vy: Math.sin(ang) * 180,
-          life: 0.35, max: 0.35, w: 6, h: 6, rot: 0, spin: 0,
-          color: "#ffe566", paper: false
+          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 20,
+          life: 0.3 + strength * 0.25, max: 0.55, w: 5, h: 5, rot: 0, spin: 0,
+          color: strength >= 0.7 ? "#ffe566" : "#ffffff", paper: false
         });
       }
+      if (strength >= 0.7) {
+        for (let i = 0; i < 16; i++) {
+          bits.push({
+            x: W * (0.15 + Math.random() * 0.7),
+            y: 80 + Math.random() * 120,
+            vx: (Math.random() - 0.5) * 80,
+            vy: 40 + Math.random() * 180,
+            life: 0.9 + Math.random() * 0.7,
+            max: 1.4,
+            w: 5 + Math.random() * 8,
+            h: 10 + Math.random() * 12,
+            rot: Math.random() * 6,
+            spin: (Math.random() - 0.5) * 14,
+            color: CONFETTI[i % CONFETTI.length],
+            paper: true
+          });
+        }
+      }
+    }
+    function scoreStrength(pts) {
+      if (pts >= 400) return 1;
+      if (pts >= 200) return 0.78;
+      if (pts >= 100) return 0.52;
+      if (pts >= 50) return 0.32;
+      return 0.2;
+    }
+    function addPop(text, x, y, color, boom, strength) {
+      const s = strength == null ? (boom ? 0.45 : 0) : strength;
+      pops.push({ text, x, y, life: 1.15 + s * 0.35, max: 1.15 + s * 0.35, color: color || "#f0a202", boom: !!boom || s > 0 });
+      if (!boom && s <= 0) return;
+      burstConfetti(x, y, Math.max(0.25, s));
     }
 
     function rollPowerUp() {
@@ -1268,13 +1345,18 @@
         const blocked = cars.some((c) => Math.hypot(c.x - tx, c.y - SPAWN.y) < c.r * 2 + 8);
         if (!blocked) { x = tx; break; }
       }
-      if (!forBot) {
+      const p2Skin = pickP2Skin();
+      if (vsHuman || !forBot) {
         selectedSkin = selectedSkin % unlockCount;
         rollPowerUp();
       } else activePower = "none";
 
-      const idx = forBot ? botThrown % BOT_COLORS.length : selectedSkin;
-      const palette = forBot ? BOT_COLORS : PLAYER_COLORS;
+      const skin = forBot
+        ? (vsHuman ? p2Skin : -1)
+        : selectedSkin;
+      const color = forBot
+        ? (vsHuman ? PLAYER_COLORS[p2Skin % PLAYER_COLORS.length] : BOT_COLORS[botThrown % BOT_COLORS.length])
+        : PLAYER_COLORS[selectedSkin % PLAYER_COLORS.length];
       const car = {
         x: x,
         y: SPAWN.y,
@@ -1283,7 +1365,7 @@
         vx: 0,
         vy: 0,
         r: 26,
-        color: palette[idx % palette.length],
+        color,
         angle: -Math.PI / 2,
         curl: 0,
         launched: false,
@@ -1292,29 +1374,32 @@
         magnet: false,
         fallen: false,
         sink: 0,
-        body: forBot ? 1 : bodyStyle,
-        skin: forBot ? -1 : selectedSkin,
+        body: (!forBot || vsHuman) ? bodyStyle : 1,
+        skin,
       };
       cars.push(car);
       current = car;
       botTurn = !!forBot;
       state = "aim";
       if (forBot) {
-        botThinkAt = performance.now() + 750;
-        addPop("Sıra BOT’ta", SPAWN.x, SPAWN.y - 70, "#6aa8ff");
+        if (!vsHuman) botThinkAt = performance.now() + 750;
+        addPop("Sıra " + labelP2().toUpperCase(), SPAWN.x, SPAWN.y - 70, "#6aa8ff");
       } else if (playerThrown + botThrown > 0) {
-        addPop("Sıra SENDE", SPAWN.x, SPAWN.y - 70, "#ff7a7a");
+        addPop("Sıra " + labelP1().toUpperCase(), SPAWN.x, SPAWN.y - 70, "#ff7a7a");
       }
     }
 
-    function startRound() {
+    function startRound(mode) {
+      if (mode === "p2") vsHuman = true;
+      else if (mode === "bot") vsHuman = false;
+      // again / coll-play vb. önceki modu korur
       applyLevel();
       cars = [];
       playerThrown = 0;
       botThrown = 0;
       botTurn = false;
-      playerBonus = 0;
-      comboStreak = 0;
+      sideBonus = [0, 0];
+      comboStreak = [0, 0];
       activePower = "none";
       unlockFlash = "";
       calm = 0;
@@ -1325,6 +1410,7 @@
       menuEl.classList.add("hidden");
       overEl.classList.add("hidden");
       hideAllPages();
+      howtoEl.classList.add("hidden");
       bits.length = 0;
       startMusic();
       try { if (actx && actx.state === "suspended") actx.resume(); } catch (e) { /* yoksay */ }
@@ -1337,12 +1423,13 @@
       botTurn = false;
       const s = teamScore(false);
       const b = teamScore(true);
-      if (s > best) {
-        best = s;
+      const top = Math.max(s, b);
+      if (top > best) {
+        best = top;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
       unlockFlash = "";
-      if (win && unlockCount < CAR_COUNT) {
+      if (win && !vsHuman && unlockCount < CAR_COUNT) {
         unlockCount++;
         selectedSkin = unlockCount - 1;
         try {
@@ -1351,15 +1438,19 @@
         } catch (e) { /* yoksay */ }
         const fresh = PLAYER_NAMES[selectedSkin] || ("#" + unlockCount);
         unlockFlash = "Yeni araba: " + fresh + " (" + unlockCount + "/" + CAR_COUNT + ")";
-        addPop("YENİ ARABA!", HOUSE.x, HOUSE.y, "#ffd76a");
+        addPop("YENİ ARABA!", HOUSE.x, HOUSE.y, "#ffd76a", true, 0.85);
       } else {
         try { localStorage.setItem(SKIN_KEY, String(selectedSkin % unlockCount)); } catch (e) { /* yoksay */ }
       }
       reasonEl.textContent = reason + (unlockFlash ? "  " + unlockFlash : "");
-      finalEl.textContent = "Sen " + s + "   Bot " + b;
-      bestOutEl.textContent = "Bonus " + playerBonus + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
+      finalEl.textContent = labelP1() + " " + s + "   " + labelP2() + " " + b;
+      bestOutEl.textContent = "Bonus " + sideBonus[0] + (vsHuman ? (" / " + sideBonus[1]) : "") +
+        " · Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
       overEl.classList.remove("hidden");
-      if (win) asmr("glass"); else asmr("tap");
+      if (win) {
+        burstConfetti(HOUSE.x, HOUSE.y, 1);
+        asmr("glass");
+      } else asmr("tap");
     }
 
     function removeOutCars() {
@@ -1382,6 +1473,7 @@
 
     function settle() {
       const shooterBot = !!(current && current.bot);
+      const side = sideIndex(shooterBot);
       const threatened = cars.filter((c) => c.launched && c !== current && c.bot !== shooterBot && pointsAt(c.x, c.y) > 0);
       removeOutCars();
       let knocks = 0;
@@ -1389,23 +1481,34 @@
         if (!cars.includes(t)) knocks++;
       }
 
-      if (!shooterBot) {
+      const awardScoreFx = vsHuman || !shooterBot;
+      if (awardScoreFx) {
         if (knocks > 0) {
           for (let k = 0; k < knocks; k++) {
-            comboStreak++;
-            const bonus = KNOCK_BASE + (comboStreak - 1) * 25;
-            playerBonus += bonus;
-            addPop("+" + bonus + " VURUŞ!", (current ? current.x : HOUSE.x), (current ? current.y : HOUSE.y) - 20 - k * 22, "#ffc14d", true);
+            comboStreak[side]++;
+            const bonus = KNOCK_BASE + (comboStreak[side] - 1) * 25;
+            sideBonus[side] += bonus;
+            addPop(
+              "+" + bonus + " VURUŞ!",
+              (current ? current.x : HOUSE.x),
+              (current ? current.y : HOUSE.y) - 20 - k * 22,
+              "#ffc14d",
+              true,
+              0.55 + Math.min(0.35, comboStreak[side] * 0.08)
+            );
           }
-        } else comboStreak = 0;
+        } else comboStreak[side] = 0;
 
         if (current && cars.includes(current) && !current.fallen) {
           const pts = pointsAt(current.x, current.y);
-          if (pts > 0) addPop("+" + pts, current.x, current.y - 36, pts >= 400 ? "#ffe566" : "#fff4c2", true);
+          if (pts > 0) {
+            const str = scoreStrength(pts);
+            addPop("+" + pts, current.x, current.y - 36, pts >= 200 ? "#ffe566" : "#fff4c2", true, str);
+            if (pts >= 200) burstConfetti(HOUSE.x, HOUSE.y - 40, str * 0.85);
+          }
           if (pts >= 400) {
-            playerBonus += BULLSEYE_BONUS;
-            addPop("+" + BULLSEYE_BONUS + " BULLSEYE!", current.x, current.y - 58, "#7dff9a", true);
-            asmr("glass");
+            sideBonus[side] += BULLSEYE_BONUS;
+            addPop("+" + BULLSEYE_BONUS + " BULLSEYE!", current.x, current.y - 58, "#7dff9a", true, 1);
           }
         } else if (current && current.fallen && !shooterBot) {
           comboStreak = 0;
@@ -1424,8 +1527,8 @@
       if (playerThrown >= carsPerSide && botThrown >= carsPerSide) {
         const you = teamScore(false);
         const bot = teamScore(true);
-        if (you > bot) showOver("Sen kazandın!  " + you + " - " + bot, true);
-        else if (bot > you) showOver("Bot kazandı.  " + you + " - " + bot, false);
+        if (you > bot) showOver(labelP1() + " kazandı!  " + you + " - " + bot, !vsHuman);
+        else if (bot > you) showOver(labelP2() + " kazandı.  " + you + " - " + bot, false);
         else showOver("Berabere.  " + you + " - " + bot, false);
         return;
       }
@@ -1437,7 +1540,7 @@
     }
 
     function botShoot() {
-      if (!current || state !== "aim" || !botTurn) return;
+      if (vsHuman || !current || state !== "aim" || !botTurn) return;
       const scatter = (1.15 - botSkill) * 90;
       let target = { x: HOUSE.x + (Math.random() - 0.5) * scatter, y: HOUSE.y + (Math.random() - 0.5) * scatter };
       let hit = null;
@@ -1486,7 +1589,7 @@
     }
 
     function onDown(e) {
-      if (state !== "aim" || !current || botTurn) return;
+      if (!humanControlsTurn()) return;
       pull.active = true;
       const p = canvasPoint(e);
       pull.sx = p.x;
@@ -1496,7 +1599,7 @@
     }
 
     function onMove(e) {
-      if (!pull.active || state !== "aim") return;
+      if (!pull.active || state !== "aim" || !humanControlsTurn()) return;
       const p = canvasPoint(e);
       pull.x = p.x - pull.sx;
       pull.y = p.y - pull.sy;
@@ -1505,7 +1608,7 @@
     function launch() {
       const len = Math.hypot(pull.x, pull.y);
       pull.active = false;
-      if (!current || state !== "aim" || botTurn) return;
+      if (!current || state !== "aim" || (botTurn && !vsHuman)) return;
       if (len < MIN_PULL) {
         pull.x = 0;
         pull.y = 0;
@@ -1543,24 +1646,25 @@
       menuEl.classList.remove("hidden");
       state = "menu";
     });
-    document.getElementById("start").addEventListener("click", startRound);
-    document.getElementById("again").addEventListener("click", startRound);
+    document.getElementById("start").addEventListener("click", () => startRound("bot"));
+    document.getElementById("start-2p").addEventListener("click", () => startRound("p2"));
+    document.getElementById("again").addEventListener("click", () => startRound(vsHuman ? "p2" : "bot"));
     document.getElementById("open-collection").addEventListener("click", showCollection);
     document.getElementById("open-tracks").addEventListener("click", showTracks);
     document.getElementById("open-trophies").addEventListener("click", showTrophies);
     document.getElementById("over-collection").addEventListener("click", showCollection);
     document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("coll-play").addEventListener("click", startRound);
+    document.getElementById("coll-play").addEventListener("click", () => startRound("bot"));
     document.getElementById("track-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("track-play").addEventListener("click", startRound);
+    document.getElementById("track-play").addEventListener("click", () => startRound("bot"));
     document.getElementById("trophy-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("trophy-play").addEventListener("click", startRound);
+    document.getElementById("trophy-play").addEventListener("click", () => startRound("bot"));
     document.getElementById("to-menu").addEventListener("click", (e) => { e.stopPropagation(); goMenu(); });
     document.getElementById("over-menu").addEventListener("click", goMenu);
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && state !== "menu") goMenu();
       if ((e.key === "Enter" || e.key === "r" || e.key === "R") && (state === "menu" || state === "over")) {
-        startRound();
+        startRound(vsHuman ? "p2" : "bot");
       }
     });
 
@@ -1706,8 +1810,8 @@
     }
 
     function update(dt) {
-      if (state === "aim" && botTurn && performance.now() >= botThinkAt) botShoot();
-      else if (state === "aim" && current && !botTurn) applyAim();
+      if (state === "aim" && botTurn && !vsHuman && performance.now() >= botThinkAt) botShoot();
+      else if (state === "aim" && current && humanControlsTurn()) applyAim();
       else if (state === "slide") {
         stepPhysics(dt);
         for (const c of cars) {
@@ -2061,10 +2165,10 @@
     function drawCar(c) {
       if (c.fallen && c.sink >= 1) return;
       const skin = c.skin == null ? -1 : c.skin;
-      const sprite = (!c.bot && skin >= 0 && carImages[skin] && carImages[skin].complete && carImages[skin].naturalWidth)
+      const sprite = (skin >= 0 && carImages[skin] && carImages[skin].complete && carImages[skin].naturalWidth)
         ? carImages[skin]
         : null;
-      if (sprite || (!c.bot && atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin])) {
+      if (sprite || (atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin])) {
         const cell = ATLAS && ATLAS.cars[skin] ? ATLAS.cars[skin] : null;
         const sw = sprite ? sprite.naturalWidth : (cell.fw || cell.w);
         const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
@@ -2229,43 +2333,17 @@
     }
 
     function drawAim() {
-      const path = previewPath();
-      if (!path) {
-        if (playerThrown === 0 && botThrown === 0 && !pull.active && !botTurn) {
-          ctx.font = "700 15px Segoe UI, sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillStyle = "#ffffff";
-          ctx.strokeStyle = "rgba(0,0,0,0.55)";
-          ctx.lineWidth = 3;
-          ctx.strokeText("Aşağı çek", current.x, current.y - 28);
-          ctx.fillText("Aşağı çek", current.x, current.y - 28);
-        }
-        return;
+      // Hedef alma çizgisi yok — sadece ilk turda kısa ipucu
+      if (playerThrown === 0 && botThrown === 0 && !pull.active && humanControlsTurn()) {
+        ctx.font = "700 15px Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.lineWidth = 3;
+        const tip = vsHuman ? "Oyuncu 1 · Aşağı çek" : "Aşağı çek";
+        ctx.strokeText(tip, current.x, current.y - 28);
+        ctx.fillText(tip, current.x, current.y - 28);
       }
-      const p = path[path.length - 1];
-      const pts = pointsAt(p.x, p.y);
-      ctx.save();
-      ctx.setLineDash([5, 7]);
-      ctx.strokeStyle = "rgba(255,255,255,0.8)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(path[0].x, path[0].y);
-      for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
-      ctx.fillStyle = pts ? "rgba(128, 237, 153, 0.4)" : "rgba(239, 71, 111, 0.4)";
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = pts ? "#80ed99" : "#ff8fa3";
-      ctx.stroke();
-      ctx.font = "700 12px Segoe UI, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#fff";
-      ctx.fillText(String(pts), p.x, p.y);
-      ctx.restore();
     }
 
     function drawPops() {
@@ -2296,51 +2374,50 @@
     }
 
     function syncHud() {
-      youEl.textContent = "Sen " + teamScore(false);
-      scoreEl.textContent = "Bot " + teamScore(true);
+      youEl.textContent = labelP1() + " " + teamScore(false);
+      scoreEl.textContent = labelP2() + " " + teamScore(true);
       const turn = clamp(Math.max(playerThrown, botThrown) + (state === "over" ? 0 : 1), 1, carsPerSide);
-      let mid = LEVELS[levelI].name + " · " + turn + "/" + carsPerSide;
-      if (comboStreak > 0) mid += " · x" + comboStreak;
-      if (!botTurn && activePower === "ice" && state === "aim") mid = "BUZ";
-      if (!botTurn && activePower === "magnet" && state === "aim") mid = "MIKNATIS";
+      const streak = comboStreak[sideIndex(botTurn)] || 0;
+      let mid = (vsHuman ? "2K · " : "") + LEVELS[levelI].name + " · " + turn + "/" + carsPerSide;
+      if (streak > 0) mid += " · x" + streak;
+      if (humanControlsTurn() && activePower === "ice") mid = "BUZ";
+      if (humanControlsTurn() && activePower === "magnet") mid = "MIKNATIS";
       carEl.textContent = mid;
       const len = Math.hypot(pull.x, pull.y);
-      const band = state === "aim" && pull.active && !botTurn ? powerBand(len) : 0;
+      const pulling = state === "aim" && pull.active && humanControlsTurn();
+      const t = pulling ? clamp(len / MAX_PULL, 0, 1) : 0;
+      const band = pulling ? powerBand(len) : 0;
       const bandHints = ["Geri çek, bırak", "Hafif", "Az", "Orta", "Güçlü", "Tam güç"];
       let hint = bandHints[0];
-      if (botTurn && state === "aim") hint = "Bot nişan alıyor…";
+      if (botTurn && !vsHuman && state === "aim") hint = "Bot nişan alıyor…";
       else if (state === "slide") hint = "Kayıyor…";
-      else if (activePower === "ice" && state === "aim") hint = "BUZ hazır — çek bırak";
-      else if (activePower === "magnet" && state === "aim") hint = "MIKNATIS hazır — çek bırak";
+      else if (activePower === "ice" && humanControlsTurn()) hint = "BUZ hazır — çek bırak";
+      else if (activePower === "magnet" && humanControlsTurn()) hint = "MIKNATIS hazır — çek bırak";
       else if (band > 0) hint = bandHints[band];
+      else if (vsHuman && state === "aim") hint = (botTurn ? "Oyuncu 2" : "Oyuncu 1") + " · Telefonu ver, çek bırak";
       else if (!botTurn && state === "aim") hint = "Senin sıran · Araba " + (selectedSkin + 1) + "/" + unlockCount;
       hintEl.textContent = hint;
-      const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
-      for (let i = 0; i < powerCells.length; i++) {
-        const on = i < band;
-        powerCells[i].classList.toggle("on", on);
-        powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
-      }
+      if (powerFill) powerFill.style.width = Math.round(t * 100) + "%";
       bottomEl.hidden = state === "menu" || state === "over" || isPageState(state) || state === "howto";
       document.getElementById("to-menu").hidden = state === "menu" || isPageState(state) || state === "howto";
       const inMatch = state === "aim" || state === "slide";
+      const turnCls = botTurn ? (vsHuman ? "p2" : "bot") : "you";
+      const turnTxt = botTurn
+        ? (vsHuman ? "Sıra Oyuncu 2" : "Sıra botta")
+        : (vsHuman ? "Sıra Oyuncu 1" : "Sıra sende");
       if (!inMatch) {
         turnBanner.hidden = true;
         turnBanner.classList.remove("fade");
       } else if (state === "slide" || pull.active) {
         turnBanner.hidden = false;
-        turnBanner.className = "turn-banner " + (botTurn ? "bot" : "you") + " fade";
-        turnBanner.textContent = botTurn ? "Sıra botta" : "Sıra sende";
-      } else if (botTurn) {
-        turnBanner.hidden = false;
-        turnBanner.className = "turn-banner bot";
-        turnBanner.textContent = "Sıra botta";
+        turnBanner.className = "turn-banner " + turnCls + " fade";
+        turnBanner.textContent = turnTxt;
       } else {
         turnBanner.hidden = false;
-        turnBanner.className = "turn-banner you";
-        turnBanner.textContent = "Sıra sende";
+        turnBanner.className = "turn-banner " + turnCls;
+        turnBanner.textContent = turnTxt;
       }
-      stage.dataset.state = botTurn ? "bot" : state;
+      stage.dataset.state = (botTurn && !vsHuman) ? "bot" : state;
     }
 
     function draw() {
@@ -2361,7 +2438,7 @@
           preview: true,
         });
       } else {
-        if (state === "aim" && current && !botTurn) drawAim();
+        if (state === "aim" && current && humanControlsTurn()) drawAim();
         for (const c of cars) drawCar(c);
         drawPops();
       }
