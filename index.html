@@ -53,20 +53,31 @@
       font-size: 14px;
       font-weight: 700;
     }
-    .hud-back {
+    .hud-back, .hud-sound {
       position: absolute;
       top: 48px;
-      right: 14px;
       left: auto;
       z-index: 6;
       pointer-events: auto;
-      background: #f0a202;
-      color: #1a1203;
       border: 0;
       padding: 7px 14px;
       font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      border-radius: 999px;
     }
-    .hud-back[hidden] { display: none; }
+    .hud-back {
+      right: 14px;
+      background: #f0a202;
+      color: #1a1203;
+    }
+    .hud-sound {
+      right: 96px;
+      background: rgba(8, 12, 18, 0.78);
+      color: #eef3f8;
+    }
+    .hud-sound.off { color: #9aa3ad; }
+    .hud-back[hidden], .hud-sound[hidden] { display: none; }
     .bottom {
       bottom: 14px;
       flex-direction: column;
@@ -555,6 +566,7 @@
       <span id="score">Bot 0</span>
     </header>
     <div id="turn-banner" class="turn-banner you" hidden>Sıra sende</div>
+    <button id="toggle-sound" class="hud-sound" type="button" hidden>Ses açık</button>
     <button id="to-menu" class="hud-back" type="button" hidden>Menü</button>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
@@ -565,7 +577,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 26 · Sesler</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 27 · Ses aç/kapa</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -577,6 +589,17 @@
           <button type="button" class="mode-btn" id="mode-2p" data-mode="2p">
             İki kişilik
             <small>Aynı ekran</small>
+          </button>
+        </div>
+        <p class="section-lab">Ses</p>
+        <div class="mode-row" id="sound-row">
+          <button type="button" class="mode-btn sel" id="sound-on" data-sound="on">
+            Ses açık
+            <small>Efekt + müzik</small>
+          </button>
+          <button type="button" class="mode-btn" id="sound-off" data-sound="off">
+            Ses kapalı
+            <small>Sessiz</small>
           </button>
         </div>
         <div class="menu-entries">
@@ -711,6 +734,7 @@
     const BULLSEYE_BONUS = 100;
     const BEST_KEY = "halka-arabalari-best";
     const MODE_KEY = "halka-arabalari-mode";
+    const SOUND_KEY = "halka-arabalari-sound";
     const UNLOCK_KEY = "halka-arabalari-unlocks";
     const SKIN_KEY = "halka-arabalari-skin";
     const BODY_KEY = "halka-arabalari-body";
@@ -727,7 +751,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=26";
+      return "cars/" + file + "?v=27";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -774,12 +798,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=26";
+      im.src = src + "?v=27";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=26";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=27";
         return im;
       });
     }
@@ -796,13 +820,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=26")
+    fetch("cars/atlas.json?v=27")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=26";
+        img.src = "cars/atlas.png?v=27";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1110,6 +1134,11 @@
     const bits = [];
     let bodyStyle = 1;
     let musicOn = false;
+    let soundEnabled = true;
+    try {
+      const savedSound = localStorage.getItem(SOUND_KEY);
+      if (savedSound === "0" || savedSound === "off") soundEnabled = false;
+    } catch (e) { soundEnabled = true; }
     try { bodyStyle = clamp(Number(localStorage.getItem(BODY_KEY)) || 1, 0, 2); } catch (e) { bodyStyle = 1; }
     try { levelI = clamp(Number(localStorage.getItem(LEVEL_KEY)) || 0, 0, LEVELS.length - 1); } catch (e) { levelI = 0; }
     function applyLevel() {
@@ -1281,6 +1310,7 @@
 
     function asmr(kind) {
       try {
+        if (!soundEnabled) return;
         const ctx = ensureAudio();
         if (!ctx) return;
         const t = ctx.currentTime;
@@ -1348,9 +1378,38 @@
     }
 
     function uiClick() { asmr("click"); }
+
+    function syncSoundButtons() {
+      const onBtn = document.getElementById("sound-on");
+      const offBtn = document.getElementById("sound-off");
+      const hud = document.getElementById("toggle-sound");
+      if (onBtn) onBtn.classList.toggle("sel", soundEnabled);
+      if (offBtn) offBtn.classList.toggle("sel", !soundEnabled);
+      if (hud) {
+        hud.textContent = soundEnabled ? "Ses açık" : "Ses kapalı";
+        hud.classList.toggle("off", !soundEnabled);
+      }
+    }
+
+    function setSoundEnabled(on, playClick) {
+      if (on) {
+        soundEnabled = true;
+        try { localStorage.setItem(SOUND_KEY, "1"); } catch (e) { /* yoksay */ }
+        syncSoundButtons();
+        if (playClick !== false) asmr("click");
+        if (state === "aim" || state === "slide") startMusic();
+      } else {
+        if (playClick !== false && soundEnabled) asmr("click");
+        soundEnabled = false;
+        try { localStorage.setItem(SOUND_KEY, "0"); } catch (e) { /* yoksay */ }
+        stopMusic();
+        syncSoundButtons();
+      }
+    }
+
     let musicTimer = null;
     function startMusic() {
-      if (musicOn) return;
+      if (!soundEnabled || musicOn) return;
       try {
         if (!actx) actx = new AudioContext();
         actx.resume();
@@ -1358,7 +1417,7 @@
         const bass = [130.81, 130.81, 196, 174.61];
         let step = 0;
         const tick = () => {
-          if (!musicOn || !actx) return;
+          if (!musicOn || !soundEnabled || !actx) return;
           const t = actx.currentTime;
           const mk = (freq, dur, vol) => {
             const o = actx.createOscillator(), g = actx.createGain();
@@ -1705,7 +1764,14 @@
     });
     document.getElementById("mode-bot").addEventListener("click", () => setPlayMode("bot"));
     document.getElementById("mode-2p").addEventListener("click", () => setPlayMode("2p"));
+    document.getElementById("sound-on").addEventListener("click", () => setSoundEnabled(true));
+    document.getElementById("sound-off").addEventListener("click", () => setSoundEnabled(false));
+    document.getElementById("toggle-sound").addEventListener("click", (e) => {
+      e.stopPropagation();
+      setSoundEnabled(!soundEnabled);
+    });
     syncModeButtons();
+    syncSoundButtons();
     document.getElementById("start").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("again").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("open-collection").addEventListener("click", showCollection);
@@ -2491,7 +2557,14 @@
         powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
       }
       bottomEl.hidden = state === "menu" || state === "over" || isPageState(state) || state === "howto";
-      document.getElementById("to-menu").hidden = state === "menu" || isPageState(state) || state === "howto";
+      const hideChrome = state === "menu" || isPageState(state) || state === "howto";
+      document.getElementById("to-menu").hidden = hideChrome;
+      const soundHud = document.getElementById("toggle-sound");
+      if (soundHud) {
+        soundHud.hidden = hideChrome;
+        soundHud.textContent = soundEnabled ? "Ses açık" : "Ses kapalı";
+        soundHud.classList.toggle("off", !soundEnabled);
+      }
       const inMatch = state === "aim" || state === "slide";
       const turnText = vsHuman
         ? (botTurn ? "Sıra 2. oyuncuda" : "Sıra 1. oyuncuda")

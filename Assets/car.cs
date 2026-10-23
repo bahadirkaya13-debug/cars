@@ -27,6 +27,7 @@ public class car : MonoBehaviour
     const string BodyKey = "halka-arabalari-body";
     const string LevelKey = "halka-arabalari-level";
     const string ModeKey = "halka-arabalari-mode";
+    const string SoundKey = "halka-arabalari-sound";
     const int StartUnlock = 3;
     static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
@@ -167,6 +168,7 @@ public class car : MonoBehaviour
     int botThrown;
     bool botTurn;
     bool vsHuman;
+    bool soundEnabled = true;
     int best;
     int unlockCount = 2;
     int selectedSkin;
@@ -239,6 +241,7 @@ public class car : MonoBehaviour
         unlockCount = Mathf.Clamp(Mathf.Max(PlayerPrefs.GetInt(UnlockKey, StartUnlock), StartUnlock), StartUnlock, PlayerColors.Length);
         selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
         vsHuman = PlayerPrefs.GetInt(ModeKey, 0) == 1;
+        soundEnabled = PlayerPrefs.GetInt(SoundKey, 1) != 0;
         PlayerPrefs.SetInt(UnlockKey, unlockCount);
         LoadTable();
         SetupCamera();
@@ -443,8 +446,27 @@ public class car : MonoBehaviour
         reason = "";
         phase = Phase.Aim;
         HideDots();
-        if (music != null && !music.isPlaying) music.Play();
+        if (soundEnabled && music != null && !music.isPlaying) music.Play();
         SpawnStone(false);
+    }
+
+    void SetSoundEnabled(bool on)
+    {
+        if (on)
+        {
+            soundEnabled = true;
+            PlayerPrefs.SetInt(SoundKey, 1);
+            PlayAsmr("tap");
+            if ((phase == Phase.Aim || phase == Phase.Slide) && music != null && !music.isPlaying)
+                music.Play();
+        }
+        else
+        {
+            if (soundEnabled) PlayAsmr("tap");
+            soundEnabled = false;
+            PlayerPrefs.SetInt(SoundKey, 0);
+            if (music != null) music.Stop();
+        }
     }
 
     void SpawnStone(bool forBot)
@@ -631,6 +653,16 @@ public class car : MonoBehaviour
                 vsHuman = true;
                 PlayerPrefs.SetInt(ModeKey, 1);
                 PlayAsmr("tap");
+                return;
+            }
+            if (Clicked(MenuSoundOnRect()))
+            {
+                SetSoundEnabled(true);
+                return;
+            }
+            if (Clicked(MenuSoundOffRect()))
+            {
+                SetSoundEnabled(false);
                 return;
             }
             if (Clicked(MenuPlayRect())) StartRound();
@@ -1386,11 +1418,27 @@ public class car : MonoBehaviour
         return new Rect(card.x + 28f + w, top, w, 34f);
     }
 
-    Rect MenuPlayRect() { return StackBtn(6); }
+    Rect MenuSoundOnRect()
+    {
+        Rect card = MenuCard();
+        float top = card.y + 252f + 6 * 39f;
+        float w = (card.width - 50f) * 0.5f;
+        return new Rect(card.x + 22f, top, w, 34f);
+    }
+
+    Rect MenuSoundOffRect()
+    {
+        Rect card = MenuCard();
+        float top = card.y + 252f + 6 * 39f;
+        float w = (card.width - 50f) * 0.5f;
+        return new Rect(card.x + 28f + w, top, w, 34f);
+    }
+
+    Rect MenuPlayRect() { return StackBtn(7); }
 
     Rect LevelRect(int i) { return StackBtn(i); }
 
-    Rect MenuCollectionRect() { return StackBtn(7); }
+    Rect MenuCollectionRect() { return StackBtn(8); }
 
     Rect BackMenuRect()
     {
@@ -1549,6 +1597,17 @@ public class car : MonoBehaviour
         GUI.DrawTexture(mode2p, pixel);
         GUI.color = vsHuman ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
         GUI.Label(mode2p, "İki kişilik", hintStyle);
+
+        Rect soundOn = MenuSoundOnRect();
+        Rect soundOff = MenuSoundOffRect();
+        GUI.color = soundEnabled ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(soundOn, pixel);
+        GUI.color = soundEnabled ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
+        GUI.Label(soundOn, "Ses açık", hintStyle);
+        GUI.color = !soundEnabled ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(soundOff, pixel);
+        GUI.color = !soundEnabled ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
+        GUI.Label(soundOff, "Ses kapalı", hintStyle);
 
         Rect play = MenuPlayRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
@@ -1918,7 +1977,7 @@ public class car : MonoBehaviour
 
     void PlayAsmr(string kind)
     {
-        if (sfx == null) return;
+        if (!soundEnabled || sfx == null) return;
         int rate = 22050;
         float seconds =
             kind == "whoosh" || kind == "release" ? 0.28f :
