@@ -26,7 +26,7 @@ public class car : MonoBehaviour
     const string SkinKey = "halka-arabalari-skin";
     const string BodyKey = "halka-arabalari-body";
     const string LevelKey = "halka-arabalari-level";
-    const int StartUnlock = 6;
+    const int StartUnlock = 3;
     static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
     static readonly float[] LevelFriction = { 1.60f, 0.95f, 1.50f, 2.10f, 1.25f };
@@ -1353,7 +1353,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 9.1  ·  Arabalarım + üst sol sıra", hintStyle);
+            "Sürüm 10  ·  Üstten Arabalarım", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
             "Arabalarım " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
@@ -1521,8 +1521,8 @@ public class car : MonoBehaviour
         if (phase != Phase.Over)
         {
             turnBannerPulse += Time.deltaTime;
-            float bw = 64f;
-            float bh = 26f;
+            float bw = 52f;
+            float bh = 22f;
             var banner = new Rect(safe.x + 10f, safe.y + 42f, bw, bh);
             string turnText;
             if (phase == Phase.Slide)

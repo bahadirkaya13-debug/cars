@@ -279,25 +279,25 @@
     }
     .turn-banner {
       position: absolute;
-      /* Üst sol — kompakt, skorun altında */
-      top: 48px;
+      /* Üst sol — çok küçük rozet */
+      top: 46px;
       bottom: auto;
-      left: 12px;
+      left: 10px;
       right: auto;
       transform: none;
       z-index: 5;
-      max-width: 112px;
+      max-width: 72px;
       min-width: 0;
-      text-align: left;
-      padding: 5px 9px;
-      border-radius: 10px;
-      font-size: 11px;
+      text-align: center;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 10px;
       font-weight: 800;
-      letter-spacing: 0.01em;
-      line-height: 1.2;
+      letter-spacing: 0.02em;
+      line-height: 1.15;
       pointer-events: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.16);
     }
     .garage-strip {
       display: flex;
@@ -383,7 +383,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 9.2 · Seçili araba tahtada</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 10 · Üstten Arabalarım</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <div class="sel-preview" id="sel-preview">
@@ -480,7 +480,7 @@
     const UNLOCK_KEY = "halka-arabalari-unlocks";
     const SKIN_KEY = "halka-arabalari-skin";
     const BODY_KEY = "halka-arabalari-body";
-    const START_UNLOCK = 6;
+    const START_UNLOCK = 3;
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
     const CAR_LEN = 112;
     const CAR_WIDE = 62;
@@ -535,7 +535,7 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=92";
+      im.src = src + "?v=10";
     });
     function applyAtlas(meta, img) {
       ATLAS = meta;
@@ -543,19 +543,21 @@
       CAR_COUNT = meta.count;
       PLAYER_COLORS = meta.cars.map((c) => c.color);
       PLAYER_NAMES = meta.cars.map((c) => c.name);
-      unlockCount = clamp(Math.max(unlockCount, START_UNLOCK), START_UNLOCK, CAR_COUNT);
+      // Eski 110’luk kayıtları yeni 10’luk sete indir
+      unlockCount = clamp(Math.min(unlockCount, CAR_COUNT), START_UNLOCK, CAR_COUNT);
+      if (unlockCount > CAR_COUNT) unlockCount = CAR_COUNT;
       selectedSkin = clamp(selectedSkin, 0, unlockCount - 1);
       try { localStorage.setItem(UNLOCK_KEY, String(unlockCount)); } catch (e) { /* yoksay */ }
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=92")
+    fetch("cars/atlas.json?v=10")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=92";
+        img.src = "cars/atlas.png?v=10";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -604,7 +606,7 @@
     let selectedSkin = 0;
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
     try {
-      unlockCount = clamp(Math.max(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK), START_UNLOCK, 110);
+      unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK, 10);
     } catch (e) { unlockCount = START_UNLOCK; }
     try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
     function refreshMenuBest() {
@@ -625,7 +627,7 @@
       const aw = ATLAS.cols * ATLAS.cellW;
       const ah = ATLAS.rows * ATLAS.cellH;
       const scale = dw / cell.w;
-      return "background-image:url(cars/atlas.png?v=92);"
+      return "background-image:url(cars/atlas.png?v=10);"
         + "background-size:" + (aw * scale) + "px " + (ah * scale) + "px;"
         + "background-position:-" + (cell.sx * scale) + "px -" + (cell.sy * scale) + "px;"
         + "width:" + dw + "px;height:" + Math.round(cell.h * scale) + "px;";
@@ -648,7 +650,7 @@
     function renderGarageStrip() {
       if (!garageStrip) return;
       garageStrip.innerHTML = "";
-      const show = Math.min(unlockCount, 12);
+      const show = Math.min(unlockCount, CAR_COUNT);
       for (let i = 0; i < show; i++) {
         const btn = document.createElement("button");
         btn.type = "button";
