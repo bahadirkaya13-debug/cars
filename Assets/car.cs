@@ -655,16 +655,6 @@ public class car : MonoBehaviour
                 PlayAsmr("tap");
                 return;
             }
-            if (Clicked(MenuSoundOnRect()))
-            {
-                SetSoundEnabled(true);
-                return;
-            }
-            if (Clicked(MenuSoundOffRect()))
-            {
-                SetSoundEnabled(false);
-                return;
-            }
             if (Clicked(MenuPlayRect())) StartRound();
             else if (Clicked(MenuCollectionRect())) phase = Phase.Collection;
             return;
@@ -678,9 +668,20 @@ public class car : MonoBehaviour
 
         if (phase == Phase.Over)
         {
+            if (Clicked(SoundToggleRect()))
+            {
+                SetSoundEnabled(!soundEnabled);
+                return;
+            }
             if (Clicked(BackMenuRect())) GoMenu();
             else if (Clicked(AgainRect())) StartRound();
             else if (Clicked(OverCollectionRect())) phase = Phase.Collection;
+            return;
+        }
+
+        if (Clicked(SoundToggleRect()))
+        {
+            SetSoundEnabled(!soundEnabled);
             return;
         }
 
@@ -1412,32 +1413,22 @@ public class car : MonoBehaviour
         return new Rect(card.x + 28f + w, top, w, 34f);
     }
 
-    Rect MenuSoundOnRect()
-    {
-        Rect card = MenuCard();
-        float top = card.y + 252f + 6 * 39f;
-        float w = (card.width - 50f) * 0.5f;
-        return new Rect(card.x + 22f, top, w, 34f);
-    }
-
-    Rect MenuSoundOffRect()
-    {
-        Rect card = MenuCard();
-        float top = card.y + 252f + 6 * 39f;
-        float w = (card.width - 50f) * 0.5f;
-        return new Rect(card.x + 28f + w, top, w, 34f);
-    }
-
-    Rect MenuPlayRect() { return StackBtn(7); }
+    Rect MenuPlayRect() { return StackBtn(6); }
 
     Rect LevelRect(int i) { return StackBtn(i); }
 
-    Rect MenuCollectionRect() { return StackBtn(8); }
+    Rect MenuCollectionRect() { return StackBtn(7); }
 
     Rect BackMenuRect()
     {
         Rect safe = SafeScreen();
         return new Rect(safe.xMax - 86f, safe.y + 42f, 78f, 28f);
+    }
+
+    Rect SoundToggleRect()
+    {
+        Rect safe = SafeScreen();
+        return new Rect(safe.xMax - 130f, safe.y + 42f, 36f, 28f);
     }
 
     Rect CollectionCard()
@@ -1592,17 +1583,6 @@ public class car : MonoBehaviour
         GUI.color = vsHuman ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
         GUI.Label(mode2p, "İki kişilik", hintStyle);
 
-        Rect soundOn = MenuSoundOnRect();
-        Rect soundOff = MenuSoundOffRect();
-        GUI.color = soundEnabled ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
-        GUI.DrawTexture(soundOn, pixel);
-        GUI.color = soundEnabled ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
-        GUI.Label(soundOn, "Ses açık", hintStyle);
-        GUI.color = !soundEnabled ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
-        GUI.DrawTexture(soundOff, pixel);
-        GUI.color = !soundEnabled ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
-        GUI.Label(soundOff, "Ses kapalı", hintStyle);
-
         Rect play = MenuPlayRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(play, pixel);
@@ -1704,6 +1684,13 @@ public class car : MonoBehaviour
         DrawPill(new Rect(x, y, w, h), SideName(false) + " " + TeamScore(false));
         DrawPill(new Rect(x + w + gap, y, w, h), SideName(true) + " " + TeamScore(true));
         DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), LevelNames[levelI] + " " + turn + "/" + carsPerSide);
+        Rect soundBtn = SoundToggleRect();
+        GUI.color = new Color(0.08f, 0.12f, 0.18f, 0.82f);
+        GUI.DrawTexture(soundBtn, pixel);
+        GUI.color = soundEnabled ? Color.white : new Color(0.65f, 0.68f, 0.72f, 1f);
+        GUI.Label(soundBtn, soundEnabled ? "♪" : "x", hudStyle != null ? hudStyle : label);
+        GUI.color = Color.white;
+
         Rect back = BackMenuRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(back, pixel);
