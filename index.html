@@ -140,6 +140,36 @@
       box-shadow: none;
     }
     .menu-entries { display: flex; flex-direction: column; gap: 0; margin: 4px 0 8px; }
+    .mode-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+    .mode-btn {
+      width: 100%;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 10px 8px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.16);
+      background: #243040;
+      color: #eef3f8;
+      cursor: pointer;
+    }
+    .mode-btn.sel {
+      background: #f0a202;
+      color: #1a1203;
+      border-color: #f0a202;
+    }
+    .mode-btn small {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      font-weight: 700;
+      opacity: 0.8;
+    }
     .track-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -520,7 +550,7 @@
   <div class="stage" id="stage">
     <canvas id="c" width="720" height="1280"></canvas>
     <header class="top">
-      <span id="you">Sen 0</span>
+      <span id="you">1. Oyuncu 0</span>
       <span id="car">Tur 1/4</span>
       <span id="score">Bot 0</span>
     </header>
@@ -535,9 +565,20 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 24 · Lava & buz</p>
-        <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 25 · İki kişilik</p>
+        <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
+        <p class="section-lab">Oyun modu</p>
+        <div class="mode-row" id="mode-row">
+          <button type="button" class="mode-btn sel" id="mode-bot" data-mode="bot">
+            Bot'a karşı
+            <small>Tek kişilik</small>
+          </button>
+          <button type="button" class="mode-btn" id="mode-2p" data-mode="2p">
+            İki kişilik
+            <small>Aynı ekran</small>
+          </button>
+        </div>
         <div class="menu-entries">
           <button id="open-collection" class="garage-entry" type="button">
             <img id="menu-car-img" alt="" width="96" height="52">
@@ -625,7 +666,7 @@
       <div class="card howto">
         <h1>Nasıl oynanır?</h1>
         <ol>
-          <li><b>Sen kırmızı</b>, bot mavi — sıra paneli kimin oynadığını gösterir.</li>
+          <li><b>1. oyuncu</b> seçili araba, <b>2. oyuncu / bot</b> mavi — sıra yazısı kimin oynadığını gösterir.</li>
           <li>Arabayı <b>geri çek, bırak</b>. Güç ortada dursun.</li>
           <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>.</li>
           <li>Rakibi vurup halkadan çıkar; nadiren <b>BUZ</b> veya <b>MIKNATIS</b> gelir.</li>
@@ -669,6 +710,7 @@
     const KNOCK_BASE = 75;
     const BULLSEYE_BONUS = 100;
     const BEST_KEY = "halka-arabalari-best";
+    const MODE_KEY = "halka-arabalari-mode";
     const UNLOCK_KEY = "halka-arabalari-unlocks";
     const SKIN_KEY = "halka-arabalari-skin";
     const BODY_KEY = "halka-arabalari-body";
@@ -685,7 +727,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=24";
+      return "cars/" + file + "?v=25";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -732,12 +774,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=24";
+      im.src = src + "?v=25";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=24";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=25";
         return im;
       });
     }
@@ -754,13 +796,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=24")
+    fetch("cars/atlas.json?v=25")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=24";
+        img.src = "cars/atlas.png?v=25";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1046,7 +1088,10 @@
     let botThrown = 0;
     let botTurn = false;
     let botThinkAt = 0;
+    let vsHuman = false;
+    try { vsHuman = localStorage.getItem(MODE_KEY) === "2p"; } catch (e) { vsHuman = false; }
     let playerBonus = 0;
+    let p2Bonus = 0;
     let comboStreak = 0;
     let activePower = "none"; // none | ice | magnet
     let unlockFlash = "";
@@ -1104,7 +1149,31 @@
         s += pointsAt(c.x, c.y);
       }
       if (!isBot) s += playerBonus;
+      else if (vsHuman) s += p2Bonus;
       return s;
+    }
+
+    function sideName(isP2) {
+      if (vsHuman) return isP2 ? "2. Oyuncu" : "1. Oyuncu";
+      return isP2 ? "Bot" : "Sen";
+    }
+
+    function humanCanAim() {
+      return state === "aim" && current && (!botTurn || vsHuman);
+    }
+
+    function syncModeButtons() {
+      const botBtn = document.getElementById("mode-bot");
+      const p2Btn = document.getElementById("mode-2p");
+      if (botBtn) botBtn.classList.toggle("sel", !vsHuman);
+      if (p2Btn) p2Btn.classList.toggle("sel", vsHuman);
+    }
+
+    function setPlayMode(mode) {
+      vsHuman = mode === "2p";
+      try { localStorage.setItem(MODE_KEY, vsHuman ? "2p" : "bot"); } catch (e) { /* yoksay */ }
+      syncModeButtons();
+      asmr("tap");
     }
 
     const CONFETTI = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffe566", "#ffffff"];
@@ -1271,7 +1340,11 @@
       if (!forBot) {
         selectedSkin = selectedSkin % unlockCount;
         rollPowerUp();
-      } else activePower = "none";
+      } else if (vsHuman) {
+        rollPowerUp();
+      } else {
+        activePower = "none";
+      }
 
       const idx = forBot ? botThrown % BOT_COLORS.length : selectedSkin;
       const palette = forBot ? BOT_COLORS : PLAYER_COLORS;
@@ -1300,10 +1373,10 @@
       botTurn = !!forBot;
       state = "aim";
       if (forBot) {
-        botThinkAt = performance.now() + 750;
-        addPop("Sıra BOT’ta", SPAWN.x, SPAWN.y - 70, "#6aa8ff");
+        botThinkAt = vsHuman ? 0 : performance.now() + 750;
+        addPop("Sıra " + sideName(true), SPAWN.x, SPAWN.y - 70, "#6aa8ff");
       } else if (playerThrown + botThrown > 0) {
-        addPop("Sıra SENDE", SPAWN.x, SPAWN.y - 70, "#ff7a7a");
+        addPop("Sıra " + sideName(false), SPAWN.x, SPAWN.y - 70, "#ff7a7a");
       }
     }
 
@@ -1314,6 +1387,7 @@
       botThrown = 0;
       botTurn = false;
       playerBonus = 0;
+      p2Bonus = 0;
       comboStreak = 0;
       activePower = "none";
       unlockFlash = "";
@@ -1342,7 +1416,7 @@
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
       unlockFlash = "";
-      if (win && unlockCount < CAR_COUNT) {
+      if (win && !vsHuman && unlockCount < CAR_COUNT) {
         unlockCount++;
         selectedSkin = unlockCount - 1;
         try {
@@ -1356,8 +1430,11 @@
         try { localStorage.setItem(SKIN_KEY, String(selectedSkin % unlockCount)); } catch (e) { /* yoksay */ }
       }
       reasonEl.textContent = reason + (unlockFlash ? "  " + unlockFlash : "");
-      finalEl.textContent = "Sen " + s + "   Bot " + b;
-      bestOutEl.textContent = "Bonus " + playerBonus + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
+      finalEl.textContent = sideName(false) + " " + s + "   " + sideName(true) + " " + b;
+      const bonusLine = vsHuman
+        ? ("Bonus " + playerBonus + "/" + p2Bonus)
+        : ("Bonus " + playerBonus);
+      bestOutEl.textContent = bonusLine + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
       overEl.classList.remove("hidden");
       if (win) asmr("glass"); else asmr("tap");
     }
@@ -1389,12 +1466,13 @@
         if (!cars.includes(t)) knocks++;
       }
 
-      if (!shooterBot) {
+      if (!shooterBot || vsHuman) {
         if (knocks > 0) {
           for (let k = 0; k < knocks; k++) {
             comboStreak++;
             const bonus = KNOCK_BASE + (comboStreak - 1) * 25;
-            playerBonus += bonus;
+            if (shooterBot) p2Bonus += bonus;
+            else playerBonus += bonus;
             addPop("+" + bonus + " VURUŞ!", (current ? current.x : HOUSE.x), (current ? current.y : HOUSE.y) - 20 - k * 22, "#ffc14d", true);
           }
         } else comboStreak = 0;
@@ -1403,11 +1481,12 @@
           const pts = pointsAt(current.x, current.y);
           if (pts > 0) addPop("+" + pts, current.x, current.y - 36, pts >= 400 ? "#ffe566" : "#fff4c2", true);
           if (pts >= 400) {
-            playerBonus += BULLSEYE_BONUS;
+            if (shooterBot) p2Bonus += BULLSEYE_BONUS;
+            else playerBonus += BULLSEYE_BONUS;
             addPop("+" + BULLSEYE_BONUS + " BULLSEYE!", current.x, current.y - 58, "#7dff9a", true);
             asmr("glass");
           }
-        } else if (current && current.fallen && !shooterBot) {
+        } else if (current && current.fallen) {
           comboStreak = 0;
         }
       }
@@ -1424,8 +1503,8 @@
       if (playerThrown >= carsPerSide && botThrown >= carsPerSide) {
         const you = teamScore(false);
         const bot = teamScore(true);
-        if (you > bot) showOver("Sen kazandın!  " + you + " - " + bot, true);
-        else if (bot > you) showOver("Bot kazandı.  " + you + " - " + bot, false);
+        if (you > bot) showOver(sideName(false) + " kazandı!  " + you + " - " + bot, true);
+        else if (bot > you) showOver(sideName(true) + " kazandı.  " + you + " - " + bot, false);
         else showOver("Berabere.  " + you + " - " + bot, false);
         return;
       }
@@ -1437,7 +1516,7 @@
     }
 
     function botShoot() {
-      if (!current || state !== "aim" || !botTurn) return;
+      if (vsHuman || !current || state !== "aim" || !botTurn) return;
       const scatter = (1.15 - botSkill) * 90;
       let target = { x: HOUSE.x + (Math.random() - 0.5) * scatter, y: HOUSE.y + (Math.random() - 0.5) * scatter };
       let hit = null;
@@ -1486,7 +1565,7 @@
     }
 
     function onDown(e) {
-      if (state !== "aim" || !current || botTurn) return;
+      if (!humanCanAim()) return;
       pull.active = true;
       const p = canvasPoint(e);
       pull.sx = p.x;
@@ -1505,7 +1584,7 @@
     function launch() {
       const len = Math.hypot(pull.x, pull.y);
       pull.active = false;
-      if (!current || state !== "aim" || botTurn) return;
+      if (!humanCanAim()) return;
       if (len < MIN_PULL) {
         pull.x = 0;
         pull.y = 0;
@@ -1543,6 +1622,9 @@
       menuEl.classList.remove("hidden");
       state = "menu";
     });
+    document.getElementById("mode-bot").addEventListener("click", () => setPlayMode("bot"));
+    document.getElementById("mode-2p").addEventListener("click", () => setPlayMode("2p"));
+    syncModeButtons();
     document.getElementById("start").addEventListener("click", startRound);
     document.getElementById("again").addEventListener("click", startRound);
     document.getElementById("open-collection").addEventListener("click", showCollection);
@@ -1706,8 +1788,8 @@
     }
 
     function update(dt) {
-      if (state === "aim" && botTurn && performance.now() >= botThinkAt) botShoot();
-      else if (state === "aim" && current && !botTurn) applyAim();
+      if (state === "aim" && botTurn && !vsHuman && performance.now() >= botThinkAt) botShoot();
+      else if (humanCanAim()) applyAim();
       else if (state === "slide") {
         stepPhysics(dt);
         for (const c of cars) {
@@ -2296,24 +2378,28 @@
     }
 
     function syncHud() {
-      youEl.textContent = "Sen " + teamScore(false);
-      scoreEl.textContent = "Bot " + teamScore(true);
+      youEl.textContent = sideName(false) + " " + teamScore(false);
+      scoreEl.textContent = sideName(true) + " " + teamScore(true);
       const turn = clamp(Math.max(playerThrown, botThrown) + (state === "over" ? 0 : 1), 1, carsPerSide);
       let mid = LEVELS[levelI].name + " · " + turn + "/" + carsPerSide;
       if (comboStreak > 0) mid += " · x" + comboStreak;
-      if (!botTurn && activePower === "ice" && state === "aim") mid = "BUZ";
-      if (!botTurn && activePower === "magnet" && state === "aim") mid = "MIKNATIS";
+      if (humanCanAim() && activePower === "ice") mid = "BUZ";
+      if (humanCanAim() && activePower === "magnet") mid = "MIKNATIS";
       carEl.textContent = mid;
       const len = Math.hypot(pull.x, pull.y);
-      const band = state === "aim" && pull.active && !botTurn ? powerBand(len) : 0;
+      const band = humanCanAim() && pull.active ? powerBand(len) : 0;
       const bandHints = ["Geri çek, bırak", "Hafif", "Az", "Orta", "Güçlü", "Tam güç"];
       let hint = bandHints[0];
-      if (botTurn && state === "aim") hint = "Bot nişan alıyor…";
+      if (botTurn && !vsHuman && state === "aim") hint = "Bot nişan alıyor…";
       else if (state === "slide") hint = "Kayıyor…";
-      else if (activePower === "ice" && state === "aim") hint = "BUZ hazır — çek bırak";
-      else if (activePower === "magnet" && state === "aim") hint = "MIKNATIS hazır — çek bırak";
+      else if (activePower === "ice" && humanCanAim()) hint = "BUZ hazır — çek bırak";
+      else if (activePower === "magnet" && humanCanAim()) hint = "MIKNATIS hazır — çek bırak";
       else if (band > 0) hint = bandHints[band];
-      else if (!botTurn && state === "aim") hint = "Senin sıran · Araba " + (selectedSkin + 1) + "/" + unlockCount;
+      else if (humanCanAim()) {
+        hint = vsHuman
+          ? (sideName(botTurn) + " sırası · çek bırak")
+          : ("Senin sıran · Araba " + (selectedSkin + 1) + "/" + unlockCount);
+      }
       hintEl.textContent = hint;
       const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
       for (let i = 0; i < powerCells.length; i++) {
@@ -2324,23 +2410,26 @@
       bottomEl.hidden = state === "menu" || state === "over" || isPageState(state) || state === "howto";
       document.getElementById("to-menu").hidden = state === "menu" || isPageState(state) || state === "howto";
       const inMatch = state === "aim" || state === "slide";
+      const turnText = vsHuman
+        ? (botTurn ? "Sıra 2. oyuncuda" : "Sıra 1. oyuncuda")
+        : (botTurn ? "Sıra botta" : "Sıra sende");
       if (!inMatch) {
         turnBanner.hidden = true;
         turnBanner.classList.remove("fade");
       } else if (state === "slide" || pull.active) {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner " + (botTurn ? "bot" : "you") + " fade";
-        turnBanner.textContent = botTurn ? "Sıra botta" : "Sıra sende";
+        turnBanner.textContent = turnText;
       } else if (botTurn) {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner bot";
-        turnBanner.textContent = "Sıra botta";
+        turnBanner.textContent = turnText;
       } else {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner you";
-        turnBanner.textContent = "Sıra sende";
+        turnBanner.textContent = turnText;
       }
-      stage.dataset.state = botTurn ? "bot" : state;
+      stage.dataset.state = botTurn && !vsHuman ? "bot" : state;
     }
 
     function draw() {
@@ -2361,7 +2450,7 @@
           preview: true,
         });
       } else {
-        if (state === "aim" && current && !botTurn) drawAim();
+        if (humanCanAim()) drawAim();
         for (const c of cars) drawCar(c);
         drawPops();
       }

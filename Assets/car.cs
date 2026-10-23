@@ -26,6 +26,7 @@ public class car : MonoBehaviour
     const string SkinKey = "halka-arabalari-skin";
     const string BodyKey = "halka-arabalari-body";
     const string LevelKey = "halka-arabalari-level";
+    const string ModeKey = "halka-arabalari-mode";
     const int StartUnlock = 3;
     static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
@@ -165,6 +166,7 @@ public class car : MonoBehaviour
     int playerThrown;
     int botThrown;
     bool botTurn;
+    bool vsHuman;
     int best;
     int unlockCount = 2;
     int selectedSkin;
@@ -176,6 +178,7 @@ public class car : MonoBehaviour
     float botSkill = 0.52f;
     float ringMul = 1f;
     int playerBonus;
+    int p2Bonus;
     int comboStreak;
     PowerUp activePower;
     float calm;
@@ -235,6 +238,7 @@ public class car : MonoBehaviour
             botSprites[i] = MakeCarSprite(BotColors[i], 1);
         unlockCount = Mathf.Clamp(Mathf.Max(PlayerPrefs.GetInt(UnlockKey, StartUnlock), StartUnlock), StartUnlock, PlayerColors.Length);
         selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
+        vsHuman = PlayerPrefs.GetInt(ModeKey, 0) == 1;
         PlayerPrefs.SetInt(UnlockKey, unlockCount);
         LoadTable();
         SetupCamera();
@@ -426,6 +430,7 @@ public class car : MonoBehaviour
         botThrown = 0;
         botTurn = false;
         playerBonus = 0;
+        p2Bonus = 0;
         comboStreak = 0;
         activePower = PowerUp.None;
         unlockFlash = "";
@@ -470,6 +475,7 @@ public class car : MonoBehaviour
             selectedSkin = selectedSkin % unlockCount;
             RollPowerUp();
         }
+        else if (vsHuman) RollPowerUp();
         else activePower = PowerUp.None;
 
         int idx = forBot ? botThrown % BotColors.Length : selectedSkin;
@@ -510,7 +516,18 @@ public class car : MonoBehaviour
         current = stone;
         botTurn = forBot;
         phase = Phase.Aim;
-        if (forBot) botThinkAt = Time.time + 0.75f;
+        if (forBot) botThinkAt = vsHuman ? 0f : Time.time + 0.75f;
+    }
+
+    string SideName(bool isP2)
+    {
+        if (vsHuman) return isP2 ? "2. Oyuncu" : "1. Oyuncu";
+        return isP2 ? "Bot" : "Sen";
+    }
+
+    bool HumanCanAim()
+    {
+        return phase == Phase.Aim && current != null && (!botTurn || vsHuman);
     }
 
     void RollPowerUp()
@@ -602,6 +619,20 @@ public class car : MonoBehaviour
                     return;
                 }
             }
+            if (Clicked(MenuModeBotRect()))
+            {
+                vsHuman = false;
+                PlayerPrefs.SetInt(ModeKey, 0);
+                PlayAsmr("tap");
+                return;
+            }
+            if (Clicked(MenuMode2pRect()))
+            {
+                vsHuman = true;
+                PlayerPrefs.SetInt(ModeKey, 1);
+                PlayAsmr("tap");
+                return;
+            }
             if (Clicked(MenuPlayRect())) StartRound();
             else if (Clicked(MenuCollectionRect())) phase = Phase.Collection;
             return;
@@ -627,12 +658,12 @@ public class car : MonoBehaviour
             return;
         }
 
-        if (phase == Phase.Aim && botTurn && current != null && Time.time >= botThinkAt)
+        if (phase == Phase.Aim && botTurn && !vsHuman && current != null && Time.time >= botThinkAt)
             BotShoot();
-        else if (!botTurn)
+        else if (HumanCanAim())
             ReadMouse();
 
-        if (phase == Phase.Aim && current != null && !botTurn) AimStep();
+        if (HumanCanAim()) AimStep();
         else if (phase == Phase.Slide) SlideStep(dt);
 
         for (int i = pops.Count - 1; i >= 0; i--)
@@ -695,7 +726,7 @@ public class car : MonoBehaviour
 
     void ReadMouse()
     {
-        if (phase != Phase.Aim || current == null || botTurn) return;
+        if (!HumanCanAim()) return;
         if (!ReadPointer(out bool down, out bool held, out bool up, out Vector2 screen)) return;
 
         if (down)
@@ -990,7 +1021,7 @@ public class car : MonoBehaviour
             if (!stones.Contains(threatened[i])) knocks++;
         }
 
-        if (!shooterBot)
+        if (!shooterBot || vsHuman)
         {
             if (knocks > 0)
             {
@@ -998,7 +1029,8 @@ public class car : MonoBehaviour
                 {
                     comboStreak++;
                     int bonus = KnockBase + (comboStreak - 1) * 25;
-                    playerBonus += bonus;
+                    if (shooterBot) p2Bonus += bonus;
+                    else playerBonus += bonus;
                     Vector2 at = current != null ? current.pos : House;
                     AddPop("+" + bonus + " VURUŞ!", at + Vector2.up * (0.2f + k * 0.2f), new Color(1f, 0.75f, 0.2f), true);
                 }
@@ -1012,7 +1044,8 @@ public class car : MonoBehaviour
                     AddPop("+" + pts, current.pos + Vector2.up * 0.35f, pts >= 400 ? new Color(1f, 0.9f, 0.3f) : Color.white, true);
                 if (pts >= RingPoints[RingPoints.Length - 1])
                 {
-                    playerBonus += BullseyeBonus;
+                    if (shooterBot) p2Bonus += BullseyeBonus;
+                    else playerBonus += BullseyeBonus;
                     AddPop("+" + BullseyeBonus + " BULLSEYE!", current.pos + Vector2.up * 0.55f, new Color(0.45f, 1f, 0.65f), true);
                     PlayAsmr("glass");
                 }
@@ -1034,8 +1067,8 @@ public class car : MonoBehaviour
         {
             int you = TeamScore(false);
             int bot = TeamScore(true);
-            if (you > bot) End("Sen kazandın!  " + you + " - " + bot, true);
-            else if (bot > you) End("Bot kazandı.  " + you + " - " + bot, false);
+            if (you > bot) End(SideName(false) + " kazandı!  " + you + " - " + bot, true);
+            else if (bot > you) End(SideName(true) + " kazandı.  " + you + " - " + bot, false);
             else End("Berabere.  " + you + " - " + bot, false);
             return;
         }
@@ -1072,7 +1105,7 @@ public class car : MonoBehaviour
 
     void BotShoot()
     {
-        if (current == null || phase != Phase.Aim || !botTurn) return;
+        if (vsHuman || current == null || phase != Phase.Aim || !botTurn) return;
         Vector2 target = House + Random.insideUnitCircle * ((1.15f - botSkill) * 0.9f);
         Stone hit = null;
         float bestD = 999f;
@@ -1129,7 +1162,7 @@ public class car : MonoBehaviour
         unlockFlash = "";
         if (playerWon) PlayAsmr("glass");
         else PlayAsmr("tap");
-        if (playerWon && unlockCount < PlayerColors.Length)
+        if (playerWon && !vsHuman && unlockCount < PlayerColors.Length)
         {
             unlockCount++;
             selectedSkin = unlockCount - 1;
@@ -1168,6 +1201,7 @@ public class car : MonoBehaviour
         }
 
         if (!bot) sum += playerBonus;
+        else if (vsHuman) sum += p2Bonus;
         return sum;
     }
 
@@ -1325,11 +1359,27 @@ public class car : MonoBehaviour
         return new Rect(card.x + 22f, top + i * (h + gap), card.width - 44f, h);
     }
 
-    Rect MenuPlayRect() { return StackBtn(5); }
+    Rect MenuModeBotRect()
+    {
+        Rect card = MenuCard();
+        float top = card.y + 252f + 5 * 39f;
+        float w = (card.width - 50f) * 0.5f;
+        return new Rect(card.x + 22f, top, w, 34f);
+    }
+
+    Rect MenuMode2pRect()
+    {
+        Rect card = MenuCard();
+        float top = card.y + 252f + 5 * 39f;
+        float w = (card.width - 50f) * 0.5f;
+        return new Rect(card.x + 28f + w, top, w, 34f);
+    }
+
+    Rect MenuPlayRect() { return StackBtn(6); }
 
     Rect LevelRect(int i) { return StackBtn(i); }
 
-    Rect MenuCollectionRect() { return StackBtn(6); }
+    Rect MenuCollectionRect() { return StackBtn(7); }
 
     Rect BackMenuRect()
     {
@@ -1432,7 +1482,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 11  ·  Tam araba sayfası", hintStyle);
+            "Sürüm 12  ·  İki kişilik mod", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
             "Arabalarım " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
@@ -1478,11 +1528,22 @@ public class car : MonoBehaviour
             GUI.Label(lr, LevelNames[i], hintStyle);
         }
 
+        Rect modeBot = MenuModeBotRect();
+        Rect mode2p = MenuMode2pRect();
+        GUI.color = !vsHuman ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(modeBot, pixel);
+        GUI.color = !vsHuman ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
+        GUI.Label(modeBot, "Bot'a karşı", hintStyle);
+        GUI.color = vsHuman ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
+        GUI.DrawTexture(mode2p, pixel);
+        GUI.color = vsHuman ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
+        GUI.Label(mode2p, "İki kişilik", hintStyle);
+
         Rect play = MenuPlayRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(play, pixel);
         GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
-        GUI.Label(play, "Bu arabayla oyna", label);
+        GUI.Label(play, vsHuman ? "İki kişilik oyna" : "Bu arabayla oyna", label);
 
         Rect coll = MenuCollectionRect();
         GUI.color = new Color(0.18f, 0.22f, 0.28f, 1f);
@@ -1576,8 +1637,8 @@ public class car : MonoBehaviour
         float inner = safe.width - pad * 2f - gap * 2f;
         float w = inner / 3f;
         float x = safe.x + pad;
-        DrawPill(new Rect(x, y, w, h), "Sen " + TeamScore(false));
-        DrawPill(new Rect(x + w + gap, y, w, h), "Bot " + TeamScore(true));
+        DrawPill(new Rect(x, y, w, h), SideName(false) + " " + TeamScore(false));
+        DrawPill(new Rect(x + w + gap, y, w, h), SideName(true) + " " + TeamScore(true));
         DrawPill(new Rect(x + (w + gap) * 2f, y, w, h), LevelNames[levelI] + " " + turn + "/" + carsPerSide);
         Rect back = BackMenuRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
@@ -1590,20 +1651,22 @@ public class car : MonoBehaviour
         DrawPill(new Rect(safe.x + pad, y2, 110f, h), "Arabalar " + unlockCount + "/" + PlayerColors.Length);
         if (comboStreak > 0)
             DrawPill(new Rect(safe.x + pad + 118f, y2, 90f, h), "Kombo x" + comboStreak);
-        if (!botTurn && activePower != PowerUp.None && phase == Phase.Aim)
+        if (HumanCanAim() && activePower != PowerUp.None)
         {
             string p = activePower == PowerUp.Ice ? "Power: BUZ" : "Power: MIKNATIS";
             DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
         }
 
-        // Orta yatay "Sıra sende" — atışa geçince solar
+        // Orta yatay sıra yazısı — atışa geçince solar
         if (phase == Phase.Aim || phase == Phase.Slide)
         {
             turnBannerPulse += Time.deltaTime;
             float bw = Mathf.Min(safe.width * 0.72f, 360f);
             float bh = 36f;
             var banner = new Rect(safe.x + (safe.width - bw) * 0.5f, safe.y + safe.height * 0.42f, bw, bh);
-            string turnText = botTurn ? "Sıra botta" : "Sıra sende";
+            string turnText = vsHuman
+                ? (botTurn ? "Sıra 2. oyuncuda" : "Sıra 1. oyuncuda")
+                : (botTurn ? "Sıra botta" : "Sıra sende");
             float alpha = (phase == Phase.Slide || pulling) ? 0f : 0.90f;
             if (botTurn)
                 GUI.color = new Color(0.14f, 0.37f, 0.78f, alpha);
@@ -1621,7 +1684,7 @@ public class car : MonoBehaviour
 
     void DrawBar()
     {
-        if (botTurn)
+        if (botTurn && !vsHuman)
         {
             Rect safeBot = SafeScreen();
             GUI.Label(new Rect(safeBot.x, safeBot.yMax - 48f, safeBot.width, 22f), "Bot nişan alıyor…", hintStyle);
@@ -1671,8 +1734,10 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Tur bitti", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 52f, card.width - 32f, 28f), reason, hintStyle);
-        GUI.Label(new Rect(card.x, card.y + 88f, card.width, 28f), "Sen " + TeamScore(false) + "   Bot " + TeamScore(true), label);
-        GUI.Label(new Rect(card.x, card.y + 118f, card.width, 22f), "Bonus " + playerBonus + "   Rekor " + best, hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 88f, card.width, 28f),
+            SideName(false) + " " + TeamScore(false) + "   " + SideName(true) + " " + TeamScore(true), label);
+        string bonusLine = vsHuman ? ("Bonus " + playerBonus + "/" + p2Bonus) : ("Bonus " + playerBonus);
+        GUI.Label(new Rect(card.x, card.y + 118f, card.width, 22f), bonusLine + "   Rekor " + best, hintStyle);
         if (!string.IsNullOrEmpty(unlockFlash))
             GUI.Label(new Rect(card.x + 12f, card.y + 144f, card.width - 24f, 28f), unlockFlash, hintStyle);
         Rect button = AgainRect();
