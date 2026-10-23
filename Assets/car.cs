@@ -1517,33 +1517,26 @@ public class car : MonoBehaviour
             DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
         }
 
-        // Üst sol — kompakt sıra göstergesi
-        if (phase != Phase.Over)
+        // Orta yatay "Sıra sende" — atışa geçince solar
+        if (phase == Phase.Aim || phase == Phase.Slide)
         {
             turnBannerPulse += Time.deltaTime;
-            float bw = 52f;
-            float bh = 22f;
-            var banner = new Rect(safe.x + 10f, safe.y + 42f, bw, bh);
-            string turnText;
-            if (phase == Phase.Slide)
-            {
-                GUI.color = new Color(0.12f, 0.11f, 0.09f, 0.92f);
-                turnText = botTurn ? "Bot…" : "Sen…";
-            }
-            else if (botTurn)
-            {
-                GUI.color = new Color(0.14f, 0.37f, 0.78f, 0.94f);
-                turnText = "BOT";
-            }
+            float bw = Mathf.Min(safe.width * 0.72f, 360f);
+            float bh = 36f;
+            var banner = new Rect(safe.x + (safe.width - bw) * 0.5f, safe.y + safe.height * 0.42f, bw, bh);
+            string turnText = botTurn ? "Sıra botta" : "Sıra sende";
+            float alpha = (phase == Phase.Slide || pulling) ? 0f : 0.90f;
+            if (botTurn)
+                GUI.color = new Color(0.14f, 0.37f, 0.78f, alpha);
             else
+                GUI.color = new Color(0.82f, 0.22f, 0.22f, alpha);
+            if (alpha > 0.02f)
             {
-                GUI.color = new Color(0.82f, 0.22f, 0.22f, 0.94f);
-                turnText = "SEN";
+                GUI.DrawTexture(banner, pixel);
+                GUI.color = new Color(1f, 1f, 1f, alpha);
+                GUI.Label(banner, turnText, hudStyle != null ? hudStyle : label);
             }
-
-            GUI.DrawTexture(banner, pixel);
             GUI.color = Color.white;
-            GUI.Label(banner, turnText, hudStyle != null ? hudStyle : label);
         }
     }
 
