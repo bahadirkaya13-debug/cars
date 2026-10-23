@@ -117,14 +117,18 @@
       pointer-events: none;
     }
     #menu.panel .card { pointer-events: auto; }
-    /* Arabalarım: tam sayfa */
-    #collection.panel {
+    /* Tam sayfa menüler: Arabalar / Pistler / Koleksiyonlar */
+    #collection.panel,
+    #tracks.panel,
+    #trophies.panel {
       place-items: stretch;
       padding: 0;
       background: rgba(10, 14, 20, 0.96);
       pointer-events: auto;
     }
-    #collection .card.garage-page {
+    #collection .card.garage-page,
+    #tracks .card.garage-page,
+    #trophies .card.garage-page {
       width: 100%;
       max-width: none;
       height: 100%;
@@ -135,15 +139,61 @@
       padding: 16px 14px 22px;
       box-shadow: none;
     }
+    .menu-entries { display: flex; flex-direction: column; gap: 0; margin: 4px 0 8px; }
+    .track-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+    .track-item {
+      appearance: none;
+      border: 2px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.55);
+      color: #eef3f8;
+      padding: 14px 14px 12px;
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .track-item strong { font-size: 16px; }
+    .track-item span { font-size: 12px; color: #c5d0dc; font-weight: 600; }
+    .track-item.selected {
+      border-color: #f0a202;
+      box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
+    }
+    .trophy-stat {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+    .trophy-stat div {
+      background: rgba(8, 12, 18, 0.55);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 12px 10px;
+    }
+    .trophy-stat b {
+      display: block;
+      font-size: 22px;
+      color: #f0a202;
+      margin-bottom: 2px;
+    }
+    .trophy-stat span { font-size: 12px; color: #c5d0dc; font-weight: 700; }
     .panel.hidden { display: none; }
     .card {
       width: min(86%, 420px);
-      max-height: 72%;
+      max-height: min(94%, 820px);
       overflow-y: auto;
       background: rgba(16, 24, 34, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 18px;
-      padding: 22px 22px 18px;
+      padding: 18px 18px 16px;
       text-align: center;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     }
@@ -438,27 +488,41 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 16 · Arabalarım</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 17 · Menü sayfaları</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
-        <button id="open-collection" class="garage-entry" type="button">
-          <img id="menu-car-img" alt="" width="96" height="52">
-          <span class="ge-text">
-            <strong>Arabalarım</strong>
-            <span id="menu-car-sub">Seçmek için dokun</span>
-          </span>
-          <span class="ge-chev" aria-hidden="true">›</span>
-        </button>
-        <p class="section-lab">Seviye</p>
-        <div class="models" id="levels"></div>
+        <div class="menu-entries">
+          <button id="open-collection" class="garage-entry" type="button">
+            <img id="menu-car-img" alt="" width="96" height="52">
+            <span class="ge-text">
+              <strong>Arabalar</strong>
+              <span id="menu-car-sub">Seçmek için dokun</span>
+            </span>
+            <span class="ge-chev" aria-hidden="true">›</span>
+          </button>
+          <button id="open-tracks" class="garage-entry" type="button">
+            <span class="ge-text" style="padding-left:4px">
+              <strong>Pistler</strong>
+              <span id="menu-track-sub">Salon</span>
+            </span>
+            <span class="ge-chev" aria-hidden="true">›</span>
+          </button>
+          <button id="open-trophies" class="garage-entry" type="button">
+            <span class="ge-text" style="padding-left:4px">
+              <strong>Koleksiyonlar</strong>
+              <span id="menu-trophy-sub">İlerleme ve ödüller</span>
+            </span>
+            <span class="ge-chev" aria-hidden="true">›</span>
+          </button>
+        </div>
         <div class="btn-row">
-          <button id="start" type="button">Bu arabayla oyna</button>
+          <button id="start" type="button">Oyna</button>
         </div>
       </div>
     </section>
     <section class="panel hidden" id="collection">
       <div class="card wide garage-page">
-        <h1>Arabalarım</h1>
+        <h1>Arabalar</h1>
         <p class="coll-meta" id="coll-meta">0/10 araba</p>
         <div class="sel-preview" id="coll-sel-preview">
           <img id="coll-sel-img" alt="">
@@ -472,6 +536,31 @@
         </div>
       </div>
     </section>
+    <section class="panel hidden" id="tracks">
+      <div class="card wide garage-page">
+        <h1>Pistler</h1>
+        <p class="coll-meta" id="track-meta">Pist seç</p>
+        <div class="track-grid" id="track-grid"></div>
+        <p id="track-hint">Pist seç, sonra oyna.</p>
+        <div class="btn-row">
+          <button id="track-play" type="button">Bu pistte oyna</button>
+          <button id="track-back" class="ghost" type="button">Geri</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel hidden" id="trophies">
+      <div class="card wide garage-page">
+        <h1>Koleksiyonlar</h1>
+        <p class="coll-meta" id="trophy-meta">İlerleme</p>
+        <div class="trophy-stat" id="trophy-stats"></div>
+        <p class="section-lab">Açık arabalar</p>
+        <div class="coll-grid" id="trophy-grid"></div>
+        <div class="btn-row">
+          <button id="trophy-play" type="button">Oyna</button>
+          <button id="trophy-back" class="ghost" type="button">Geri</button>
+        </div>
+      </div>
+    </section>
     <section class="panel hidden" id="over">
       <div class="card">
         <h1>Tur bitti</h1>
@@ -480,7 +569,7 @@
         <p id="best-out"></p>
         <div class="btn-row">
           <button id="again" type="button">Tekrar oyna</button>
-          <button id="over-collection" class="ghost" type="button">Arabalarım</button>
+          <button id="over-collection" class="ghost" type="button">Arabalar</button>
           <button id="over-menu" class="ghost" type="button">Menü</button>
         </div>
       </div>
@@ -549,7 +638,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=16";
+      return "cars/" + file + "?v=17";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -596,12 +685,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=16";
+      im.src = src + "?v=17";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=16";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=17";
         return im;
       });
     }
@@ -618,13 +707,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=16")
+    fetch("cars/atlas.json?v=17")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=16";
+        img.src = "cars/atlas.png?v=17";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -641,6 +730,8 @@
     const stage = document.getElementById("stage");
     const menuEl = document.getElementById("menu");
     const collectionEl = document.getElementById("collection");
+    const tracksEl = document.getElementById("tracks");
+    const trophiesEl = document.getElementById("trophies");
     const overEl = document.getElementById("over");
     const howtoEl = document.getElementById("howto");
     const turnBanner = document.getElementById("turn-banner");
@@ -658,6 +749,13 @@
     const collGrid = document.getElementById("coll-grid");
     const collMeta = document.getElementById("coll-meta");
     const collHint = document.getElementById("coll-hint");
+    const PAGE_STATES = ["collection", "tracks", "trophies"];
+    function hideAllPages() {
+      collectionEl.classList.add("hidden");
+      tracksEl.classList.add("hidden");
+      trophiesEl.classList.add("hidden");
+    }
+    function isPageState(s) { return PAGE_STATES.indexOf(s) >= 0; }
 
     const scratches = Array.from({ length: 16 }, () => ({
       x: 50 + Math.random() * 620,
@@ -678,9 +776,14 @@
     try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
     function refreshMenuBest() {
       const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
+      const track = LEVELS[levelI] ? LEVELS[levelI].name : "Salon";
       menuBestEl.textContent = best > 0
-        ? ("Rekor " + best + " · Arabalarım " + unlockCount + "/" + CAR_COUNT + " · " + name)
-        : ("Arabalarım " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
+        ? ("Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT + " · " + name)
+        : ("Arabalar " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
+      const trackSub = document.getElementById("menu-track-sub");
+      if (trackSub) trackSub.textContent = track + " · " + LEVELS.length + " pist";
+      const trophySub = document.getElementById("menu-trophy-sub");
+      if (trophySub) trophySub.textContent = unlockCount + "/" + CAR_COUNT + " araba · Rekor " + best;
       updateSelectedPreview();
     }
 
@@ -745,13 +848,110 @@
     function showCollection() {
       menuEl.classList.add("hidden");
       overEl.classList.add("hidden");
+      hideAllPages();
       collectionEl.classList.remove("hidden");
       state = "collection";
       renderCollection();
     }
 
+    function renderTracks() {
+      const grid = document.getElementById("track-grid");
+      const meta = document.getElementById("track-meta");
+      const hint = document.getElementById("track-hint");
+      if (!grid) return;
+      grid.innerHTML = "";
+      if (meta) meta.textContent = "Seçili: " + LEVELS[levelI].name + " · " + LEVELS.length + " pist";
+      LEVELS.forEach((L, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "track-item" + (i === levelI ? " selected" : "");
+        btn.innerHTML = "<strong>" + L.name + "</strong><span>" +
+          (i + 1) + "/" + LEVELS.length +
+          " · Araba " + L.cars +
+          " · Bot " + Math.round(L.bot * 100) + "%" +
+          (i === levelI ? " · Seçili" : "") +
+          "</span>";
+        btn.addEventListener("click", () => {
+          levelI = i;
+          try { localStorage.setItem(LEVEL_KEY, String(levelI)); } catch (e) { /* yoksay */ }
+          applyLevel();
+          renderTracks();
+          refreshMenuBest();
+          if (hint) hint.textContent = L.name + " seçildi.";
+          asmr("tap");
+        });
+        grid.appendChild(btn);
+      });
+      if (hint) hint.textContent = "Seçili pist: " + LEVELS[levelI].name;
+    }
+
+    function showTracks() {
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      hideAllPages();
+      tracksEl.classList.remove("hidden");
+      state = "tracks";
+      renderTracks();
+    }
+
+    function renderTrophies() {
+      const stats = document.getElementById("trophy-stats");
+      const grid = document.getElementById("trophy-grid");
+      const meta = document.getElementById("trophy-meta");
+      if (meta) meta.textContent = "Botu yen, koleksiyonu büyüt";
+      if (stats) {
+        stats.innerHTML =
+          "<div><b>" + unlockCount + "/" + CAR_COUNT + "</b><span>Açık araba</span></div>" +
+          "<div><b>" + best + "</b><span>Rekor puan</span></div>" +
+          "<div><b>" + LEVELS[levelI].name + "</b><span>Aktif pist</span></div>" +
+          "<div><b>" + (PLAYER_NAMES[selectedSkin] || "-") + "</b><span>Seçili araba</span></div>";
+      }
+      if (!grid) return;
+      grid.innerHTML = "";
+      for (let i = 0; i < CAR_COUNT; i++) {
+        const unlocked = i < unlockCount;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "coll-item" + (unlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
+        const name = unlocked ? (PLAYER_NAMES[i] || ("#" + (i + 1))) : "???";
+        const img = document.createElement("img");
+        img.className = "car-full";
+        img.alt = name;
+        img.src = carFileUrl(i);
+        img.draggable = false;
+        btn.appendChild(img);
+        const nameEl = document.createElement("span");
+        nameEl.className = "name";
+        nameEl.textContent = name;
+        btn.appendChild(nameEl);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = unlocked ? (i === selectedSkin ? "Seçili" : "Koleksiyonda") : "Kilitli";
+        btn.appendChild(tag);
+        if (unlocked) {
+          btn.addEventListener("click", () => {
+            selectedSkin = i;
+            try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
+            renderTrophies();
+            refreshMenuBest();
+            asmr("tap");
+          });
+        }
+        grid.appendChild(btn);
+      }
+    }
+
+    function showTrophies() {
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      hideAllPages();
+      trophiesEl.classList.remove("hidden");
+      state = "trophies";
+      renderTrophies();
+    }
+
     function hideCollectionToMenu() {
-      collectionEl.classList.add("hidden");
+      hideAllPages();
       menuEl.classList.remove("hidden");
       state = "menu";
       refreshMenuBest();
@@ -768,7 +968,7 @@
       bits.length = 0;
       menuEl.classList.remove("hidden");
       overEl.classList.add("hidden");
-      collectionEl.classList.add("hidden");
+      hideAllPages();
       howtoEl.classList.add("hidden");
       if (turnBanner) turnBanner.hidden = true;
       refreshMenuBest();
@@ -803,21 +1003,7 @@
       for (let i = 0; i < RINGS.length; i++) RINGS[i].r = RING_BASE[i] * ringMul;
     }
     applyLevel();
-    const levelBar = document.getElementById("levels");
-    LEVELS.forEach((L, i) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = L.name;
-      b.classList.toggle("sel", i === levelI);
-      b.onclick = () => {
-        levelI = i;
-        try { localStorage.setItem(LEVEL_KEY, String(levelI)); } catch (e) {}
-        applyLevel();
-        [...levelBar.children].forEach((x, k) => x.classList.toggle("sel", k === levelI));
-        asmr("tap");
-      };
-      levelBar.appendChild(b);
-    });
+    refreshMenuBest();
     const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
 
     function pointsAt(x, y) {
@@ -1269,9 +1455,15 @@
     document.getElementById("start").addEventListener("click", startRound);
     document.getElementById("again").addEventListener("click", startRound);
     document.getElementById("open-collection").addEventListener("click", showCollection);
+    document.getElementById("open-tracks").addEventListener("click", showTracks);
+    document.getElementById("open-trophies").addEventListener("click", showTrophies);
     document.getElementById("over-collection").addEventListener("click", showCollection);
     document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
     document.getElementById("coll-play").addEventListener("click", startRound);
+    document.getElementById("track-back").addEventListener("click", hideCollectionToMenu);
+    document.getElementById("track-play").addEventListener("click", startRound);
+    document.getElementById("trophy-back").addEventListener("click", hideCollectionToMenu);
+    document.getElementById("trophy-play").addEventListener("click", startRound);
     document.getElementById("to-menu").addEventListener("click", (e) => { e.stopPropagation(); goMenu(); });
     document.getElementById("over-menu").addEventListener("click", goMenu);
     window.addEventListener("keydown", (e) => {
@@ -1811,8 +2003,8 @@
         powerCells[i].classList.toggle("on", on);
         powerCells[i].style.background = on ? colors[i] : "rgba(18, 10, 5, 0.9)";
       }
-      bottomEl.hidden = state === "menu" || state === "over" || state === "collection" || state === "howto";
-      document.getElementById("to-menu").hidden = state === "menu" || state === "collection" || state === "howto";
+      bottomEl.hidden = state === "menu" || state === "over" || isPageState(state) || state === "howto";
+      document.getElementById("to-menu").hidden = state === "menu" || isPageState(state) || state === "howto";
       const inMatch = state === "aim" || state === "slide";
       if (!inMatch) {
         turnBanner.hidden = true;
@@ -1836,7 +2028,7 @@
     function draw() {
       drawRink();
       drawHouse();
-      if (state === "menu" || state === "collection" || state === "howto") {
+      if (state === "menu" || isPageState(state) || state === "howto") {
         drawCar({
           x: SPAWN.x,
           y: SPAWN.y - 18,
