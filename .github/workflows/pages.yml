@@ -19,11 +19,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Oyun dosyasini hazirla
         run: |
-          mkdir _site
+          mkdir -p _site/cars
           cp index.html _site/index.html
           cp "Assets/StreamingAssets/masa.jpg" _site/masa.jpg
           cp muscle.jpg _site/muscle.jpg
           cp hatch.jpg _site/hatch.jpg
+          cp cars/atlas.png _site/cars/atlas.png
+          cp cars/atlas.json _site/cars/atlas.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

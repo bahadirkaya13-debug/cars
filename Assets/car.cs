@@ -26,6 +26,7 @@ public class car : MonoBehaviour
     const string SkinKey = "halka-arabalari-skin";
     const string BodyKey = "halka-arabalari-body";
     const string LevelKey = "halka-arabalari-level";
+    const int StartUnlock = 6;
     static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
     static readonly float[] LevelFriction = { 1.60f, 0.95f, 1.50f, 2.10f, 1.25f };
@@ -52,7 +53,7 @@ public class car : MonoBehaviour
         new Color(0.82f, 0.16f, 0.16f),
         new Color(0.10f, 0.42f, 0.82f),
     };
-    static readonly Color[] PlayerColors =
+    Color[] PlayerColors =
     {
         new Color(0.86f, 0.18f, 0.18f),
         new Color(0.95f, 0.48f, 0.10f),
@@ -60,8 +61,6 @@ public class car : MonoBehaviour
         new Color(0.90f, 0.30f, 0.45f),
         new Color(0.55f, 0.20f, 0.85f),
         new Color(0.15f, 0.78f, 0.42f),
-        new Color(0.98f, 0.55f, 0.75f),
-        new Color(0.95f, 0.95f, 0.95f),
     };
     static readonly Color[] BotColors =
     {
@@ -70,10 +69,35 @@ public class car : MonoBehaviour
         new Color(0.35f, 0.55f, 0.95f),
         new Color(0.18f, 0.62f, 0.80f),
     };
-    static readonly string[] PlayerNames =
+    string[] PlayerNames =
     {
-        "Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"
+        "Bordo 1", "Lacivert 1", "Yeşil 1", "Gümüş 1", "Kızıl 1", "Lacivert 2"
     };
+
+    [System.Serializable]
+    class AtlasMeta
+    {
+        public int cols;
+        public int rows;
+        public int cellW;
+        public int cellH;
+        public int count;
+        public AtlasCar[] cars;
+    }
+
+    [System.Serializable]
+    class AtlasCar
+    {
+        public int i;
+        public int row;
+        public int col;
+        public string name;
+        public string color;
+        public int sx;
+        public int sy;
+        public int w;
+        public int h;
+    }
 
     enum Phase { Menu, Collection, Aim, Slide, Over }
     enum PowerUp { None, Ice, Magnet }
@@ -91,6 +115,7 @@ public class car : MonoBehaviour
         public float frictionMul = 1f;
         public bool magnet;
         public int body;
+        public int skin = -1;
     }
 
     class Pop
@@ -127,6 +152,8 @@ public class car : MonoBehaviour
     Sprite[] playerSprites;
     Sprite[] botSprites;
     Sprite[] hwSprites;
+    Sprite[] atlasSprites;
+    Vector2 collectionScroll;
     readonly List<Stone> stones = new List<Stone>();
     readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
     readonly List<Vector2> preview = new List<Vector2>();
@@ -179,8 +206,6 @@ public class car : MonoBehaviour
     void Awake()
     {
         best = PlayerPrefs.GetInt(BestKey, 0);
-        unlockCount = Mathf.Clamp(PlayerPrefs.GetInt(UnlockKey, 2), 2, PlayerColors.Length);
-        selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
         bodyStyle = Mathf.Clamp(PlayerPrefs.GetInt(BodyKey, 1), 0, 2);
         levelI = Mathf.Clamp(PlayerPrefs.GetInt(LevelKey, 0), 0, LevelNames.Length - 1);
         ApplyLevel();
@@ -195,12 +220,19 @@ public class car : MonoBehaviour
         Screen.orientation = ScreenOrientation.Portrait;
         circleSprite = MakeCircleSprite();
         LoadCarPhotos();
-        playerSprites = new Sprite[PlayerColors.Length];
-        for (int i = 0; i < PlayerColors.Length; i++)
-            playerSprites[i] = MakeCarSprite(PlayerColors[i], 1);
+        LoadCarAtlas();
+        if (playerSprites == null || playerSprites.Length != PlayerColors.Length)
+        {
+            playerSprites = new Sprite[PlayerColors.Length];
+            for (int i = 0; i < PlayerColors.Length; i++)
+                playerSprites[i] = MakeCarSprite(PlayerColors[i], 1);
+        }
         botSprites = new Sprite[BotColors.Length];
         for (int i = 0; i < BotColors.Length; i++)
             botSprites[i] = MakeCarSprite(BotColors[i], 1);
+        unlockCount = Mathf.Clamp(Mathf.Max(PlayerPrefs.GetInt(UnlockKey, StartUnlock), StartUnlock), StartUnlock, PlayerColors.Length);
+        selectedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, unlockCount - 1);
+        PlayerPrefs.SetInt(UnlockKey, unlockCount);
         LoadTable();
         SetupCamera();
         BuildRink();
@@ -422,13 +454,19 @@ public class car : MonoBehaviour
             frictionMul = 1f,
             magnet = false,
             body = forBot ? 1 : bodyStyle,
+            skin = forBot ? -1 : selectedSkin,
         };
         stone.view = new GameObject(forBot ? "BotAraba" : "Araba");
         stone.view.transform.SetParent(transform, false);
         var body = stone.view.AddComponent<SpriteRenderer>();
         int model = forBot ? 1 : bodyStyle;
         Color paint = forBot ? BotColors[idx % BotColors.Length] : PlayerColors[idx % PlayerColors.Length];
-        if (hwSprites != null && model >= 0 && model < hwSprites.Length && hwSprites[model] != null)
+        if (!forBot && atlasSprites != null && idx >= 0 && idx < atlasSprites.Length && atlasSprites[idx] != null)
+        {
+            body.sprite = atlasSprites[idx];
+            body.color = Color.white;
+        }
+        else if (hwSprites != null && model >= 0 && model < hwSprites.Length && hwSprites[model] != null)
         {
             body.sprite = hwSprites[model];
             body.color = Color.white;
@@ -603,16 +641,25 @@ public class car : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < PlayerColors.Length; i++)
+        Rect view = CollectionScrollView();
+        if (!ReadPointer(out bool down, out _, out _, out Vector2 screen) || !down) return;
+        screen.y = Screen.height - screen.y;
+        if (!view.Contains(screen)) return;
+        Vector2 local = new Vector2(screen.x - view.x, screen.y - view.y + collectionScroll.y);
+        const int cols = 5;
+        float gap = 6f;
+        float cellW = (view.width - 18f - gap * (cols - 1)) / cols;
+        float cellH = 70f;
+        int col = Mathf.FloorToInt(local.x / (cellW + gap));
+        int row = Mathf.FloorToInt(local.y / (cellH + gap));
+        if (col < 0 || col >= cols || row < 0) return;
+        int i = row * cols + col;
+        if (i < 0 || i >= PlayerColors.Length) return;
+        if (i < unlockCount)
         {
-            if (!Clicked(CollectionCellRect(i))) continue;
-            if (i < unlockCount)
-            {
-                selectedSkin = i;
-                PlayerPrefs.SetInt(SkinKey, selectedSkin);
-            }
-
-            break;
+            selectedSkin = i;
+            PlayerPrefs.SetInt(SkinKey, selectedSkin);
+            PlayAsmr("tap");
         }
     }
 
@@ -1016,7 +1063,8 @@ public class car : MonoBehaviour
             selectedSkin = unlockCount - 1;
             PlayerPrefs.SetInt(UnlockKey, unlockCount);
             PlayerPrefs.SetInt(SkinKey, selectedSkin);
-            unlockFlash = "Yeni araba açıldı! (" + unlockCount + "/" + PlayerColors.Length + ")";
+            string fresh = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
+            unlockFlash = "Yeni araba: " + fresh + " (" + unlockCount + "/" + PlayerColors.Length + ")";
             AddPop("YENİ ARABA!", House, new Color(1f, 0.85f, 0.3f));
         }
         else
@@ -1200,23 +1248,15 @@ public class car : MonoBehaviour
     Rect CollectionCard()
     {
         Rect safe = SafeScreen();
-        float w = Mathf.Min(460f, safe.width - 16f);
-        float h = Mathf.Min(520f, safe.height - 40f);
+        float w = Mathf.Min(480f, safe.width - 12f);
+        float h = Mathf.Min(560f, safe.height - 24f);
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
-    Rect CollectionCellRect(int i)
+    Rect CollectionScrollView()
     {
         Rect card = CollectionCard();
-        int cols = 4;
-        float pad = 16f;
-        float gap = 8f;
-        float top = card.y + 78f;
-        float cellW = (card.width - pad * 2f - gap * (cols - 1)) / cols;
-        float cellH = 72f;
-        int row = i / cols;
-        int col = i % cols;
-        return new Rect(card.x + pad + col * (cellW + gap), top + row * (cellH + gap), cellW, cellH);
+        return new Rect(card.x + 12f, card.y + 72f, card.width - 24f, card.height - 140f);
     }
 
     Rect CollectionPlayRect()
@@ -1300,7 +1340,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 8  ·  Sıra paneli  ·  Mini öğretici", hintStyle);
+            "Sürüm 9.0  ·  110 arabalık koleksiyon", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
             "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
@@ -1344,13 +1384,23 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.96f);
         GUI.DrawTexture(card, pixel);
         GUI.color = Color.white;
-        GUI.Label(new Rect(card.x, card.y + 14f, card.width, 32f), "Koleksiyon", label);
-        GUI.Label(new Rect(card.x, card.y + 46f, card.width, 22f),
-            unlockCount + "/" + PlayerColors.Length + " araba açık", hintStyle);
+        GUI.Label(new Rect(card.x, card.y + 10f, card.width, 28f), "Koleksiyon", label);
+        GUI.Label(new Rect(card.x, card.y + 40f, card.width, 28f),
+            unlockCount + "/" + PlayerColors.Length + " araba açık · Botu yenerek aç", hintStyle);
 
+        Rect view = CollectionScrollView();
+        const int cols = 5;
+        float gap = 6f;
+        float cellW = (view.width - 18f - gap * (cols - 1)) / cols;
+        float cellH = 70f;
+        int rows = Mathf.CeilToInt(PlayerColors.Length / (float)cols);
+        float contentH = rows * (cellH + gap) + 8f;
+        collectionScroll = GUI.BeginScrollView(view, collectionScroll, new Rect(0f, 0f, view.width - 18f, contentH));
         for (int i = 0; i < PlayerColors.Length; i++)
         {
-            Rect cell = CollectionCellRect(i);
+            int row = i / cols;
+            int col = i % cols;
+            Rect cell = new Rect(col * (cellW + gap), row * (cellH + gap), cellW, cellH);
             bool unlocked = i < unlockCount;
             bool selected = i == selectedSkin;
             GUI.color = unlocked
@@ -1363,15 +1413,29 @@ public class car : MonoBehaviour
                 GUI.DrawTexture(new Rect(cell.x, cell.y, cell.width, 3f), pixel);
             }
 
-            Rect swatch = new Rect(cell.x + (cell.width - 36f) * 0.5f, cell.y + 10f, 36f, 22f);
-            GUI.color = unlocked ? PlayerColors[i] : Color.Lerp(PlayerColors[i], Color.black, 0.65f);
-            GUI.DrawTexture(swatch, pixel);
+            Rect thumb = new Rect(cell.x + 4f, cell.y + 8f, cell.width - 8f, 28f);
+            if (atlasSprites != null && i < atlasSprites.Length && atlasSprites[i] != null)
+            {
+                Rect tr = atlasSprites[i].textureRect;
+                Texture2D tex = atlasSprites[i].texture;
+                var uv = new Rect(tr.x / tex.width, tr.y / tex.height, tr.width / tex.width, tr.height / tex.height);
+                GUI.color = unlocked ? Color.white : new Color(0.35f, 0.35f, 0.35f, 0.9f);
+                GUI.DrawTextureWithTexCoords(thumb, tex, uv);
+            }
+            else
+            {
+                GUI.color = unlocked ? PlayerColors[i] : Color.Lerp(PlayerColors[i], Color.black, 0.65f);
+                GUI.DrawTexture(thumb, pixel);
+            }
+
             GUI.color = unlocked ? Color.white : new Color(1f, 1f, 1f, 0.45f);
             string title = unlocked ? PlayerNames[i] : "???";
             string tag = unlocked ? (selected ? "Seçili" : "Açık") : "Kilitli";
-            GUI.Label(new Rect(cell.x, cell.y + 34f, cell.width, 18f), title, hudStyle);
-            GUI.Label(new Rect(cell.x, cell.y + 50f, cell.width, 16f), tag, hintStyle);
+            GUI.Label(new Rect(cell.x, cell.y + 38f, cell.width, 16f), title, hudStyle);
+            GUI.Label(new Rect(cell.x, cell.y + 52f, cell.width, 14f), tag, hintStyle);
         }
+
+        GUI.EndScrollView();
 
         Rect play = CollectionPlayRect();
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
@@ -1796,6 +1860,54 @@ public class car : MonoBehaviour
         hwSprites[0] = LoadHwSprite("muscle.jpg");
         hwSprites[1] = LoadHwSprite("hatch.jpg");
         hwSprites[2] = hwSprites[0];
+    }
+
+    void LoadCarAtlas()
+    {
+        atlasSprites = null;
+        try
+        {
+            string dir = Path.Combine(Application.streamingAssetsPath, "cars");
+            string jsonPath = Path.Combine(dir, "atlas.json");
+            string pngPath = Path.Combine(dir, "atlas.png");
+            if (!File.Exists(jsonPath) || !File.Exists(pngPath))
+            {
+                dir = Path.Combine(Directory.GetCurrentDirectory(), "cars");
+                jsonPath = Path.Combine(dir, "atlas.json");
+                pngPath = Path.Combine(dir, "atlas.png");
+            }
+
+            if (!File.Exists(jsonPath) || !File.Exists(pngPath)) return;
+            AtlasMeta meta = JsonUtility.FromJson<AtlasMeta>(File.ReadAllText(jsonPath));
+            if (meta == null || meta.cars == null || meta.cars.Length == 0) return;
+
+            byte[] bytes = File.ReadAllBytes(pngPath);
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!tex.LoadImage(bytes)) return;
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+
+            PlayerNames = new string[meta.cars.Length];
+            PlayerColors = new Color[meta.cars.Length];
+            atlasSprites = new Sprite[meta.cars.Length];
+            playerSprites = new Sprite[meta.cars.Length];
+            for (int i = 0; i < meta.cars.Length; i++)
+            {
+                AtlasCar c = meta.cars[i];
+                PlayerNames[i] = string.IsNullOrEmpty(c.name) ? ("Araba " + (i + 1)) : c.name;
+                Color col;
+                if (!ColorUtility.TryParseHtmlString(c.color, out col)) col = Color.white;
+                PlayerColors[i] = col;
+                float y = tex.height - c.sy - c.h;
+                var sprite = Sprite.Create(tex, new Rect(c.sx, y, c.w, c.h), new Vector2(0.5f, 0.5f), 100f);
+                atlasSprites[i] = sprite;
+                playerSprites[i] = sprite;
+            }
+        }
+        catch
+        {
+            atlasSprites = null;
+        }
     }
 
     Sprite LoadHwSprite(string file)

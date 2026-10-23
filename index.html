@@ -166,42 +166,58 @@
     }
     .coll-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
       margin: 0 0 14px;
+      max-height: min(52vh, 420px);
+      overflow-y: auto;
+      padding: 2px;
     }
     .coll-item {
       appearance: none;
       border: 2px solid rgba(255,255,255,0.14);
-      border-radius: 14px;
+      border-radius: 12px;
       background: rgba(8, 12, 18, 0.55);
       color: #eef3f8;
-      padding: 10px 6px 8px;
+      padding: 8px 4px 6px;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       font: inherit;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 10px;
+      min-width: 0;
     }
     .coll-item .swatch {
-      width: 42px;
-      height: 28px;
-      border-radius: 8px;
+      width: 52px;
+      height: 29px;
+      border-radius: 6px;
+      background-color: #243040;
+      background-repeat: no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+      image-rendering: auto;
+    }
+    .coll-item .swatch.fallback {
       box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
     }
     .coll-item.locked {
-      opacity: 0.45;
+      opacity: 0.42;
       cursor: not-allowed;
-      filter: grayscale(0.85);
+      filter: grayscale(1) brightness(0.55);
     }
     .coll-item.selected {
       border-color: #f0a202;
       box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
     }
-    .coll-item .tag { font-size: 11px; color: #c5d0dc; font-weight: 600; }
+    .coll-item .tag { font-size: 10px; color: #c5d0dc; font-weight: 600; }
+    .coll-item .name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
     .models { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
     .models button {
       width: 100%; font: inherit; font-size: 14px; font-weight: 800; padding: 10px 8px;
@@ -274,7 +290,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8.2 · Sıra paneli sol altta</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 9.0 · 110 arabalık koleksiyon</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Araba</p>
@@ -294,7 +310,7 @@
     <section class="panel hidden" id="collection">
       <div class="card wide">
         <h1>Koleksiyon</h1>
-        <p class="coll-meta" id="coll-meta">0/8 araba</p>
+        <p class="coll-meta" id="coll-meta">0/110 araba</p>
         <div class="coll-grid" id="coll-grid"></div>
         <p id="coll-hint">Açık arabaya dokunarak seç.</p>
         <div class="btn-row">
@@ -367,12 +383,16 @@
     const UNLOCK_KEY = "halka-arabalari-unlocks";
     const SKIN_KEY = "halka-arabalari-skin";
     const BODY_KEY = "halka-arabalari-body";
-    const PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b", "#fa8cbd", "#f2f2f2"];
-    const PLAYER_NAMES = ["Kızıl", "Turuncu", "Altın", "Gül", "Mor", "Yeşil", "Pembe", "İnci"];
+    const START_UNLOCK = 6;
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
     const CAR_LEN = 112;
     const CAR_WIDE = 62;
     const carSheets = [null, null, null];
+    let ATLAS = null;
+    let atlasImg = null;
+    let PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b"];
+    let PLAYER_NAMES = ["Bordo 1", "Lacivert 1", "Yeşil 1", "Gümüş 1", "Kızıl 1", "Lacivert 2"];
+    let CAR_COUNT = PLAYER_COLORS.length;
     function punchCrop(img) {
       const w = img.naturalWidth;
       const h = img.naturalHeight;
@@ -418,8 +438,30 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=7";
+      im.src = src + "?v=9";
     });
+    function applyAtlas(meta, img) {
+      ATLAS = meta;
+      atlasImg = img;
+      CAR_COUNT = meta.count;
+      PLAYER_COLORS = meta.cars.map((c) => c.color);
+      PLAYER_NAMES = meta.cars.map((c) => c.name);
+      unlockCount = clamp(Math.max(unlockCount, START_UNLOCK), START_UNLOCK, CAR_COUNT);
+      selectedSkin = clamp(selectedSkin, 0, unlockCount - 1);
+      try { localStorage.setItem(UNLOCK_KEY, String(unlockCount)); } catch (e) { /* yoksay */ }
+      refreshMenuBest();
+      if (state === "collection") renderCollection();
+    }
+    fetch("cars/atlas.json?v=9")
+      .then((r) => r.json())
+      .then((meta) => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ meta, img });
+        img.onerror = reject;
+        img.src = "cars/atlas.png?v=9";
+      }))
+      .then(({ meta, img }) => applyAtlas(meta, img))
+      .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
 
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
@@ -461,29 +503,47 @@
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
     let best = 0;
-    let unlockCount = 2;
+    let unlockCount = START_UNLOCK;
     let selectedSkin = 0;
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
-    try { unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || 2, 2, PLAYER_COLORS.length); } catch (e) { unlockCount = 2; }
+    try {
+      unlockCount = clamp(Math.max(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK), START_UNLOCK, 110);
+    } catch (e) { unlockCount = START_UNLOCK; }
     try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
     function refreshMenuBest() {
-      const name = PLAYER_NAMES[selectedSkin] || "Kızıl";
+      const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
       menuBestEl.textContent = best > 0
-        ? ("Rekor " + best + " · Koleksiyon " + unlockCount + "/" + PLAYER_COLORS.length + " · Seçili: " + name)
-        : ("Koleksiyon " + unlockCount + "/" + PLAYER_COLORS.length + " · Seçili: " + name);
+        ? ("Rekor " + best + " · Koleksiyon " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name)
+        : ("Koleksiyon " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
     }
     refreshMenuBest();
 
+    function carThumbStyle(i) {
+      if (!ATLAS || !ATLAS.cars[i]) {
+        return 'background:' + (PLAYER_COLORS[i] || "#445");
+      }
+      const cell = ATLAS.cars[i];
+      const aw = ATLAS.cols * ATLAS.cellW;
+      const ah = ATLAS.rows * ATLAS.cellH;
+      const dw = 52;
+      const scale = dw / cell.w;
+      return "background-image:url(cars/atlas.png?v=9);"
+        + "background-size:" + (aw * scale) + "px " + (ah * scale) + "px;"
+        + "background-position:-" + (cell.sx * scale) + "px -" + (cell.sy * scale) + "px;"
+        + "width:" + dw + "px;height:" + Math.round(cell.h * scale) + "px;";
+    }
+
     function renderCollection() {
       collGrid.innerHTML = "";
-      collMeta.textContent = unlockCount + "/" + PLAYER_COLORS.length + " araba açık";
-      for (let i = 0; i < PLAYER_COLORS.length; i++) {
+      collMeta.textContent = unlockCount + "/" + CAR_COUNT + " araba açık · Botu yen, bir sonraki açılsın";
+      for (let i = 0; i < CAR_COUNT; i++) {
         const unlocked = i < unlockCount;
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "coll-item" + (unlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
-        btn.innerHTML = '<span class="swatch" style="background:' + PLAYER_COLORS[i] + '"></span>'
-          + '<span>' + (unlocked ? PLAYER_NAMES[i] : "???") + '</span>'
+        const name = unlocked ? (PLAYER_NAMES[i] || ("#" + (i + 1))) : "???";
+        btn.innerHTML = '<span class="swatch" style="' + carThumbStyle(i) + '"></span>'
+          + '<span class="name">' + name + '</span>'
           + '<span class="tag">' + (unlocked ? (i === selectedSkin ? "Seçili" : "Açık") : "Kilitli") + '</span>';
         if (unlocked) {
           btn.addEventListener("click", () => {
@@ -495,7 +555,8 @@
           });
         } else {
           btn.addEventListener("click", () => {
-            collHint.textContent = "Botu yenerek aç: " + PLAYER_NAMES[i];
+            const need = i - unlockCount + 1;
+            collHint.textContent = "Kilitli · Botu " + need + " kez daha yenerek aç";
           });
         }
         collGrid.appendChild(btn);
@@ -794,6 +855,7 @@
         frictionMul: 1,
         magnet: false,
         body: forBot ? 1 : bodyStyle,
+        skin: forBot ? -1 : selectedSkin,
       };
       cars.push(car);
       current = car;
@@ -842,21 +904,22 @@
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
       unlockFlash = "";
-      if (win && unlockCount < PLAYER_COLORS.length) {
+      if (win && unlockCount < CAR_COUNT) {
         unlockCount++;
         selectedSkin = unlockCount - 1;
         try {
           localStorage.setItem(UNLOCK_KEY, String(unlockCount));
           localStorage.setItem(SKIN_KEY, String(selectedSkin));
         } catch (e) { /* yoksay */ }
-        unlockFlash = "Yeni araba açıldı! (" + unlockCount + "/" + PLAYER_COLORS.length + ")";
+        const fresh = PLAYER_NAMES[selectedSkin] || ("#" + unlockCount);
+        unlockFlash = "Yeni araba: " + fresh + " (" + unlockCount + "/" + CAR_COUNT + ")";
         addPop("YENİ ARABA!", HOUSE.x, HOUSE.y, "#ffd76a");
       } else {
         try { localStorage.setItem(SKIN_KEY, String(selectedSkin % unlockCount)); } catch (e) { /* yoksay */ }
       }
       reasonEl.textContent = reason + (unlockFlash ? "  " + unlockFlash : "");
       finalEl.textContent = "Sen " + s + "   Bot " + b;
-      bestOutEl.textContent = "Bonus " + playerBonus + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + PLAYER_COLORS.length;
+      bestOutEl.textContent = "Bonus " + playerBonus + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
       overEl.classList.remove("hidden");
       if (win) asmr("glass"); else asmr("tap");
     }
@@ -1312,7 +1375,39 @@
       ctx.setLineDash([]);
     }
 
+    function drawCarScore(c) {
+      if (!(c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED)) return;
+      const pts = pointsAt(c.x, c.y);
+      ctx.font = "700 13px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0,0,0,0.65)";
+      ctx.strokeText(String(pts), c.x, c.y - 22);
+      ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
+      ctx.fillText(String(pts), c.x, c.y - 22);
+    }
+
     function drawCar(c) {
+      const skin = c.skin == null ? -1 : c.skin;
+      if (!c.bot && atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin]) {
+        const cell = ATLAS.cars[skin];
+        const len = CAR_LEN * 1.06;
+        const wide = len * (cell.h / cell.w);
+        const halfL = len * 0.5;
+        const halfW = wide * 0.5;
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.angle);
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.beginPath();
+        ctx.ellipse(2, 8, halfL * 0.88, halfW * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
+        ctx.restore();
+        drawCarScore(c);
+        return;
+      }
       const m = c.body == null ? bodyStyle : c.body;
       const sheet = carSheets[m] || carSheets[1] || carSheets[0];
       const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08);
@@ -1329,17 +1424,7 @@
         ctx.fill();
         ctx.drawImage(sheet, -halfL, -halfW, len, wide);
         ctx.restore();
-        if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
-          const pts = pointsAt(c.x, c.y);
-          ctx.font = "700 13px Segoe UI, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "alphabetic";
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = "rgba(0,0,0,0.65)";
-          ctx.strokeText(String(pts), c.x, c.y - 22);
-          ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
-          ctx.fillText(String(pts), c.x, c.y - 22);
-        }
+        drawCarScore(c);
         return;
       }
       ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -1575,6 +1660,8 @@
           vy: 0,
           launched: false,
           body: bodyStyle,
+          skin: selectedSkin,
+          bot: false,
         });
       } else {
         if (state === "aim" && current && !botTurn) drawAim();
