@@ -103,10 +103,27 @@
       place-items: center;
       background: rgba(8, 12, 18, 0.5);
     }
+    /* Menü/koleksiyon: altta tahta + seçili araba görünsün */
+    #menu.panel, #collection.panel {
+      align-content: start;
+      align-items: center;
+      padding: 4% 0 34%;
+      background: linear-gradient(
+        to bottom,
+        rgba(8, 12, 18, 0.78) 0%,
+        rgba(8, 12, 18, 0.55) 58%,
+        rgba(8, 12, 18, 0.12) 82%,
+        rgba(8, 12, 18, 0) 100%
+      );
+      pointer-events: none;
+    }
+    #menu.panel .card, #collection.panel .card {
+      pointer-events: auto;
+    }
     .panel.hidden { display: none; }
     .card {
       width: min(86%, 420px);
-      max-height: 92%;
+      max-height: 68%;
       overflow-y: auto;
       background: rgba(16, 24, 34, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -114,6 +131,32 @@
       padding: 22px 22px 18px;
       text-align: center;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+    .sel-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.45);
+      border: 1px solid rgba(240, 162, 2, 0.35);
+    }
+    .sel-preview .sel-car {
+      width: 150px;
+      height: 84px;
+      border-radius: 10px;
+      background-color: #1a2430;
+      background-repeat: no-repeat;
+      background-position: center;
+      image-rendering: auto;
+    }
+    .sel-preview p {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 800;
+      color: #f0a202;
     }
     h1 {
       margin: 0 0 8px;
@@ -340,9 +383,13 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 9.1 · Arabalarım + üst sol sıra</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 9.2 · Seçili araba tahtada</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
+        <div class="sel-preview" id="sel-preview">
+          <div class="sel-car" id="sel-car-thumb"></div>
+          <p id="sel-car-name">Seçili araba</p>
+        </div>
         <p class="section-lab">Arabalarım</p>
         <div class="garage-strip" id="garage-strip"></div>
         <p class="section-lab">Seviye</p>
@@ -357,6 +404,10 @@
       <div class="card wide">
         <h1>Arabalarım</h1>
         <p class="coll-meta" id="coll-meta">0/110 araba</p>
+        <div class="sel-preview" id="coll-sel-preview">
+          <div class="sel-car" id="coll-sel-thumb"></div>
+          <p id="coll-sel-name">Seçili araba</p>
+        </div>
         <div class="coll-grid" id="coll-grid"></div>
         <p id="coll-hint">Açık arabaya dokunarak seç; oyunda o görünür.</p>
         <div class="btn-row">
@@ -484,7 +535,7 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=91";
+      im.src = src + "?v=92";
     });
     function applyAtlas(meta, img) {
       ATLAS = meta;
@@ -498,13 +549,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=91")
+    fetch("cars/atlas.json?v=92")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=91";
+        img.src = "cars/atlas.png?v=92";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -562,6 +613,7 @@
         ? ("Rekor " + best + " · Arabalarım " + unlockCount + "/" + CAR_COUNT + " · " + name)
         : ("Arabalarım " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
       renderGarageStrip();
+      updateSelectedPreview();
     }
 
     function carThumbStyle(i, dw) {
@@ -573,10 +625,23 @@
       const aw = ATLAS.cols * ATLAS.cellW;
       const ah = ATLAS.rows * ATLAS.cellH;
       const scale = dw / cell.w;
-      return "background-image:url(cars/atlas.png?v=91);"
+      return "background-image:url(cars/atlas.png?v=92);"
         + "background-size:" + (aw * scale) + "px " + (ah * scale) + "px;"
         + "background-position:-" + (cell.sx * scale) + "px -" + (cell.sy * scale) + "px;"
         + "width:" + dw + "px;height:" + Math.round(cell.h * scale) + "px;";
+    }
+
+    function updateSelectedPreview() {
+      const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
+      const style = carThumbStyle(selectedSkin, 150);
+      const thumb = document.getElementById("sel-car-thumb");
+      const nameEl = document.getElementById("sel-car-name");
+      if (thumb) thumb.setAttribute("style", style);
+      if (nameEl) nameEl.textContent = "Oyunda: " + name;
+      const cThumb = document.getElementById("coll-sel-thumb");
+      const cName = document.getElementById("coll-sel-name");
+      if (cThumb) cThumb.setAttribute("style", style);
+      if (cName) cName.textContent = "Oyunda: " + name;
     }
 
     const garageStrip = document.getElementById("garage-strip");
@@ -1459,7 +1524,8 @@
       const skin = c.skin == null ? -1 : c.skin;
       if (!c.bot && atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin]) {
         const cell = ATLAS.cars[skin];
-        const len = CAR_LEN * 1.06;
+        const previewBoost = c.preview ? 1.38 : 1;
+        const len = CAR_LEN * 1.12 * previewBoost;
         const wide = len * (cell.h / cell.w);
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
@@ -1472,6 +1538,16 @@
         ctx.fill();
         ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
         ctx.restore();
+        if (c.preview) {
+          ctx.font = "800 15px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(0,0,0,0.65)";
+          const label = PLAYER_NAMES[skin] || ("Araba " + (skin + 1));
+          ctx.strokeText(label, c.x, c.y - halfW - 14);
+          ctx.fillStyle = "#f0a202";
+          ctx.fillText(label, c.x, c.y - halfW - 14);
+        }
         drawCarScore(c);
         return;
       }
@@ -1720,7 +1796,7 @@
       if (state === "menu" || state === "collection" || state === "howto") {
         drawCar({
           x: SPAWN.x,
-          y: SPAWN.y,
+          y: SPAWN.y - 18,
           angle: -Math.PI / 2,
           color: PLAYER_COLORS[selectedSkin % PLAYER_COLORS.length],
           vx: 0,
@@ -1729,6 +1805,7 @@
           body: bodyStyle,
           skin: selectedSkin,
           bot: false,
+          preview: true,
         });
       } else {
         if (state === "aim" && current && !botTurn) drawAim();
