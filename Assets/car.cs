@@ -1959,7 +1959,7 @@ public class car : MonoBehaviour
     {
         if (!soundEnabled || sfx == null) return;
         int rate = 22050;
-        if (kind == "grab" || kind == "pull") return;
+        if (kind == "grab" || kind == "pull" || kind == "gas" || kind == "engine" || kind == "whoosh" || kind == "release") return;
 
         float seconds =
             kind == "gas" || kind == "engine" || kind == "whoosh" || kind == "release" ? 0.55f :
