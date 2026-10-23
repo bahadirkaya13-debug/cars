@@ -144,8 +144,8 @@
       border: 1px solid rgba(240, 162, 2, 0.35);
     }
     .sel-preview .sel-car {
-      width: 150px;
-      height: 84px;
+      width: 168px;
+      height: 80px;
       border-radius: 10px;
       background-color: #1a2430;
       background-repeat: no-repeat;
@@ -403,7 +403,7 @@
     <section class="panel hidden" id="collection">
       <div class="card wide">
         <h1>Arabalarım</h1>
-        <p class="coll-meta" id="coll-meta">0/110 araba</p>
+        <p class="coll-meta" id="coll-meta">0/10 araba</p>
         <div class="sel-preview" id="coll-sel-preview">
           <div class="sel-car" id="coll-sel-thumb"></div>
           <p id="coll-sel-name">Seçili araba</p>
@@ -635,7 +635,7 @@
 
     function updateSelectedPreview() {
       const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
-      const style = carThumbStyle(selectedSkin, 150);
+      const style = carThumbStyle(selectedSkin, 168);
       const thumb = document.getElementById("sel-car-thumb");
       const nameEl = document.getElementById("sel-car-name");
       if (thumb) thumb.setAttribute("style", style);
