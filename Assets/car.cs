@@ -1966,7 +1966,7 @@ public class car : MonoBehaviour
         exhaust.playOnAwake = false;
         exhaust.loop = true;
         exhaust.volume = 0f;
-        // F1 tarzı tiz egzoz döngüsü
+        // Tok F1 egzoz: kalın gövde + orta tiz
         int exN = rate / 2;
         var exData = new float[exN];
         float b = 0f;
@@ -1974,14 +1974,15 @@ public class car : MonoBehaviour
         {
             float t = i / (float)rate;
             float w = Random.Range(-1f, 1f);
-            b = 0.82f * b + 0.18f * w;
-            float flutter = 1f + 0.08f * Mathf.Sin(t * 18f * Mathf.PI * 2f);
-            float tone = Mathf.Sin(t * 880f * Mathf.PI * 2f * flutter) * 0.18f
-                + Mathf.Sin(t * 1760f * Mathf.PI * 2f) * 0.1f
-                + Mathf.Sin(t * 440f * Mathf.PI * 2f) * 0.08f;
-            exData[i] = tone + (w * 0.2f + b * 0.15f);
+            b = (b + 0.03f * w) / 1.03f;
+            float flutter = 1f + 0.05f * Mathf.Sin(t * 12f * Mathf.PI * 2f);
+            float tone = Mathf.Sin(t * 95f * Mathf.PI * 2f) * 0.26f
+                + Mathf.Sin(t * 190f * Mathf.PI * 2f * flutter) * 0.22f
+                + Mathf.Sin(t * 380f * Mathf.PI * 2f) * 0.12f
+                + Mathf.Sin(t * 570f * Mathf.PI * 2f) * 0.06f;
+            exData[i] = tone + b * 0.32f;
         }
-        var exClip = AudioClip.Create("exhaust-f1", exN, 1, rate, false);
+        var exClip = AudioClip.Create("exhaust-tok", exN, 1, rate, false);
         exClip.SetData(exData, 0);
         exhaust.clip = exClip;
     }
@@ -1989,11 +1990,10 @@ public class car : MonoBehaviour
     void SyncExhaust(float speed01)
     {
         if (!soundEnabled || exhaust == null) return;
-        // Kayma boyunca sürekli; hız düşse bile F1 tizi kalır
-        float s = Mathf.Clamp(0.55f + speed01 * 0.45f, 0.55f, 1f);
+        float s = Mathf.Clamp(0.5f + speed01 * 0.5f, 0.5f, 1f);
         if (!exhaust.isPlaying) exhaust.Play();
-        exhaust.pitch = 1.15f + s * 0.95f;
-        exhaust.volume = 0.16f + s * 0.2f;
+        exhaust.pitch = 0.85f + s * 0.55f;
+        exhaust.volume = 0.22f + s * 0.2f;
     }
 
     void StopExhaust()

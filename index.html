@@ -759,7 +759,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=31";
+      return "cars/" + file + "?v=32";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=31";
+      im.src = src + "?v=32";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=31";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=32";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=31")
+    fetch("cars/atlas.json?v=32")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=31";
+        img.src = "cars/atlas.png?v=32";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1408,59 +1408,65 @@
         const t = ctx.currentTime;
         const master = ctx.createGain();
         master.gain.setValueAtTime(0.001, t);
-        // F1: tiz çığlık + metalik egzoz
-        const hp = ctx.createBiquadFilter();
-        hp.type = "highpass";
-        hp.frequency.value = 280;
+        // Tok F1: kalın gövde + orta tiz egzoz
+        const body = ctx.createBiquadFilter();
+        body.type = "peaking";
+        body.frequency.value = 220;
+        body.Q.value = 0.7;
+        body.gain.value = 7;
         const lp = ctx.createBiquadFilter();
         lp.type = "lowpass";
-        lp.frequency.value = 4200;
-        lp.Q.value = 0.8;
+        lp.frequency.value = 2800;
+        lp.Q.value = 0.9;
+        const oBass = ctx.createOscillator();
+        oBass.type = "triangle";
+        oBass.frequency.value = 95;
         const o1 = ctx.createOscillator();
         o1.type = "sawtooth";
-        o1.frequency.value = 880;
+        o1.frequency.value = 190;
         const o2 = ctx.createOscillator();
         o2.type = "sawtooth";
-        o2.frequency.value = 1760;
+        o2.frequency.value = 380;
         const o3 = ctx.createOscillator();
         o3.type = "square";
-        o3.frequency.value = 440;
-        const g1 = ctx.createGain(); g1.gain.value = 0.14;
-        const g2 = ctx.createGain(); g2.gain.value = 0.08;
-        const g3 = ctx.createGain(); g3.gain.value = 0.05;
-        // Hızlı flutter (F1 crackle hissi)
+        o3.frequency.value = 95;
+        const gBass = ctx.createGain(); gBass.gain.value = 0.22;
+        const g1 = ctx.createGain(); g1.gain.value = 0.2;
+        const g2 = ctx.createGain(); g2.gain.value = 0.1;
+        const g3 = ctx.createGain(); g3.gain.value = 0.08;
         const lfo = ctx.createOscillator();
         lfo.type = "sine";
-        lfo.frequency.value = 18;
+        lfo.frequency.value = 12;
         const lfoG = ctx.createGain();
-        lfoG.gain.value = 55;
+        lfoG.gain.value = 28;
         lfo.connect(lfoG); lfoG.connect(o1.frequency);
-        const nLen = Math.floor(ctx.sampleRate * 0.25);
+        const nLen = Math.floor(ctx.sampleRate * 0.35);
         const buf = ctx.createBuffer(1, nLen, ctx.sampleRate);
         const d = buf.getChannelData(0);
         let b = 0;
         for (let i = 0; i < nLen; i++) {
           const w = Math.random() * 2 - 1;
-          b = 0.82 * b + 0.18 * w;
-          d[i] = w * 0.55 + b * 0.45;
+          b = (b + 0.03 * w) / 1.03;
+          d[i] = b * 0.75 + w * 0.25;
         }
         const noise = ctx.createBufferSource();
         noise.buffer = buf;
         noise.loop = true;
         const nf = ctx.createBiquadFilter();
-        nf.type = "bandpass";
-        nf.frequency.value = 2400;
-        nf.Q.value = 0.9;
+        nf.type = "lowpass";
+        nf.frequency.value = 900;
+        nf.Q.value = 0.6;
         const ng = ctx.createGain();
-        ng.gain.value = 0.2;
-        o1.connect(g1); g1.connect(hp);
-        o2.connect(g2); g2.connect(hp);
-        o3.connect(g3); g3.connect(hp);
-        noise.connect(nf); nf.connect(ng); ng.connect(hp);
-        hp.connect(lp); lp.connect(master); master.connect(ctx.destination);
-        o1.start(); o2.start(); o3.start(); lfo.start(); noise.start();
-        master.gain.exponentialRampToValueAtTime(0.2, t + 0.05);
-        exhaustNodes = { o1, o2, o3, lfo, noise, master, lp, nf, ng, hp };
+        ng.gain.value = 0.28;
+        oBass.connect(gBass); gBass.connect(body);
+        o1.connect(g1); g1.connect(body);
+        o2.connect(g2); g2.connect(body);
+        o3.connect(g3); g3.connect(body);
+        noise.connect(nf); nf.connect(ng); ng.connect(body);
+        body.connect(lp); lp.connect(master); master.connect(ctx.destination);
+        oBass.start(); o1.start(); o2.start(); o3.start(); lfo.start(); noise.start();
+        master.gain.exponentialRampToValueAtTime(0.26, t + 0.06);
+        exhaustNodes = { oBass, o1, o2, o3, lfo, noise, master, lp, nf, ng, body };
       } catch (e) { exhaustNodes = null; }
     }
 
@@ -1468,16 +1474,18 @@
       if (!exhaustNodes || !actx) return;
       try {
         const t = actx.currentTime;
-        // Kayma boyunca F1 sesi sürekli — hız düşse bile tiz kalır
-        const s = clamp(0.55 + speed01 * 0.45, 0.55, 1);
-        const rpm = 720 + s * 1500;
-        exhaustNodes.o1.frequency.setTargetAtTime(rpm, t, 0.04);
-        exhaustNodes.o2.frequency.setTargetAtTime(rpm * 2.02, t, 0.04);
-        exhaustNodes.o3.frequency.setTargetAtTime(rpm * 0.5, t, 0.04);
-        exhaustNodes.lp.frequency.setTargetAtTime(2800 + s * 2200, t, 0.05);
-        exhaustNodes.nf.frequency.setTargetAtTime(1800 + s * 1600, t, 0.05);
-        exhaustNodes.ng.gain.setTargetAtTime(0.14 + s * 0.16, t, 0.05);
-        exhaustNodes.master.gain.setTargetAtTime(0.14 + s * 0.12, t, 0.04);
+        // Tok gövde; hızla biraz tizleşir ama bas kalır
+        const s = clamp(0.5 + speed01 * 0.5, 0.5, 1);
+        const rpm = 140 + s * 280;
+        exhaustNodes.oBass.frequency.setTargetAtTime(rpm * 0.5, t, 0.05);
+        exhaustNodes.o1.frequency.setTargetAtTime(rpm, t, 0.05);
+        exhaustNodes.o2.frequency.setTargetAtTime(rpm * 2, t, 0.05);
+        exhaustNodes.o3.frequency.setTargetAtTime(rpm * 0.5, t, 0.05);
+        exhaustNodes.lp.frequency.setTargetAtTime(1600 + s * 1400, t, 0.06);
+        exhaustNodes.nf.frequency.setTargetAtTime(500 + s * 700, t, 0.06);
+        exhaustNodes.ng.gain.setTargetAtTime(0.2 + s * 0.14, t, 0.05);
+        exhaustNodes.body.gain.setTargetAtTime(6 + s * 3, t, 0.08);
+        exhaustNodes.master.gain.setTargetAtTime(0.18 + s * 0.12, t, 0.05);
       } catch (e) { /* yoksay */ }
     }
 
@@ -1491,6 +1499,7 @@
         nodes.master.gain.setValueAtTime(Math.max(0.001, nodes.master.gain.value), t);
         nodes.master.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
         const stopAt = t + 0.2;
+        nodes.oBass.stop(stopAt);
         nodes.o1.stop(stopAt);
         nodes.o2.stop(stopAt);
         nodes.o3.stop(stopAt);
