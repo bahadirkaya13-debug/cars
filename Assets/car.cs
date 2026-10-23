@@ -868,6 +868,7 @@ public class car : MonoBehaviour
         stone.curl = Mathf.Clamp(-drag.x / MaxPull, -1f, 1f) * CurlPower;
         stone.angle = Mathf.Atan2(stone.vel.y, stone.vel.x);
         PlayAsmr("gas");
+        SyncExhaust(1f);
     }
 
     static int PowerBand(float len)

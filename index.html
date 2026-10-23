@@ -1801,6 +1801,8 @@
       pull.x = 0;
       pull.y = 0;
       asmr("gas");
+      startExhaust();
+      syncExhaust(1);
     }
 
     function canvasPoint(e) {
@@ -1857,6 +1859,8 @@
       state = "slide";
       calm = 0;
       asmr("gas");
+      startExhaust();
+      syncExhaust(1);
     }
 
     function onUp() {
