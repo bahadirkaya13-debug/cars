@@ -565,7 +565,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 25 · İki kişilik</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 26 · Sesler</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -727,7 +727,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=25";
+      return "cars/" + file + "?v=26";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -774,12 +774,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=25";
+      im.src = src + "?v=26";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=25";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=26";
         return im;
       });
     }
@@ -796,13 +796,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=25")
+    fetch("cars/atlas.json?v=26")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=25";
+        img.src = "cars/atlas.png?v=26";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -934,11 +934,13 @@
             renderCollection();
             refreshMenuBest();
             collHint.textContent = PLAYER_NAMES[i] + " seçildi — oyunda tam görünür.";
+            asmr("select");
           });
         } else {
           btn.addEventListener("click", () => {
             const need = i - unlockCount + 1;
             collHint.textContent = "Kilitli · Botu " + need + " kez daha yenerek aç";
+            asmr("locked");
           });
         }
         collGrid.appendChild(btn);
@@ -954,6 +956,7 @@
       collectionEl.classList.remove("hidden");
       state = "collection";
       renderCollection();
+      uiClick();
     }
 
     function renderTracks() {
@@ -982,7 +985,7 @@
           renderTracks();
           refreshMenuBest();
           if (hint) hint.textContent = L.name + " seçildi.";
-          asmr("tap");
+          asmr("select");
         });
         grid.appendChild(btn);
       });
@@ -996,6 +999,7 @@
       tracksEl.classList.remove("hidden");
       state = "tracks";
       renderTracks();
+      uiClick();
     }
 
     function renderTrophies() {
@@ -1038,8 +1042,10 @@
             try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
             renderTrophies();
             refreshMenuBest();
-            asmr("tap");
+            asmr("select");
           });
+        } else {
+          btn.addEventListener("click", () => asmr("locked"));
         }
         grid.appendChild(btn);
       }
@@ -1052,6 +1058,7 @@
       trophiesEl.classList.remove("hidden");
       state = "trophies";
       renderTrophies();
+      uiClick();
     }
 
     function hideCollectionToMenu() {
@@ -1059,6 +1066,7 @@
       menuEl.classList.remove("hidden");
       state = "menu";
       refreshMenuBest();
+      uiClick();
     }
 
     function goMenu() {
@@ -1220,63 +1228,126 @@
       };
     }
 
-    function tone(freq, dur) {
+    function ensureAudio() {
       try {
-        if (!actx) actx = new AudioContext();
+        if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
         if (actx.state === "suspended") actx.resume();
-        const o = actx.createOscillator();
-        const g = actx.createGain();
-        o.type = "sine";
-        o.frequency.setValueAtTime(freq, actx.currentTime);
-        o.frequency.exponentialRampToValueAtTime(Math.max(48, freq * 0.55), actx.currentTime + dur);
-        g.gain.setValueAtTime(0.07, actx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+      } catch (e) { /* sessiz */ }
+      return actx;
+    }
+
+    function tone(freq, dur, vol, type) {
+      try {
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type || "sine";
+        o.frequency.setValueAtTime(freq, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(Math.max(48, freq * 0.55), ctx.currentTime + dur);
+        g.gain.setValueAtTime(vol == null ? 0.12 : vol, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
         o.connect(g);
-        g.connect(actx.destination);
+        g.connect(ctx.destination);
         o.start();
-        o.stop(actx.currentTime + dur);
+        o.stop(ctx.currentTime + dur);
       } catch (e) { /* sessiz kal */ }
     }
+
+    function noiseBurst(seconds, color, cutoff, vol) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const n = Math.floor(ctx.sampleRate * seconds);
+      const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      let b = 0;
+      for (let i = 0; i < n; i++) {
+        const w = Math.random() * 2 - 1;
+        b = color === "brown" ? (b + 0.02 * w) / 1.02 : 0.72 * b + 0.28 * w;
+        d[i] = b * (1 - i / n);
+      }
+      const src = ctx.createBufferSource();
+      const f = ctx.createBiquadFilter();
+      const g = ctx.createGain();
+      src.buffer = buf;
+      f.type = "lowpass";
+      f.frequency.value = cutoff;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + seconds);
+      src.connect(f); f.connect(g); g.connect(ctx.destination);
+      src.start(t);
+    }
+
     function asmr(kind) {
       try {
-        if (!actx) actx = new AudioContext();
-        if (actx.state === "suspended") actx.resume();
-        const t = actx.currentTime;
-        const noise = (seconds, color) => {
-          const n = Math.floor(actx.sampleRate * seconds);
-          const buf = actx.createBuffer(1, n, actx.sampleRate);
-          const d = buf.getChannelData(0);
-          let b = 0;
-          for (let i = 0; i < n; i++) {
-            const w = Math.random() * 2 - 1;
-            b = color === "brown" ? (b + 0.02 * w) / 1.02 : 0.7 * b + 0.3 * w;
-            const env = 1 - i / n;
-            d[i] = b * env * (kind === "whoosh" ? 0.18 : 0.12);
-          }
-          const src = actx.createBufferSource();
-          const f = actx.createBiquadFilter();
-          const g = actx.createGain();
-          src.buffer = buf;
-          f.type = "lowpass";
-          f.frequency.value = kind === "whoosh" ? 900 : kind === "wood" ? 420 : 220;
-          g.gain.setValueAtTime(kind === "tap" ? 0.08 : 0.16, t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + seconds);
-          src.connect(f); f.connect(g); g.connect(actx.destination);
-          src.start(t);
-        };
-        if (kind === "wood" || kind === "whoosh" || kind === "tap") noise(kind === "whoosh" ? 0.22 : 0.12, kind === "wood" ? "brown" : "pink");
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        if (kind === "click" || kind === "tap") {
+          // Menü / buton tık
+          tone(920, 0.045, 0.14, "triangle");
+          tone(520, 0.07, 0.06, "sine");
+          noiseBurst(0.05, "pink", 2800, 0.08);
+          return;
+        }
+        if (kind === "select") {
+          // Araba seçimi
+          tone(520, 0.07, 0.12, "triangle");
+          setTimeout(() => tone(780, 0.1, 0.14, "triangle"), 45);
+          return;
+        }
+        if (kind === "locked") {
+          tone(180, 0.12, 0.1, "square");
+          return;
+        }
+        if (kind === "grab") {
+          noiseBurst(0.08, "brown", 380, 0.14);
+          tone(140, 0.08, 0.08, "sine");
+          return;
+        }
+        if (kind === "pull") {
+          // Lastik gerilimi / çekme tıkırtısı
+          const f0 = 220 + Math.random() * 80;
+          tone(f0, 0.06, 0.1, "sawtooth");
+          noiseBurst(0.07, "pink", 900, 0.1);
+          return;
+        }
+        if (kind === "whoosh" || kind === "release") {
+          // Atış / bırakma araba sesi
+          noiseBurst(0.28, "pink", 1400, 0.28);
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(190, t);
+          o.frequency.exponentialRampToValueAtTime(70, t + 0.26);
+          g.gain.setValueAtTime(0.16, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+          o.connect(g); g.connect(ctx.destination);
+          o.start(t); o.stop(t + 0.3);
+          return;
+        }
+        if (kind === "wood" || kind === "crash") {
+          // Çarpışma
+          noiseBurst(0.16, "brown", 520, 0.32);
+          tone(110, 0.12, 0.18, "triangle");
+          tone(70, 0.16, 0.12, "sine");
+          return;
+        }
         if (kind === "glass" || kind === "pop") {
-          const o = actx.createOscillator(), g = actx.createGain();
+          const o = ctx.createOscillator(), g = ctx.createGain();
           o.type = "sine";
-          o.frequency.setValueAtTime(kind === "pop" ? 740 : 980, t);
-          o.frequency.exponentialRampToValueAtTime(220, t + 0.18);
-          g.gain.setValueAtTime(0.05, t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-          o.connect(g); g.connect(actx.destination);
-          o.start(t); o.stop(t + 0.22);
+          o.frequency.setValueAtTime(kind === "pop" ? 740 : 1100, t);
+          o.frequency.exponentialRampToValueAtTime(240, t + 0.2);
+          g.gain.setValueAtTime(0.12, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+          o.connect(g); g.connect(ctx.destination);
+          o.start(t); o.stop(t + 0.24);
+          if (kind === "pop") noiseBurst(0.08, "pink", 1800, 0.1);
         }
       } catch (e) {}
     }
+
+    function uiClick() { asmr("click"); }
     let musicTimer = null;
     function startMusic() {
       if (musicOn) return;
@@ -1564,14 +1635,18 @@
       };
     }
 
+    let pullBandHeard = 0;
+
     function onDown(e) {
       if (!humanCanAim()) return;
       pull.active = true;
+      pullBandHeard = 0;
       const p = canvasPoint(e);
       pull.sx = p.x;
       pull.sy = p.y;
       pull.x = 0;
       pull.y = 0;
+      asmr("grab");
     }
 
     function onMove(e) {
@@ -1579,6 +1654,11 @@
       const p = canvasPoint(e);
       pull.x = p.x - pull.sx;
       pull.y = p.y - pull.sy;
+      const band = powerBand(Math.hypot(pull.x, pull.y));
+      if (band > pullBandHeard) {
+        pullBandHeard = band;
+        asmr("pull");
+      }
     }
 
     function launch() {
@@ -1618,6 +1698,7 @@
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     document.getElementById("howto-ok").addEventListener("click", () => {
+      uiClick();
       howtoEl.classList.add("hidden");
       menuEl.classList.remove("hidden");
       state = "menu";
@@ -1625,20 +1706,22 @@
     document.getElementById("mode-bot").addEventListener("click", () => setPlayMode("bot"));
     document.getElementById("mode-2p").addEventListener("click", () => setPlayMode("2p"));
     syncModeButtons();
-    document.getElementById("start").addEventListener("click", startRound);
-    document.getElementById("again").addEventListener("click", startRound);
+    document.getElementById("start").addEventListener("click", () => { uiClick(); startRound(); });
+    document.getElementById("again").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("open-collection").addEventListener("click", showCollection);
     document.getElementById("open-tracks").addEventListener("click", showTracks);
     document.getElementById("open-trophies").addEventListener("click", showTrophies);
     document.getElementById("over-collection").addEventListener("click", showCollection);
     document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("coll-play").addEventListener("click", startRound);
+    document.getElementById("coll-play").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("track-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("track-play").addEventListener("click", startRound);
+    document.getElementById("track-play").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("trophy-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("trophy-play").addEventListener("click", startRound);
+    document.getElementById("trophy-play").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("to-menu").addEventListener("click", (e) => { e.stopPropagation(); goMenu(); });
     document.getElementById("over-menu").addEventListener("click", goMenu);
+    // İlk dokunuşta ses motorunu aç (mobil Safari)
+    window.addEventListener("pointerdown", () => { ensureAudio(); }, { passive: true });
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && state !== "menu") goMenu();
       if ((e.key === "Enter" || e.key === "r" || e.key === "R") && (state === "menu" || state === "over")) {
@@ -1684,11 +1767,11 @@
       b.y += ny * overlap * 0.5;
       const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
       if (rv >= 0) return;
-      if (rv < -50) {
+      if (rv < -22) {
         const now = performance.now();
-        if (now - lastHit > 90) {
+        if (now - lastHit > 70) {
           lastHit = now;
-          asmr("wood");
+          asmr("crash");
         }
       }
       const j = -(1 + 0.96) * rv / 2;

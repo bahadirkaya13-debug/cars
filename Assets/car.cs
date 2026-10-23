@@ -720,8 +720,9 @@ public class car : MonoBehaviour
         {
             selectedSkin = i;
             PlayerPrefs.SetInt(SkinKey, selectedSkin);
-            PlayAsmr("tap");
+            PlayAsmr("select");
         }
+        else PlayAsmr("locked");
     }
 
     void ReadMouse()
@@ -732,12 +733,22 @@ public class car : MonoBehaviour
         if (down)
         {
             pulling = true;
+            pullBandHeard = 0;
             pressPos = ScreenToWorld(screen);
             pull = Vector2.zero;
+            PlayAsmr("grab");
         }
 
         if (pulling && held)
+        {
             pull = ScreenToWorld(screen) - pressPos;
+            int band = PowerBand(pull.magnitude);
+            if (band > pullBandHeard)
+            {
+                pullBandHeard = band;
+                PlayAsmr("pull");
+            }
+        }
 
         if (pulling && up)
             Release();
@@ -994,10 +1005,10 @@ public class car : MonoBehaviour
         b.vel += j * n;
         a.curl *= 0.35f;
         b.curl *= 0.35f;
-        if (rv < -0.5f && Time.time - lastHit > 0.09f)
+        if (rv < -0.22f && Time.time - lastHit > 0.07f)
         {
             lastHit = Time.time;
-            PlayAsmr("wood");
+            PlayAsmr("crash");
         }
     }
 
@@ -1903,40 +1914,94 @@ public class car : MonoBehaviour
         sfx.volume = 0.7f;
     }
 
+    int pullBandHeard;
+
     void PlayAsmr(string kind)
     {
         if (sfx == null) return;
         int rate = 22050;
-        float seconds = kind == "whoosh" ? 0.22f : (kind == "glass" || kind == "pop" ? 0.20f : 0.12f);
+        float seconds =
+            kind == "whoosh" || kind == "release" ? 0.28f :
+            kind == "crash" || kind == "wood" ? 0.16f :
+            kind == "glass" || kind == "pop" || kind == "select" ? 0.18f :
+            kind == "pull" || kind == "grab" ? 0.08f : 0.08f;
         int n = Mathf.Max(64, (int)(rate * seconds));
         var data = new float[n];
-        if (kind == "wood" || kind == "whoosh" || kind == "tap")
+
+        if (kind == "click" || kind == "tap")
+        {
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)rate;
+                float env = Mathf.Exp(-t * 40f);
+                data[i] = (Mathf.Sin(t * 920f * Mathf.PI * 2f) * 0.22f
+                    + Mathf.Sin(t * 520f * Mathf.PI * 2f) * 0.1f) * env;
+            }
+        }
+        else if (kind == "select")
+        {
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)rate;
+                float env = Mathf.Exp(-t * 18f);
+                float f = t < 0.05f ? 520f : 780f;
+                data[i] = Mathf.Sin(t * f * Mathf.PI * 2f) * env * 0.22f;
+            }
+        }
+        else if (kind == "locked")
+        {
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)rate;
+                float env = Mathf.Exp(-t * 14f);
+                data[i] = Mathf.Sin(t * 180f * Mathf.PI * 2f) * env * 0.16f;
+            }
+        }
+        else if (kind == "grab" || kind == "pull" || kind == "whoosh" || kind == "release" || kind == "wood" || kind == "crash")
         {
             float b = 0f;
-            bool brown = kind == "wood";
+            bool brown = kind == "wood" || kind == "crash" || kind == "grab";
+            float amp = kind == "whoosh" || kind == "release" ? 0.34f : kind == "crash" || kind == "wood" ? 0.38f : 0.18f;
             for (int i = 0; i < n; i++)
             {
                 float w = Random.Range(-1f, 1f);
                 b = brown ? (b + 0.02f * w) / 1.02f : 0.7f * b + 0.3f * w;
                 float env = 1f - i / (float)n;
-                data[i] = b * env * (kind == "whoosh" ? 0.22f : kind == "tap" ? 0.10f : 0.16f);
+                float tone = 0f;
+                if (kind == "whoosh" || kind == "release")
+                {
+                    float tt = i / (float)rate;
+                    float freq = Mathf.Lerp(190f, 70f, tt / seconds);
+                    tone = Mathf.Sin(tt * freq * Mathf.PI * 2f) * 0.2f * env;
+                }
+                else if (kind == "crash" || kind == "wood")
+                {
+                    float tt = i / (float)rate;
+                    tone = Mathf.Sin(tt * 110f * Mathf.PI * 2f) * 0.22f * env;
+                }
+                else if (kind == "pull")
+                {
+                    float tt = i / (float)rate;
+                    tone = Mathf.Sin(tt * 260f * Mathf.PI * 2f) * 0.14f * env;
+                }
+                data[i] = b * env * amp + tone;
             }
         }
         else
         {
-            float f0 = kind == "pop" ? 740f : 980f;
+            float f0 = kind == "pop" ? 740f : 1100f;
             for (int i = 0; i < n; i++)
             {
                 float t = i / (float)rate;
                 float env = Mathf.Exp(-t * 16f);
-                float freq = Mathf.Lerp(f0, 220f, t / seconds);
-                data[i] = Mathf.Sin(t * freq * Mathf.PI * 2f) * env * 0.12f;
+                float freq = Mathf.Lerp(f0, 240f, t / seconds);
+                data[i] = Mathf.Sin(t * freq * Mathf.PI * 2f) * env * 0.16f;
             }
         }
 
         var clip = AudioClip.Create("asmr-" + kind, n, 1, rate, false);
         clip.SetData(data, 0);
-        sfx.PlayOneShot(clip, 0.85f);
+        sfx.PlayOneShot(clip, 1f);
     }
 
     SpriteRenderer MakeSprite(string name, Sprite sprite, Color color, int order)
