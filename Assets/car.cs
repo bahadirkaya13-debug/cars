@@ -1408,12 +1408,23 @@ public class car : MonoBehaviour
         GUI.Label(back, "Menü", hudStyle);
         GUI.color = Color.white;
 
+        float y2 = y + h + 8f;
+        DrawPill(new Rect(safe.x + pad, y2, 110f, h), "Arabalar " + unlockCount + "/" + PlayerColors.Length);
+        if (comboStreak > 0)
+            DrawPill(new Rect(safe.x + pad + 118f, y2, 90f, h), "Kombo x" + comboStreak);
+        if (!botTurn && activePower != PowerUp.None && phase == Phase.Aim)
+        {
+            string p = activePower == PowerUp.Ice ? "Power: BUZ" : "Power: MIKNATIS";
+            DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
+        }
+
+        // Halkanın üstünü kapatmasın: güç çubuğunun hemen üstünde
         if (phase != Phase.Over)
         {
             turnBannerPulse += Time.deltaTime;
             float bw = Mathf.Min(320f, safe.width - 28f);
             float bh = 40f;
-            var banner = new Rect(safe.x + (safe.width - bw) * 0.5f, y + h + 8f, bw, bh);
+            var banner = new Rect(safe.x + (safe.width - bw) * 0.5f, safe.yMax - 102f, bw, bh);
             string turnText;
             if (phase == Phase.Slide)
             {
@@ -1434,16 +1445,6 @@ public class car : MonoBehaviour
             GUI.DrawTexture(banner, pixel);
             GUI.color = Color.white;
             GUI.Label(banner, turnText, label);
-        }
-
-        float y2 = y + h + 56f;
-        DrawPill(new Rect(safe.x + pad, y2, 110f, h), "Arabalar " + unlockCount + "/" + PlayerColors.Length);
-        if (comboStreak > 0)
-            DrawPill(new Rect(safe.x + pad + 118f, y2, 90f, h), "Kombo x" + comboStreak);
-        if (!botTurn && activePower != PowerUp.None && phase == Phase.Aim)
-        {
-            string p = activePower == PowerUp.Ice ? "Power: BUZ" : "Power: MIKNATIS";
-            DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
         }
     }
 

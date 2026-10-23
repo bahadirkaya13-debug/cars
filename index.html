@@ -218,7 +218,9 @@
     }
     .turn-banner {
       position: absolute;
-      top: 86px;
+      /* Halkanın üstünü kapatmasın: alt tarafta, güç çubuğunun hemen üstünde */
+      bottom: 78px;
+      top: auto;
       left: 50%;
       transform: translateX(-50%);
       z-index: 5;
@@ -269,7 +271,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8 · Sıra paneli · Mini öğretici</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8.1 · Sıra paneli altta</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Araba</p>
