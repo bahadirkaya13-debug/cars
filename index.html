@@ -535,7 +535,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 23 · Pist temaları</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 24 · Lava & buz</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <div class="menu-entries">
@@ -658,10 +658,10 @@
     const BASE_CARS = 4;
     const LEVELS = [
       { name: "Salon", theme: "salon", blurb: "Klasik ahşap salon", friction: 160, speed: 740, ring: 1, bot: 0.52, cars: 4 },
-      { name: "Buz", theme: "ice", blurb: "Kaygan buz · sarkıtlar", friction: 95, speed: 820, ring: 1, bot: 0.68, cars: 4 },
+      { name: "Buz", theme: "ice", blurb: "Çok kaygan buz · sarkıtlar", friction: 52, speed: 860, ring: 1, bot: 0.68, cars: 4 },
       { name: "Dar halka", theme: "narrow", blurb: "Dar koridor · sıkı halka", friction: 150, speed: 700, ring: 0.72, bot: 0.78, cars: 5 },
       { name: "Fırtına", theme: "storm", blurb: "Rüzgarlı karanlık pist", friction: 210, speed: 900, ring: 0.9, bot: 0.86, cars: 5 },
-      { name: "Usta", theme: "master", blurb: "Parlak usta salonu", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 6 },
+      { name: "Usta", theme: "master", blurb: "Halka yanı lava · dikkat", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 6 },
     ];
     const LEVEL_KEY = "halka-arabalari-level";
     const RING_BASE = [168, 120, 78, 36];
@@ -685,7 +685,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=23";
+      return "cars/" + file + "?v=24";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -732,12 +732,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=23";
+      im.src = src + "?v=24";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=23";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=24";
         return im;
       });
     }
@@ -754,13 +754,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=23")
+    fetch("cars/atlas.json?v=24")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=23";
+        img.src = "cars/atlas.png?v=24";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1076,10 +1076,30 @@
       return 0;
     }
 
+    function lavaPits() {
+      if (!(LEVELS[levelI] && LEVELS[levelI].theme === "master")) return [];
+      const outer = RINGS[0].r;
+      return [
+        { x: HOUSE.x - outer - 72, y: HOUSE.y + 6, rx: 70, ry: Math.max(78, outer * 0.92) },
+        { x: HOUSE.x + outer + 72, y: HOUSE.y + 6, rx: 70, ry: Math.max(78, outer * 0.92) },
+      ];
+    }
+
+    function inLava(x, y, r) {
+      const pads = lavaPits();
+      for (let i = 0; i < pads.length; i++) {
+        const p = pads[i];
+        const dx = (x - p.x) / (p.rx + r * 0.25);
+        const dy = (y - p.y) / (p.ry + r * 0.25);
+        if (dx * dx + dy * dy <= 1) return true;
+      }
+      return false;
+    }
+
     function teamScore(isBot) {
       let s = 0;
       for (const c of cars) {
-        if (!c.launched || c.bot !== isBot) continue;
+        if (!c.launched || c.bot !== isBot || c.fallen) continue;
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
         s += pointsAt(c.x, c.y);
       }
@@ -1270,6 +1290,8 @@
         bot: !!forBot,
         frictionMul: 1,
         magnet: false,
+        fallen: false,
+        sink: 0,
         body: forBot ? 1 : bodyStyle,
         skin: forBot ? -1 : selectedSkin,
       };
@@ -1345,6 +1367,11 @@
       for (let i = cars.length - 1; i >= 0; i--) {
         const c = cars[i];
         if (!c.launched) continue;
+        if (c.fallen) {
+          cars.splice(i, 1);
+          removed++;
+          continue;
+        }
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
         if (pointsAt(c.x, c.y) > 0) continue;
         cars.splice(i, 1);
@@ -1372,7 +1399,7 @@
           }
         } else comboStreak = 0;
 
-        if (current && cars.includes(current)) {
+        if (current && cars.includes(current) && !current.fallen) {
           const pts = pointsAt(current.x, current.y);
           if (pts > 0) addPop("+" + pts, current.x, current.y - 36, pts >= 400 ? "#ffe566" : "#fff4c2", true);
           if (pts >= 400) {
@@ -1380,6 +1407,8 @@
             addPop("+" + BULLSEYE_BONUS + " BULLSEYE!", current.x, current.y - 58, "#7dff9a", true);
             asmr("glass");
           }
+        } else if (current && current.fallen && !shooterBot) {
+          comboStreak = 0;
         }
       }
 
@@ -1642,6 +1671,15 @@
       }
       body.x += body.vx * dt;
       body.y += body.vy * dt;
+      if (!body.fallen && inLava(body.x, body.y, body.r || 16)) {
+        body.fallen = true;
+        body.vx = 0;
+        body.vy = 0;
+        body.sink = 0;
+        addPop("LAVA!", body.x, body.y - 20, "#ff6a2a", true);
+        asmr("wood");
+        return false;
+      }
       const b = boardLimits(body.r || 16);
       let blocked = false;
       if (body.x < b.left) { body.x = b.left; body.vx = 0; blocked = true; }
@@ -1653,18 +1691,18 @@
 
     function stepPhysics(dt) {
       for (const c of cars) {
-        if (!c.launched) continue;
+        if (!c.launched || c.fallen) continue;
         glide(c, dt);
       }
       for (let n = 0; n < 5; n++) {
         for (let i = 0; i < cars.length; i++) {
           for (let j = i + 1; j < cars.length; j++) {
-            if (!cars[i].launched || !cars[j].launched) continue;
+            if (!cars[i].launched || !cars[j].launched || cars[i].fallen || cars[j].fallen) continue;
             resolve(cars[i], cars[j]);
           }
         }
       }
-      for (const c of cars) if (c.launched) stopAtBoard(c);
+      for (const c of cars) if (c.launched && !c.fallen) stopAtBoard(c);
     }
 
     function update(dt) {
@@ -1672,7 +1710,10 @@
       else if (state === "aim" && current && !botTurn) applyAim();
       else if (state === "slide") {
         stepPhysics(dt);
-        const moving = cars.some((c) => c.launched && Math.hypot(c.vx, c.vy) > STOP_SPEED);
+        for (const c of cars) {
+          if (c.fallen && c.sink < 1) c.sink = Math.min(1, c.sink + dt * 1.6);
+        }
+        const moving = cars.some((c) => c.launched && !c.fallen && Math.hypot(c.vx, c.vy) > STOP_SPEED);
         if (moving) calm = 0;
         else {
           calm += dt;
@@ -1886,6 +1927,7 @@
         gloss.addColorStop(1, "rgba(255,220,150,0)");
         ctx.fillStyle = gloss;
         ctx.fillRect(INSET, INSET, rw, rh);
+        drawLavaPits();
       } else {
         const planks = 7;
         const plankW = rw / planks;
@@ -1924,6 +1966,36 @@
       else ctx.strokeStyle = "rgba(255, 210, 150, 0.28)";
       ctx.lineWidth = 3;
       ctx.stroke();
+    }
+
+    function drawLavaPits() {
+      const pits = lavaPits();
+      const t = performance.now() * 0.004;
+      for (let i = 0; i < pits.length; i++) {
+        const p = pits[i];
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.scale(1, p.ry / p.rx);
+        const glow = ctx.createRadialGradient(0, 0, p.rx * 0.15, 0, 0, p.rx * 1.15);
+        glow.addColorStop(0, "rgba(255,220,80,0.95)");
+        glow.addColorStop(0.35, "rgba(255,120,20,0.92)");
+        glow.addColorStop(0.7, "rgba(180,30,10,0.88)");
+        glow.addColorStop(1, "rgba(40,8,4,0.0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.rx * (1.02 + 0.03 * Math.sin(t + i)), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,240,120," + (0.35 + 0.2 * Math.sin(t * 1.7 + i)) + ")";
+        ctx.beginPath();
+        ctx.ellipse(-p.rx * 0.15, -p.rx * 0.1, p.rx * 0.35, p.rx * 0.22, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        ctx.strokeStyle = "rgba(255,160,40,0.55)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     function drawHouse() {
@@ -1973,6 +2045,7 @@
     }
 
     function drawCarScore(c) {
+      if (c.fallen) return;
       if (!(c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED)) return;
       const pts = pointsAt(c.x, c.y);
       ctx.font = "700 13px Segoe UI, sans-serif";
@@ -1986,6 +2059,7 @@
     }
 
     function drawCar(c) {
+      if (c.fallen && c.sink >= 1) return;
       const skin = c.skin == null ? -1 : c.skin;
       const sprite = (!c.bot && skin >= 0 && carImages[skin] && carImages[skin].complete && carImages[skin].naturalWidth)
         ? carImages[skin]
@@ -1995,12 +2069,14 @@
         const sw = sprite ? sprite.naturalWidth : (cell.fw || cell.w);
         const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
         const previewBoost = c.preview ? 1.28 : 1;
-        const len = CAR_LEN * 1.08 * previewBoost;
+        const sink = c.fallen ? (c.sink || 0) : 0;
+        const len = CAR_LEN * 1.08 * previewBoost * (1 - sink * 0.55);
         const wide = len * (sh / sw);
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();
-        ctx.translate(c.x, c.y);
+        ctx.globalAlpha = 1 - sink * 0.85;
+        ctx.translate(c.x, c.y + sink * 18);
         ctx.rotate(c.angle);
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
@@ -2009,6 +2085,7 @@
         if (sprite) ctx.drawImage(sprite, -halfL, -halfW, len, wide);
         else ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
         ctx.restore();
+        ctx.globalAlpha = 1;
         if (c.preview) {
           ctx.font = "800 15px Segoe UI, sans-serif";
           ctx.textAlign = "center";
@@ -2024,12 +2101,14 @@
       }
       const m = c.body == null ? bodyStyle : c.body;
       const sheet = carSheets[m] || carSheets[1] || carSheets[0];
-      const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08);
+      const sink = c.fallen ? (c.sink || 0) : 0;
+      const len = CAR_LEN * (m === 2 ? 1.18 : m === 1 ? 1.02 : 1.08) * (1 - sink * 0.55);
       const wide = sheet ? len * (sheet.height / sheet.width) : CAR_WIDE * (m === 1 ? 0.86 : 0.80);
       const halfL = len * 0.5;
       const halfW = wide * 0.5;
       ctx.save();
-      ctx.translate(c.x, c.y);
+      ctx.globalAlpha = 1 - sink * 0.85;
+      ctx.translate(c.x, c.y + sink * 18);
       ctx.rotate(c.angle);
       if (sheet) {
         ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -2038,6 +2117,7 @@
         ctx.fill();
         ctx.drawImage(sheet, -halfL, -halfW, len, wide);
         ctx.restore();
+        ctx.globalAlpha = 1;
         drawCarScore(c);
         return;
       }
@@ -2133,6 +2213,7 @@
         roundRect(-halfL * 0.98, -halfW * 0.28, 12, wide * 0.28, 2); ctx.fill();
       }
       ctx.restore();
+      ctx.globalAlpha = 1;
 
       if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
         const pts = pointsAt(c.x, c.y);

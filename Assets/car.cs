@@ -30,8 +30,8 @@ public class car : MonoBehaviour
     static readonly string[] BodyNames = { "Muscle", "Hatch", "Cruiser" };
     static readonly string[] LevelNames = { "Salon", "Buz", "Dar halka", "Fırtına", "Usta" };
     static readonly string[] LevelThemes = { "salon", "ice", "narrow", "storm", "master" };
-    static readonly float[] LevelFriction = { 1.60f, 0.95f, 1.50f, 2.10f, 1.25f };
-    static readonly float[] LevelSpeed = { 7.40f, 8.20f, 7.00f, 9.00f, 7.80f };
+    static readonly float[] LevelFriction = { 1.60f, 0.52f, 1.50f, 2.10f, 1.25f };
+    static readonly float[] LevelSpeed = { 7.40f, 8.60f, 7.00f, 9.00f, 7.80f };
     static readonly float[] LevelRing = { 1f, 1f, 0.72f, 0.90f, 0.62f };
     static readonly float[] LevelBot = { 0.52f, 0.68f, 0.78f, 0.86f, 0.94f };
     static readonly int[] LevelCars = { 4, 4, 5, 5, 6 };
@@ -115,6 +115,8 @@ public class car : MonoBehaviour
         public bool bot;
         public float frictionMul = 1f;
         public bool magnet;
+        public bool fallen;
+        public float sink;
         public int body;
         public int skin = -1;
     }
@@ -806,8 +808,14 @@ public class car : MonoBehaviour
     {
         for (int i = 0; i < stones.Count; i++)
         {
-            if (!stones[i].launched) continue;
+            if (!stones[i].launched || stones[i].fallen) continue;
             Glide(stones[i], dt);
+        }
+
+        for (int i = 0; i < stones.Count; i++)
+        {
+            if (stones[i].fallen && stones[i].sink < 1f)
+                stones[i].sink = Mathf.Min(1f, stones[i].sink + dt * 1.6f);
         }
 
         for (int n = 0; n < 5; n++)
@@ -816,7 +824,7 @@ public class car : MonoBehaviour
             {
                 for (int j = i + 1; j < stones.Count; j++)
                 {
-                    if (!stones[i].launched || !stones[j].launched) continue;
+                    if (!stones[i].launched || !stones[j].launched || stones[i].fallen || stones[j].fallen) continue;
                     Resolve(stones[i], stones[j]);
                 }
             }
@@ -824,13 +832,13 @@ public class car : MonoBehaviour
 
         for (int i = 0; i < stones.Count; i++)
         {
-            if (stones[i].launched) StopAtBoard(stones[i]);
+            if (stones[i].launched && !stones[i].fallen) StopAtBoard(stones[i]);
         }
 
         bool moving = false;
         for (int i = 0; i < stones.Count; i++)
         {
-            if (stones[i].launched && stones[i].vel.magnitude > StopSpeed)
+            if (stones[i].launched && !stones[i].fallen && stones[i].vel.magnitude > StopSpeed)
             {
                 moving = true;
                 break;
@@ -847,6 +855,7 @@ public class car : MonoBehaviour
 
     bool Glide(Stone body, float dt)
     {
+        if (body.fallen) return false;
         float sp = body.vel.magnitude;
         if (sp <= StopSpeed)
         {
@@ -887,11 +896,38 @@ public class car : MonoBehaviour
         }
 
         body.pos += body.vel * dt;
+        if (!body.fallen && InLava(body.pos))
+        {
+            body.fallen = true;
+            body.vel = Vector2.zero;
+            body.sink = 0f;
+            AddPop("LAVA!", body.pos + new Vector2(0f, 0.2f), new Color(1f, 0.42f, 0.16f), true);
+            return false;
+        }
         return !StopAtBoard(body) && body.vel.magnitude > StopSpeed;
+    }
+
+    bool InLava(Vector2 p)
+    {
+        if (levelI != 4) return false;
+        float outer = RingRadius[0];
+        Vector2 left = new Vector2(House.x - outer - 0.72f, House.y + 0.06f);
+        Vector2 right = new Vector2(House.x + outer + 0.72f, House.y + 0.06f);
+        float rx = 0.70f;
+        float ry = Mathf.Max(0.78f, outer * 0.92f);
+        return InsideEllipse(p, left, rx, ry) || InsideEllipse(p, right, rx, ry);
+    }
+
+    static bool InsideEllipse(Vector2 p, Vector2 c, float rx, float ry)
+    {
+        float dx = (p.x - c.x) / (rx + CarRadius * 0.25f);
+        float dy = (p.y - c.y) / (ry + CarRadius * 0.25f);
+        return dx * dx + dy * dy <= 1f;
     }
 
     bool StopAtBoard(Stone body)
     {
+        if (body.fallen) return true;
         float minX = -laneHalf + CarRadius;
         float maxX = laneHalf - CarRadius;
         float minY = Spawn.y - 0.4f;
@@ -969,7 +1005,7 @@ public class car : MonoBehaviour
             }
             else comboStreak = 0;
 
-            if (current != null && stones.Contains(current))
+            if (current != null && stones.Contains(current) && !current.fallen)
             {
                 int pts = PointsAt(current.pos);
                 if (pts > 0)
@@ -981,6 +1017,7 @@ public class car : MonoBehaviour
                     PlayAsmr("glass");
                 }
             }
+            else if (current != null && current.fallen) comboStreak = 0;
         }
 
         activePower = PowerUp.None;
@@ -1016,6 +1053,13 @@ public class car : MonoBehaviour
         {
             Stone s = stones[i];
             if (!s.launched) continue;
+            if (s.fallen)
+            {
+                if (s.view != null) Destroy(s.view);
+                stones.RemoveAt(i);
+                removed++;
+                continue;
+            }
             if (s.vel.magnitude > StopSpeed) continue;
             if (PointsAt(s.pos) > 0) continue;
             if (s.view != null) Destroy(s.view);
@@ -1118,7 +1162,7 @@ public class car : MonoBehaviour
         for (int i = 0; i < stones.Count; i++)
         {
             Stone stone = stones[i];
-            if (!stone.launched || stone.bot != bot) continue;
+            if (!stone.launched || stone.bot != bot || stone.fallen) continue;
             if (stone.vel.magnitude > StopSpeed) continue;
             sum += PointsAt(stone.pos);
         }
@@ -1135,15 +1179,23 @@ public class car : MonoBehaviour
         {
             Stone stone = stones[i];
             if (stone.view == null) continue;
-            stone.view.transform.position = stone.pos;
             stone.view.transform.rotation = Quaternion.Euler(0f, 0f, stone.angle * Mathf.Rad2Deg);
             var sr = stone.view.GetComponent<SpriteRenderer>();
             Vector2 sz = sr != null && sr.sprite != null ? (Vector2)sr.sprite.bounds.size : Vector2.one;
             if (sz.x < 0.001f) sz.x = 1f;
             if (sz.y < 0.001f) sz.y = 1f;
-            float len = CarLen * (stone.body == 2 ? 1.18f : stone.body == 0 ? 1.08f : 1.02f);
+            float sink = stone.fallen ? stone.sink : 0f;
+            float len = CarLen * (stone.body == 2 ? 1.18f : stone.body == 0 ? 1.08f : 1.02f) * (1f - sink * 0.55f);
             float wide = len * (sz.y / sz.x);
+            stone.view.transform.position = stone.pos + new Vector2(0f, -sink * 0.18f);
             stone.view.transform.localScale = new Vector3(len / sz.x, wide / sz.y, 1f);
+            if (sr != null)
+            {
+                Color col = sr.color;
+                col.a = 1f - sink * 0.85f;
+                sr.color = col;
+            }
+            if (stone.fallen && sink >= 1f) stone.view.SetActive(false);
         }
     }
 
@@ -1936,7 +1988,27 @@ public class car : MonoBehaviour
                     float g = Mathf.Clamp01(0.22f * tone + 0.02f);
                     float b = Mathf.Clamp01(0.10f * tone + 0.01f);
                     float gold = Mathf.Pow(Mathf.Abs(Mathf.Sin(u * Mathf.PI)), 10f) * 0.12f;
-                    c = new Color(r + gold, g + gold * 0.7f, b + gold * 0.2f, 1f);
+                    r += gold; g += gold * 0.7f; b += gold * 0.2f;
+                    // Halka yanlarında lava çukurları
+                    float hx = 0.5f;
+                    float hy = 0.78f;
+                    float outer = 0.12f;
+                    float[] pitU = { hx - outer - 0.09f, hx + outer + 0.09f };
+                    for (int pi = 0; pi < pitU.Length; pi++)
+                    {
+                        float dx = (u - pitU[pi]) / 0.09f;
+                        float dy = (v - hy) / 0.11f;
+                        float d2 = dx * dx + dy * dy;
+                        if (d2 < 1f)
+                        {
+                            float tLava = 1f - Mathf.Sqrt(d2);
+                            Color lava = Color.Lerp(new Color(0.55f, 0.08f, 0.02f), new Color(1f, 0.85f, 0.25f), tLava);
+                            r = Mathf.Lerp(r, lava.r, 0.92f);
+                            g = Mathf.Lerp(g, lava.g, 0.92f);
+                            b = Mathf.Lerp(b, lava.b, 0.92f);
+                        }
+                    }
+                    c = new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b), 1f);
                 }
                 else
                 {
