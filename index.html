@@ -577,7 +577,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 27 · Ses aç/kapa</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 28 · Gaz sesi</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -751,7 +751,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=27";
+      return "cars/" + file + "?v=28";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -798,12 +798,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=27";
+      im.src = src + "?v=28";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=27";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=28";
         return im;
       });
     }
@@ -820,13 +820,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=27")
+    fetch("cars/atlas.json?v=28")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=27";
+        img.src = "cars/atlas.png?v=28";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1331,29 +1331,39 @@
           tone(180, 0.12, 0.1, "square");
           return;
         }
-        if (kind === "grab") {
-          noiseBurst(0.08, "brown", 380, 0.14);
-          tone(140, 0.08, 0.08, "sine");
+        if (kind === "grab" || kind === "pull") {
+          // Çekme tıkırtısı yok — sadece bırakınca gaz
           return;
         }
-        if (kind === "pull") {
-          // Lastik gerilimi / çekme tıkırtısı
-          const f0 = 220 + Math.random() * 80;
-          tone(f0, 0.06, 0.1, "sawtooth");
-          noiseBurst(0.07, "pink", 900, 0.1);
-          return;
-        }
-        if (kind === "whoosh" || kind === "release") {
-          // Atış / bırakma araba sesi
-          noiseBurst(0.28, "pink", 1400, 0.28);
-          const o = ctx.createOscillator(), g = ctx.createGain();
-          o.type = "sawtooth";
-          o.frequency.setValueAtTime(190, t);
-          o.frequency.exponentialRampToValueAtTime(70, t + 0.26);
-          g.gain.setValueAtTime(0.16, t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
-          o.connect(g); g.connect(ctx.destination);
-          o.start(t); o.stop(t + 0.3);
+        if (kind === "whoosh" || kind === "release" || kind === "gas" || kind === "engine") {
+          // Araba gazlama / motor
+          const dur = 0.55;
+          const lp = ctx.createBiquadFilter();
+          const g = ctx.createGain();
+          lp.type = "lowpass";
+          lp.frequency.setValueAtTime(700, t);
+          lp.frequency.linearRampToValueAtTime(2200, t + 0.2);
+          lp.frequency.exponentialRampToValueAtTime(550, t + dur);
+          g.gain.setValueAtTime(0.001, t);
+          g.gain.exponentialRampToValueAtTime(0.24, t + 0.04);
+          g.gain.setValueAtTime(0.2, t + 0.22);
+          g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          const mk = (type, f0, fPeak, fEnd, vol) => {
+            const o = ctx.createOscillator();
+            o.type = type;
+            o.frequency.setValueAtTime(f0, t);
+            o.frequency.linearRampToValueAtTime(fPeak, t + 0.18);
+            o.frequency.exponentialRampToValueAtTime(fEnd, t + dur);
+            const og = ctx.createGain();
+            og.gain.value = vol;
+            o.connect(og); og.connect(lp);
+            o.start(t); o.stop(t + dur);
+          };
+          mk("sawtooth", 75, 240, 95, 0.55);
+          mk("square", 38, 118, 48, 0.22);
+          mk("triangle", 150, 360, 140, 0.12);
+          lp.connect(g); g.connect(ctx.destination);
+          noiseBurst(0.4, "pink", 900, 0.14);
           return;
         }
         if (kind === "wood" || kind === "crash") {
@@ -1683,7 +1693,7 @@
       pull.active = false;
       pull.x = 0;
       pull.y = 0;
-      asmr("whoosh");
+      asmr("gas");
     }
 
     function canvasPoint(e) {
@@ -1705,7 +1715,6 @@
       pull.sy = p.y;
       pull.x = 0;
       pull.y = 0;
-      asmr("grab");
     }
 
     function onMove(e) {
@@ -1713,11 +1722,7 @@
       const p = canvasPoint(e);
       pull.x = p.x - pull.sx;
       pull.y = p.y - pull.sy;
-      const band = powerBand(Math.hypot(pull.x, pull.y));
-      if (band > pullBandHeard) {
-        pullBandHeard = band;
-        asmr("pull");
-      }
+      pullBandHeard = powerBand(Math.hypot(pull.x, pull.y));
     }
 
     function launch() {
@@ -1744,7 +1749,7 @@
       pull.y = 0;
       state = "slide";
       calm = 0;
-      asmr("whoosh");
+      asmr("gas");
     }
 
     function onUp() {

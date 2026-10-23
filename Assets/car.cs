@@ -768,18 +768,12 @@ public class car : MonoBehaviour
             pullBandHeard = 0;
             pressPos = ScreenToWorld(screen);
             pull = Vector2.zero;
-            PlayAsmr("grab");
         }
 
         if (pulling && held)
         {
             pull = ScreenToWorld(screen) - pressPos;
-            int band = PowerBand(pull.magnitude);
-            if (band > pullBandHeard)
-            {
-                pullBandHeard = band;
-                PlayAsmr("pull");
-            }
+            pullBandHeard = PowerBand(pull.magnitude);
         }
 
         if (pulling && up)
@@ -868,7 +862,7 @@ public class car : MonoBehaviour
         stone.vel = dir * speed;
         stone.curl = Mathf.Clamp(-drag.x / MaxPull, -1f, 1f) * CurlPower;
         stone.angle = Mathf.Atan2(stone.vel.y, stone.vel.x);
-        PlayAsmr("whoosh");
+        PlayAsmr("gas");
     }
 
     static int PowerBand(float len)
@@ -1979,11 +1973,12 @@ public class car : MonoBehaviour
     {
         if (!soundEnabled || sfx == null) return;
         int rate = 22050;
+        if (kind == "grab" || kind == "pull") return;
+
         float seconds =
-            kind == "whoosh" || kind == "release" ? 0.28f :
+            kind == "gas" || kind == "engine" || kind == "whoosh" || kind == "release" ? 0.55f :
             kind == "crash" || kind == "wood" ? 0.16f :
-            kind == "glass" || kind == "pop" || kind == "select" ? 0.18f :
-            kind == "pull" || kind == "grab" ? 0.08f : 0.08f;
+            kind == "glass" || kind == "pop" || kind == "select" ? 0.18f : 0.08f;
         int n = Mathf.Max(64, (int)(rate * seconds));
         var data = new float[n];
 
@@ -2016,34 +2011,37 @@ public class car : MonoBehaviour
                 data[i] = Mathf.Sin(t * 180f * Mathf.PI * 2f) * env * 0.16f;
             }
         }
-        else if (kind == "grab" || kind == "pull" || kind == "whoosh" || kind == "release" || kind == "wood" || kind == "crash")
+        else if (kind == "gas" || kind == "engine" || kind == "whoosh" || kind == "release")
+        {
+            // Motor gazlama: RPM yükselip düşer
+            float b = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float tt = i / (float)rate;
+                float u = tt / seconds;
+                float rpm = u < 0.35f
+                    ? Mathf.Lerp(75f, 240f, u / 0.35f)
+                    : Mathf.Lerp(240f, 95f, (u - 0.35f) / 0.65f);
+                float env = u < 0.08f ? (u / 0.08f) : (u > 0.7f ? (1f - u) / 0.3f : 1f);
+                env = Mathf.Clamp01(env);
+                float w = Random.Range(-1f, 1f);
+                b = 0.7f * b + 0.3f * w;
+                float tone = Mathf.Sin(tt * rpm * Mathf.PI * 2f) * 0.28f
+                    + Mathf.Sin(tt * (rpm * 0.5f) * Mathf.PI * 2f) * 0.14f
+                    + Mathf.Sin(tt * (rpm * 1.5f) * Mathf.PI * 2f) * 0.08f;
+                data[i] = (tone + b * 0.12f) * env;
+            }
+        }
+        else if (kind == "wood" || kind == "crash")
         {
             float b = 0f;
-            bool brown = kind == "wood" || kind == "crash" || kind == "grab";
-            float amp = kind == "whoosh" || kind == "release" ? 0.34f : kind == "crash" || kind == "wood" ? 0.38f : 0.18f;
             for (int i = 0; i < n; i++)
             {
                 float w = Random.Range(-1f, 1f);
-                b = brown ? (b + 0.02f * w) / 1.02f : 0.7f * b + 0.3f * w;
+                b = (b + 0.02f * w) / 1.02f;
                 float env = 1f - i / (float)n;
-                float tone = 0f;
-                if (kind == "whoosh" || kind == "release")
-                {
-                    float tt = i / (float)rate;
-                    float freq = Mathf.Lerp(190f, 70f, tt / seconds);
-                    tone = Mathf.Sin(tt * freq * Mathf.PI * 2f) * 0.2f * env;
-                }
-                else if (kind == "crash" || kind == "wood")
-                {
-                    float tt = i / (float)rate;
-                    tone = Mathf.Sin(tt * 110f * Mathf.PI * 2f) * 0.22f * env;
-                }
-                else if (kind == "pull")
-                {
-                    float tt = i / (float)rate;
-                    tone = Mathf.Sin(tt * 260f * Mathf.PI * 2f) * 0.14f * env;
-                }
-                data[i] = b * env * amp + tone;
+                float tt = i / (float)rate;
+                data[i] = b * env * 0.38f + Mathf.Sin(tt * 110f * Mathf.PI * 2f) * 0.22f * env;
             }
         }
         else
