@@ -551,12 +551,13 @@ public class car : MonoBehaviour
                 return;
             }
 
-            for (int i = 0; i < 3; i++)
+            int garageN = Mathf.Min(unlockCount, 6);
+            for (int i = 0; i < garageN; i++)
             {
-                if (Clicked(ModelRect(i)))
+                if (Clicked(MenuGarageRect(i)))
                 {
-                    bodyStyle = i;
-                    PlayerPrefs.SetInt(BodyKey, bodyStyle);
+                    selectedSkin = i;
+                    PlayerPrefs.SetInt(SkinKey, selectedSkin);
                     PlayAsmr("tap");
                     return;
                 }
@@ -1222,27 +1223,39 @@ public class car : MonoBehaviour
         return new Rect(safe.x + (safe.width - w) * 0.5f, safe.y + (safe.height - h) * 0.5f, w, h);
     }
 
+    Rect MenuGarageRect(int i)
+    {
+        Rect card = MenuCard();
+        float top = card.y + 124f;
+        float gap = 6f;
+        float pad = 16f;
+        const int cols = 3;
+        float cellW = (card.width - pad * 2f - gap * (cols - 1)) / cols;
+        float cellH = 48f;
+        int row = i / cols;
+        int col = i % cols;
+        return new Rect(card.x + pad + col * (cellW + gap), top + row * (cellH + gap), cellW, cellH);
+    }
+
     Rect StackBtn(int i)
     {
         Rect card = MenuCard();
-        float top = card.y + 118f;
-        float h = 36f;
-        float gap = 6f;
+        float top = card.y + 252f;
+        float h = 34f;
+        float gap = 5f;
         return new Rect(card.x + 22f, top + i * (h + gap), card.width - 44f, h);
     }
 
-    Rect MenuPlayRect() { return StackBtn(8); }
+    Rect MenuPlayRect() { return StackBtn(5); }
 
-    Rect ModelRect(int i) { return StackBtn(i); }
+    Rect LevelRect(int i) { return StackBtn(i); }
 
-    Rect LevelRect(int i) { return StackBtn(3 + i); }
-
-    Rect MenuCollectionRect() { return StackBtn(9); }
+    Rect MenuCollectionRect() { return StackBtn(6); }
 
     Rect BackMenuRect()
     {
         Rect safe = SafeScreen();
-        return new Rect(safe.x + 8f, safe.y + 40f, 78f, 30f);
+        return new Rect(safe.xMax - 86f, safe.y + 42f, 78f, 28f);
     }
 
     Rect CollectionCard()
@@ -1340,21 +1353,43 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 10f, card.width, 32f), "Halka Arabaları", label);
         GUI.Label(new Rect(card.x + 16f, card.y + 42f, card.width - 32f, 20f),
-            "Sürüm 9.0  ·  110 arabalık koleksiyon", hintStyle);
+            "Sürüm 9.1  ·  Arabalarım + üst sol sıra", hintStyle);
         string name = PlayerNames[Mathf.Clamp(selectedSkin, 0, PlayerNames.Length - 1)];
         GUI.Label(new Rect(card.x + 16f, card.y + 64f, card.width - 32f, 40f),
-            "Koleksiyon " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
+            "Arabalarım " + unlockCount + "/" + PlayerColors.Length + "  ·  " + name
             + (best > 0 ? "\nRekor " + best : ""), hintStyle);
-        GUI.Label(new Rect(card.x + 16f, card.y + 96f, card.width - 32f, 18f), "ARABA / SEVİYE", hintStyle);
-        for (int i = 0; i < 3; i++)
+        GUI.Label(new Rect(card.x + 16f, card.y + 104f, card.width - 32f, 18f), "ARABALARIM", hintStyle);
+        int garageN = Mathf.Min(unlockCount, 6);
+        for (int i = 0; i < garageN; i++)
         {
-            Rect mr = ModelRect(i);
-            GUI.color = i == bodyStyle ? new Color(0.941f, 0.635f, 0.008f, 1f) : new Color(0.18f, 0.22f, 0.28f, 1f);
-            GUI.DrawTexture(mr, pixel);
-            GUI.color = i == bodyStyle ? new Color(0.10f, 0.07f, 0.01f, 1f) : Color.white;
-            GUI.Label(mr, BodyNames[i], hintStyle);
+            Rect gr = MenuGarageRect(i);
+            bool sel = i == selectedSkin;
+            GUI.color = sel ? new Color(0.25f, 0.18f, 0.08f, 1f) : new Color(0.12f, 0.14f, 0.18f, 1f);
+            GUI.DrawTexture(gr, pixel);
+            if (sel)
+            {
+                GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
+                GUI.DrawTexture(new Rect(gr.x, gr.y, gr.width, 3f), pixel);
+            }
+            Rect thumb = new Rect(gr.x + 4f, gr.y + 6f, gr.width - 8f, 22f);
+            if (atlasSprites != null && i < atlasSprites.Length && atlasSprites[i] != null)
+            {
+                Rect tr = atlasSprites[i].textureRect;
+                Texture2D tex = atlasSprites[i].texture;
+                var uv = new Rect(tr.x / tex.width, tr.y / tex.height, tr.width / tex.width, tr.height / tex.height);
+                GUI.color = Color.white;
+                GUI.DrawTextureWithTexCoords(thumb, tex, uv);
+            }
+            else
+            {
+                GUI.color = PlayerColors[i];
+                GUI.DrawTexture(thumb, pixel);
+            }
+            GUI.color = Color.white;
+            GUI.Label(new Rect(gr.x, gr.y + 30f, gr.width, 16f), PlayerNames[i], hudStyle);
         }
 
+        GUI.Label(new Rect(card.x + 16f, card.y + 232f, card.width - 32f, 18f), "SEVİYE", hintStyle);
         for (int i = 0; i < LevelNames.Length; i++)
         {
             Rect lr = LevelRect(i);
@@ -1368,13 +1403,13 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.941f, 0.635f, 0.008f, 1f);
         GUI.DrawTexture(play, pixel);
         GUI.color = new Color(0.10f, 0.07f, 0.01f, 1f);
-        GUI.Label(play, "Oyna", label);
+        GUI.Label(play, "Bu arabayla oyna", label);
 
         Rect coll = MenuCollectionRect();
         GUI.color = new Color(0.18f, 0.22f, 0.28f, 1f);
         GUI.DrawTexture(coll, pixel);
         GUI.color = Color.white;
-        GUI.Label(coll, "Koleksiyon", label);
+        GUI.Label(coll, "Tüm arabalarım", label);
         GUI.color = Color.white;
     }
 
@@ -1384,7 +1419,7 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.06f, 0.09f, 0.13f, 0.96f);
         GUI.DrawTexture(card, pixel);
         GUI.color = Color.white;
-        GUI.Label(new Rect(card.x, card.y + 10f, card.width, 28f), "Koleksiyon", label);
+        GUI.Label(new Rect(card.x, card.y + 10f, card.width, 28f), "Arabalarım", label);
         GUI.Label(new Rect(card.x, card.y + 40f, card.width, 28f),
             unlockCount + "/" + PlayerColors.Length + " araba açık · Botu yenerek aç", hintStyle);
 
@@ -1482,28 +1517,28 @@ public class car : MonoBehaviour
             DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
         }
 
-        // Sol alt — halkayı ve atış yolunu kapatmaz
+        // Üst sol — kompakt sıra göstergesi
         if (phase != Phase.Over)
         {
             turnBannerPulse += Time.deltaTime;
-            float bw = Mathf.Min(150f, safe.width * 0.42f);
-            float bh = 34f;
-            var banner = new Rect(safe.x + 10f, safe.yMax - 96f, bw, bh);
+            float bw = 64f;
+            float bh = 26f;
+            var banner = new Rect(safe.x + 10f, safe.y + 42f, bw, bh);
             string turnText;
             if (phase == Phase.Slide)
             {
                 GUI.color = new Color(0.12f, 0.11f, 0.09f, 0.92f);
-                turnText = botTurn ? "Bot kayıyor…" : "Sen kayıyorsun…";
+                turnText = botTurn ? "Bot…" : "Sen…";
             }
             else if (botTurn)
             {
                 GUI.color = new Color(0.14f, 0.37f, 0.78f, 0.94f);
-                turnText = "Sıra BOT’ta";
+                turnText = "BOT";
             }
             else
             {
                 GUI.color = new Color(0.82f, 0.22f, 0.22f, 0.94f);
-                turnText = "Sıra SENDE";
+                turnText = "SEN";
             }
 
             GUI.DrawTexture(banner, pixel);
@@ -1578,7 +1613,7 @@ public class car : MonoBehaviour
         GUI.color = new Color(0.18f, 0.22f, 0.28f, 1f);
         GUI.DrawTexture(collBtn, pixel);
         GUI.color = Color.white;
-        GUI.Label(collBtn, "Koleksiyon", label);
+        GUI.Label(collBtn, "Arabalarım", label);
         GUI.color = Color.white;
     }
 

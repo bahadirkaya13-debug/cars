@@ -55,14 +55,16 @@
     }
     .hud-back {
       position: absolute;
-      top: 50px;
-      left: 14px;
+      top: 48px;
+      right: 14px;
+      left: auto;
       z-index: 6;
       pointer-events: auto;
       background: #f0a202;
       color: #1a1203;
       border: 0;
-      padding: 8px 16px;
+      padding: 7px 14px;
+      font-size: 13px;
     }
     .hud-back[hidden] { display: none; }
     .bottom {
@@ -234,25 +236,73 @@
     }
     .turn-banner {
       position: absolute;
-      /* Sol alt — halkayı ve orta yolu kapatmaz */
-      bottom: 72px;
-      top: auto;
+      /* Üst sol — kompakt, skorun altında */
+      top: 48px;
+      bottom: auto;
       left: 12px;
       right: auto;
       transform: none;
       z-index: 5;
-      max-width: min(52%, 200px);
+      max-width: 112px;
       min-width: 0;
       text-align: left;
-      padding: 8px 12px;
-      border-radius: 12px;
-      font-size: 13px;
+      padding: 5px 9px;
+      border-radius: 10px;
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.01em;
-      line-height: 1.25;
+      line-height: 1.2;
       pointer-events: none;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-      border: 2px solid rgba(255,255,255,0.18);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    .garage-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 2px 10px;
+      margin: 0 0 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .garage-chip {
+      flex: 0 0 auto;
+      width: 72px;
+      appearance: none;
+      border: 2px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      background: rgba(8, 12, 18, 0.55);
+      color: #eef3f8;
+      padding: 6px 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .garage-chip.selected {
+      border-color: #f0a202;
+      box-shadow: 0 0 0 2px rgba(240,162,2,0.35);
+    }
+    .garage-chip .swatch {
+      width: 56px;
+      height: 31px;
+      border-radius: 6px;
+      background-repeat: no-repeat;
+    }
+    .garage-more {
+      flex: 0 0 auto;
+      width: 72px;
+      border: 2px dashed rgba(255,255,255,0.28);
+      border-radius: 12px;
+      background: transparent;
+      color: #f0e6d8;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
     }
     .turn-banner[hidden] { display: none; }
     .turn-banner.you {
@@ -290,29 +340,25 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 9.0 · 110 arabalık koleksiyon</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 9.1 · Arabalarım + üst sol sıra</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
-        <p class="section-lab">Araba</p>
-        <div class="models" id="models">
-          <button type="button" data-body="0">Muscle</button>
-          <button type="button" data-body="1" class="sel">Hatch</button>
-          <button type="button" data-body="2">Cruiser</button>
-        </div>
+        <p class="section-lab">Arabalarım</p>
+        <div class="garage-strip" id="garage-strip"></div>
         <p class="section-lab">Seviye</p>
         <div class="models" id="levels"></div>
         <div class="btn-row">
-          <button id="start" type="button">Bota karşı oyna</button>
-          <button id="open-collection" class="ghost" type="button">Koleksiyon</button>
+          <button id="start" type="button">Bu arabayla oyna</button>
+          <button id="open-collection" class="ghost" type="button">Tüm arabalarım</button>
         </div>
       </div>
     </section>
     <section class="panel hidden" id="collection">
       <div class="card wide">
-        <h1>Koleksiyon</h1>
+        <h1>Arabalarım</h1>
         <p class="coll-meta" id="coll-meta">0/110 araba</p>
         <div class="coll-grid" id="coll-grid"></div>
-        <p id="coll-hint">Açık arabaya dokunarak seç.</p>
+        <p id="coll-hint">Açık arabaya dokunarak seç; oyunda o görünür.</p>
         <div class="btn-row">
           <button id="coll-play" type="button">Bu arabayla oyna</button>
           <button id="coll-back" class="ghost" type="button">Geri</button>
@@ -327,7 +373,7 @@
         <p id="best-out"></p>
         <div class="btn-row">
           <button id="again" type="button">Tekrar oyna</button>
-          <button id="over-collection" class="ghost" type="button">Koleksiyon</button>
+          <button id="over-collection" class="ghost" type="button">Arabalarım</button>
           <button id="over-menu" class="ghost" type="button">Menü</button>
         </div>
       </div>
@@ -438,7 +484,7 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=9";
+      im.src = src + "?v=91";
     });
     function applyAtlas(meta, img) {
       ATLAS = meta;
@@ -452,13 +498,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=9")
+    fetch("cars/atlas.json?v=91")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=9";
+        img.src = "cars/atlas.png?v=91";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -513,25 +559,55 @@
     function refreshMenuBest() {
       const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
       menuBestEl.textContent = best > 0
-        ? ("Rekor " + best + " · Koleksiyon " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name)
-        : ("Koleksiyon " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
+        ? ("Rekor " + best + " · Arabalarım " + unlockCount + "/" + CAR_COUNT + " · " + name)
+        : ("Arabalarım " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
+      renderGarageStrip();
     }
-    refreshMenuBest();
 
-    function carThumbStyle(i) {
+    function carThumbStyle(i, dw) {
+      dw = dw || 52;
       if (!ATLAS || !ATLAS.cars[i]) {
         return 'background:' + (PLAYER_COLORS[i] || "#445");
       }
       const cell = ATLAS.cars[i];
       const aw = ATLAS.cols * ATLAS.cellW;
       const ah = ATLAS.rows * ATLAS.cellH;
-      const dw = 52;
       const scale = dw / cell.w;
-      return "background-image:url(cars/atlas.png?v=9);"
+      return "background-image:url(cars/atlas.png?v=91);"
         + "background-size:" + (aw * scale) + "px " + (ah * scale) + "px;"
         + "background-position:-" + (cell.sx * scale) + "px -" + (cell.sy * scale) + "px;"
         + "width:" + dw + "px;height:" + Math.round(cell.h * scale) + "px;";
     }
+
+    const garageStrip = document.getElementById("garage-strip");
+    function renderGarageStrip() {
+      if (!garageStrip) return;
+      garageStrip.innerHTML = "";
+      const show = Math.min(unlockCount, 12);
+      for (let i = 0; i < show; i++) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "garage-chip" + (i === selectedSkin ? " selected" : "");
+        btn.innerHTML = '<span class="swatch" style="' + carThumbStyle(i, 56) + '"></span>'
+          + '<span>' + (PLAYER_NAMES[i] || ("#" + (i + 1))) + '</span>';
+        btn.addEventListener("click", () => {
+          selectedSkin = i;
+          try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
+          refreshMenuBest();
+          asmr("tap");
+        });
+        garageStrip.appendChild(btn);
+      }
+      if (CAR_COUNT > show) {
+        const more = document.createElement("button");
+        more.type = "button";
+        more.className = "garage-more";
+        more.textContent = "+" + (CAR_COUNT - show) + "\nTümü";
+        more.addEventListener("click", showCollection);
+        garageStrip.appendChild(more);
+      }
+    }
+    refreshMenuBest();
 
     function renderCollection() {
       collGrid.innerHTML = "";
@@ -551,7 +627,7 @@
             try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
             renderCollection();
             refreshMenuBest();
-            collHint.textContent = PLAYER_NAMES[i] + " seçildi. Bu arabayla oyna!";
+            collHint.textContent = PLAYER_NAMES[i] + " seçildi — oyunda bu araba görünür.";
           });
         } else {
           btn.addEventListener("click", () => {
@@ -562,7 +638,7 @@
         collGrid.appendChild(btn);
       }
       const sel = PLAYER_NAMES[selectedSkin] || "";
-      collHint.textContent = "Seçili: " + sel + " — açık arabaya dokunarak değiştir.";
+      collHint.textContent = "Seçili: " + sel + " — oyunda üstten bu fotoğraf kullanılır.";
     }
 
     function showCollection() {
@@ -640,15 +716,6 @@
         asmr("tap");
       };
       levelBar.appendChild(b);
-    });
-    document.querySelectorAll("#models button").forEach((b) => {
-      b.classList.toggle("sel", Number(b.dataset.body) === bodyStyle);
-      b.onclick = () => {
-        bodyStyle = Number(b.dataset.body);
-        try { localStorage.setItem(BODY_KEY, String(bodyStyle)); } catch (e) {}
-        document.querySelectorAll("#models button").forEach((x) => x.classList.toggle("sel", x === b));
-        asmr("tap");
-      };
     });
     const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
 
@@ -1634,15 +1701,15 @@
       } else if (state === "slide") {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner slide";
-        turnBanner.textContent = botTurn ? "Bot kayıyor…" : "Sen kayıyorsun…";
+        turnBanner.textContent = botTurn ? "Bot…" : "Sen…";
       } else if (botTurn) {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner bot";
-        turnBanner.textContent = "Sıra BOT’ta";
+        turnBanner.textContent = "BOT";
       } else {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner you";
-        turnBanner.textContent = "Sıra SENDE";
+        turnBanner.textContent = "SEN";
       }
       stage.dataset.state = botTurn ? "bot" : state;
     }
