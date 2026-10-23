@@ -794,7 +794,12 @@
       current = car;
       botTurn = !!forBot;
       state = "aim";
-      if (forBot) botThinkAt = performance.now() + 750;
+      if (forBot) {
+        botThinkAt = performance.now() + 750;
+        addPop("Sıra BOT’ta", SPAWN.x, SPAWN.y - 70, "#6aa8ff");
+      } else if (playerThrown + botThrown > 0) {
+        addPop("Sıra SENDE", SPAWN.x, SPAWN.y - 70, "#ff7a7a");
+      }
     }
 
     function startRound() {
