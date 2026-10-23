@@ -218,21 +218,24 @@
     }
     .turn-banner {
       position: absolute;
-      /* Halkanın üstünü kapatmasın: alt tarafta, güç çubuğunun hemen üstünde */
-      bottom: 78px;
+      /* Sol alt — halkayı ve orta yolu kapatmaz */
+      bottom: 72px;
       top: auto;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 12px;
+      right: auto;
+      transform: none;
       z-index: 5;
-      min-width: min(78%, 320px);
-      text-align: center;
-      padding: 10px 18px;
-      border-radius: 14px;
-      font-size: 16px;
+      max-width: min(52%, 200px);
+      min-width: 0;
+      text-align: left;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
       font-weight: 800;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
+      line-height: 1.25;
       pointer-events: none;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
       border: 2px solid rgba(255,255,255,0.18);
     }
     .turn-banner[hidden] { display: none; }
@@ -271,7 +274,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8.1 · Sıra paneli altta</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 8.2 · Sıra paneli sol altta</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Araba</p>
@@ -1546,15 +1549,15 @@
       } else if (state === "slide") {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner slide";
-        turnBanner.textContent = botTurn ? "Bot’un atışı kayıyor…" : "Senin atışın kayıyor…";
+        turnBanner.textContent = botTurn ? "Bot kayıyor…" : "Sen kayıyorsun…";
       } else if (botTurn) {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner bot";
-        turnBanner.textContent = "Sıra BOT’ta — nişan alıyor";
+        turnBanner.textContent = "Sıra BOT’ta";
       } else {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner you";
-        turnBanner.textContent = "Sıra SENDE — geri çek, bırak";
+        turnBanner.textContent = "Sıra SENDE";
       }
       stage.dataset.state = botTurn ? "bot" : state;
     }

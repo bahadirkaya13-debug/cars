@@ -1418,33 +1418,33 @@ public class car : MonoBehaviour
             DrawPill(new Rect(safe.xMax - pad - 140f, y2, 140f, h), p);
         }
 
-        // Halkanın üstünü kapatmasın: güç çubuğunun hemen üstünde
+        // Sol alt — halkayı ve atış yolunu kapatmaz
         if (phase != Phase.Over)
         {
             turnBannerPulse += Time.deltaTime;
-            float bw = Mathf.Min(320f, safe.width - 28f);
-            float bh = 40f;
-            var banner = new Rect(safe.x + (safe.width - bw) * 0.5f, safe.yMax - 102f, bw, bh);
+            float bw = Mathf.Min(150f, safe.width * 0.42f);
+            float bh = 34f;
+            var banner = new Rect(safe.x + 10f, safe.yMax - 96f, bw, bh);
             string turnText;
             if (phase == Phase.Slide)
             {
                 GUI.color = new Color(0.12f, 0.11f, 0.09f, 0.92f);
-                turnText = botTurn ? "Bot’un atışı kayıyor…" : "Senin atışın kayıyor…";
+                turnText = botTurn ? "Bot kayıyor…" : "Sen kayıyorsun…";
             }
             else if (botTurn)
             {
                 GUI.color = new Color(0.14f, 0.37f, 0.78f, 0.94f);
-                turnText = "Sıra BOT’ta — nişan alıyor";
+                turnText = "Sıra BOT’ta";
             }
             else
             {
                 GUI.color = new Color(0.82f, 0.22f, 0.22f, 0.94f);
-                turnText = "Sıra SENDE — geri çek, bırak";
+                turnText = "Sıra SENDE";
             }
 
             GUI.DrawTexture(banner, pixel);
             GUI.color = Color.white;
-            GUI.Label(banner, turnText, label);
+            GUI.Label(banner, turnText, hudStyle != null ? hudStyle : label);
         }
     }
 
