@@ -201,10 +201,11 @@
       border: 1px solid rgba(240, 162, 2, 0.35);
     }
     .sel-preview img {
-      width: min(92%, 280px);
+      width: min(94%, 300px);
       height: auto;
-      max-height: 120px;
+      max-height: none;
       object-fit: contain;
+      object-position: center;
       display: block;
     }
     .sel-preview p {
@@ -435,7 +436,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 13 · Tam araba sayfası</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 14 · Tam araba sayfası</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <button id="open-collection" class="garage-entry" type="button">
@@ -501,7 +502,7 @@
     const INSET = 24;
     // Unity car.cs ile aynı kurallar (1 birim ≈ 100 px)
     const HOUSE = { x: 360, y: 280 };
-    const SPAWN = { x: 360, y: 980 };
+    const SPAWN = { x: 360, y: 940 };
     const RINGS = [
       { r: 168, points: 50, color: "#1f73db" },
       { r: 120, points: 100, color: "#b87538" },
@@ -546,7 +547,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=13";
+      return "cars/" + file + "?v=14";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -593,12 +594,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=13";
+      im.src = src + "?v=14";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=13";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=14";
         return im;
       });
     }
@@ -615,13 +616,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=13")
+    fetch("cars/atlas.json?v=14")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=13";
+        img.src = "cars/atlas.png?v=14";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
