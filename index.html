@@ -332,31 +332,25 @@
     }
     .turn-banner {
       position: absolute;
-      /* Orta yatay satır — atış başlayınca solar */
-      top: 46%;
-      left: 50%;
-      right: auto;
+      /* Üst sol — çok küçük rozet */
+      top: 46px;
       bottom: auto;
-      transform: translate(-50%, -50%);
+      left: 10px;
+      right: auto;
+      transform: none;
       z-index: 5;
-      width: min(86%, 420px);
-      max-width: none;
+      max-width: 72px;
       min-width: 0;
       text-align: center;
-      padding: 10px 18px;
-      border-radius: 12px;
-      font-size: 18px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 10px;
       font-weight: 800;
-      letter-spacing: 0.06em;
-      line-height: 1.2;
+      letter-spacing: 0.02em;
+      line-height: 1.15;
       pointer-events: none;
-      box-shadow: 0 8px 28px rgba(0,0,0,0.35);
-      border: 1px solid rgba(255,255,255,0.18);
-      opacity: 1;
-      transition: opacity 0.28s ease;
-    }
-    .turn-banner.fade {
-      opacity: 0;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.16);
     }
     .garage-strip {
       display: flex;
@@ -408,12 +402,16 @@
     }
     .turn-banner[hidden] { display: none; }
     .turn-banner.you {
-      background: rgba(210, 55, 55, 0.88);
+      background: rgba(210, 55, 55, 0.92);
       color: #fff7f5;
     }
     .turn-banner.bot {
-      background: rgba(35, 95, 200, 0.88);
+      background: rgba(35, 95, 200, 0.92);
       color: #eef6ff;
+    }
+    .turn-banner.slide {
+      background: rgba(30, 28, 24, 0.88);
+      color: #f0e6d8;
     }
     .howto ol { margin: 8px 0 14px; }
     .howto li { margin: 6px 0; }
@@ -438,7 +436,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 16 · Tam araba sayfası</p>
+        <p id="build-tag" style="margin:0 0 10px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 15 · Tam araba sayfası</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur, botu yen. Oyunda Menü ile geri dön.</p>
         <p id="menu-best"></p>
         <button id="open-collection" class="garage-entry" type="button">
@@ -549,7 +547,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=16";
+      return "cars/" + file + "?v=15";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -596,12 +594,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=16";
+      im.src = src + "?v=15";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=16";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=15";
         return im;
       });
     }
@@ -618,13 +616,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=16")
+    fetch("cars/atlas.json?v=15")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=16";
+        img.src = "cars/atlas.png?v=15";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1816,20 +1814,18 @@
       const inMatch = state === "aim" || state === "slide";
       if (!inMatch) {
         turnBanner.hidden = true;
-        turnBanner.classList.remove("fade");
-      } else if (state === "slide" || pull.active) {
-        /* Atışa geçince yatay sıra yazısı sönsün */
+      } else if (state === "slide") {
         turnBanner.hidden = false;
-        turnBanner.className = "turn-banner " + (botTurn ? "bot" : "you") + " fade";
-        turnBanner.textContent = botTurn ? "Sıra botta" : "Sıra sende";
+        turnBanner.className = "turn-banner slide";
+        turnBanner.textContent = botTurn ? "Bot…" : "Sen…";
       } else if (botTurn) {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner bot";
-        turnBanner.textContent = "Sıra botta";
+        turnBanner.textContent = "BOT";
       } else {
         turnBanner.hidden = false;
         turnBanner.className = "turn-banner you";
-        turnBanner.textContent = "Sıra sende";
+        turnBanner.textContent = "SEN";
       }
       stage.dataset.state = botTurn ? "bot" : state;
     }
