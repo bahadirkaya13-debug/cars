@@ -14,8 +14,8 @@ public class car : MonoBehaviour
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
     const float CarRadius = 0.26f;
-    const float CarLen = 0.95f;
-    const float CarWide = 0.52f;
+    const float CarLen = 0.86f;
+    const float CarWide = 0.42f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int BaseCars = 4;
