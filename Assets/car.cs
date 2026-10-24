@@ -58,16 +58,16 @@ public class car : MonoBehaviour
     };
     Color[] PlayerColors =
     {
-        new Color(0.53f, 0.25f, 0.23f),
-        new Color(0.65f, 0.40f, 0.26f),
-        new Color(0.75f, 0.67f, 0.38f),
-        new Color(0.25f, 0.42f, 0.25f),
-        new Color(0.70f, 0.69f, 0.67f),
-        new Color(0.48f, 0.22f, 0.20f),
-        new Color(0.15f, 0.29f, 0.46f),
-        new Color(0.55f, 0.53f, 0.51f),
-        new Color(0.56f, 0.34f, 0.21f),
-        new Color(0.38f, 0.40f, 0.40f),
+        new Color(0.18f, 0.43f, 1.00f),
+        new Color(0.84f, 0.16f, 0.16f),
+        new Color(1.00f, 0.48f, 0.09f),
+        new Color(0.48f, 0.79f, 0.26f),
+        new Color(0.48f, 0.25f, 0.89f),
+        new Color(0.94f, 0.77f, 0.18f),
+        new Color(0.12f, 0.29f, 0.56f),
+        new Color(0.49f, 0.71f, 0.91f),
+        new Color(0.60f, 0.64f, 0.68f),
+        new Color(0.91f, 0.35f, 0.60f),
     };
     static readonly Color[] BotColors =
     {
@@ -78,8 +78,8 @@ public class car : MonoBehaviour
     };
     string[] PlayerNames =
     {
-        "Kızıl Kanat", "Turuncu 911", "Sarı Beetle", "Yeşil Coupe", "Beyaz Şerit",
-        "Kızıl Turbo", "Mavi Spor", "Gümüş Süper", "Turuncu Muscle", "Gümüş Kamyonet"
+        "Mavi 74", "Alev Kırmızı", "Turuncu Sörf", "Şimşek Yeşil", "Mor Dokuz",
+        "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş Ok", "Pembe Mini"
     };
 
     [System.Serializable]
