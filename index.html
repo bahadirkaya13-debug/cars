@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 36 · Orijinal arabalar</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 37 · Bot arabaları</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -697,7 +697,7 @@
       <div class="card howto">
         <h1>Nasıl oynanır?</h1>
         <ol>
-          <li><b>1. oyuncu</b> seçili araba, <b>2. oyuncu / bot</b> mavi — sıra yazısı kimin oynadığını gösterir.</li>
+          <li><b>1. oyuncu</b> seçili araba, <b>2. oyuncu / bot</b> koleksiyondan başka bir araba — sıra yazısı kimin oynadığını gösterir.</li>
           <li>Arabayı <b>geri çek, bırak</b>. Güç ortada dursun.</li>
           <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>.</li>
           <li>Rakibi vurup halkadan çıkar; nadiren <b>BUZ</b> veya <b>MIKNATIS</b> gelir.</li>
@@ -759,7 +759,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=36";
+      return "cars/" + file + "?v=37";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=36";
+      im.src = src + "?v=37";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=36";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=37";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=36")
+    fetch("cars/atlas.json?v=37")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=36";
+        img.src = "cars/atlas.png?v=37";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1489,6 +1489,16 @@
       return `rgb(${clamp((r * t) | 0, 0, 255)},${clamp((g * t) | 0, 0, 255)},${clamp((b * t) | 0, 0, 255)})`;
     }
 
+    function pickOpponentSkin() {
+      const n = Math.max(1, CAR_COUNT);
+      const pool = [];
+      for (let i = 0; i < n; i++) {
+        if (i !== (selectedSkin % n)) pool.push(i);
+      }
+      if (!pool.length) pool.push(selectedSkin % n);
+      return pool[botThrown % pool.length];
+    }
+
     function spawnCar(forBot) {
       let x = SPAWN.x;
       for (let i = 0; i < 7; i++) {
@@ -1505,8 +1515,7 @@
         activePower = "none";
       }
 
-      const idx = forBot ? botThrown % BOT_COLORS.length : selectedSkin;
-      const palette = forBot ? BOT_COLORS : PLAYER_COLORS;
+      const skin = forBot ? pickOpponentSkin() : selectedSkin;
       const car = {
         x: x,
         y: SPAWN.y,
@@ -1515,7 +1524,7 @@
         vx: 0,
         vy: 0,
         r: 26,
-        color: palette[idx % palette.length],
+        color: PLAYER_COLORS[skin % PLAYER_COLORS.length] || BOT_COLORS[0],
         angle: -Math.PI / 2,
         curl: 0,
         launched: false,
@@ -1525,7 +1534,7 @@
         fallen: false,
         sink: 0,
         body: forBot ? 1 : bodyStyle,
-        skin: forBot ? -1 : selectedSkin,
+        skin: skin,
       };
       cars.push(car);
       current = car;
@@ -2316,10 +2325,10 @@
     function drawCar(c) {
       if (c.fallen && c.sink >= 1) return;
       const skin = c.skin == null ? -1 : c.skin;
-      const sprite = (!c.bot && skin >= 0 && carImages[skin] && carImages[skin].complete && carImages[skin].naturalWidth)
+      const sprite = (skin >= 0 && carImages[skin] && carImages[skin].complete && carImages[skin].naturalWidth)
         ? carImages[skin]
         : null;
-      if (sprite || (!c.bot && atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin])) {
+      if (sprite || (atlasImg && ATLAS && skin >= 0 && ATLAS.cars[skin])) {
         const cell = ATLAS && ATLAS.cars[skin] ? ATLAS.cars[skin] : null;
         const sw = sprite ? sprite.naturalWidth : (cell.fw || cell.w);
         const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
@@ -2339,6 +2348,14 @@
         ctx.fill();
         if (sprite) ctx.drawImage(sprite, -halfL, -halfW, len, wide);
         else ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
+        // Bot / 2. oyuncu: mavi kenar izi (hangi taraf olduğu belli olsun)
+        if (c.bot && !c.preview) {
+          ctx.strokeStyle = "rgba(80, 170, 255, 0.85)";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, halfL * 0.92, halfW * 0.92, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.restore();
         ctx.globalAlpha = 1;
         if (c.preview) {

@@ -482,6 +482,20 @@ public class car : MonoBehaviour
         }
     }
 
+    int PickOpponentSkin()
+    {
+        int n = Mathf.Max(1, PlayerColors.Length);
+        if (atlasSprites != null && atlasSprites.Length > 0) n = atlasSprites.Length;
+        var pool = new System.Collections.Generic.List<int>();
+        int mine = ((selectedSkin % n) + n) % n;
+        for (int i = 0; i < n; i++)
+        {
+            if (i != mine) pool.Add(i);
+        }
+        if (pool.Count == 0) pool.Add(mine);
+        return pool[botThrown % pool.Count];
+    }
+
     void SpawnStone(bool forBot)
     {
         float x = Spawn.x;
@@ -513,7 +527,7 @@ public class car : MonoBehaviour
         else if (vsHuman) RollPowerUp();
         else activePower = PowerUp.None;
 
-        int idx = forBot ? botThrown % BotColors.Length : selectedSkin;
+        int skin = forBot ? PickOpponentSkin() : selectedSkin;
         var stone = new Stone
         {
             pos = new Vector2(x, Spawn.y),
@@ -524,16 +538,16 @@ public class car : MonoBehaviour
             frictionMul = 1f,
             magnet = false,
             body = forBot ? 1 : bodyStyle,
-            skin = forBot ? -1 : selectedSkin,
+            skin = skin,
         };
         stone.view = new GameObject(forBot ? "BotAraba" : "Araba");
         stone.view.transform.SetParent(transform, false);
         var body = stone.view.AddComponent<SpriteRenderer>();
         int model = forBot ? 1 : bodyStyle;
-        Color paint = forBot ? BotColors[idx % BotColors.Length] : PlayerColors[idx % PlayerColors.Length];
-        if (!forBot && atlasSprites != null && idx >= 0 && idx < atlasSprites.Length && atlasSprites[idx] != null)
+        Color paint = PlayerColors[Mathf.Clamp(skin, 0, PlayerColors.Length - 1)];
+        if (atlasSprites != null && skin >= 0 && skin < atlasSprites.Length && atlasSprites[skin] != null)
         {
-            body.sprite = atlasSprites[idx];
+            body.sprite = atlasSprites[skin];
             body.color = Color.white;
         }
         else if (hwSprites != null && model >= 0 && model < hwSprites.Length && hwSprites[model] != null)
@@ -1585,7 +1599,7 @@ public class car : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(card.x, card.y + 16f, card.width, 34f), "Nasıl oynanır?", label);
         GUI.Label(new Rect(card.x + 18f, card.y + 58f, card.width - 36f, 260f),
-            "1) Sen kırmızı, bot mavi.\n    Üstteki sıra paneli kimin oynadığını gösterir.\n\n"
+            "1) Sen seçili araba, bot koleksiyondan başka bir araba.\n    Üstteki sıra paneli kimin oynadığını gösterir.\n\n"
             + "2) Arabayı geri çek, bırak.\n    Güç ortada dursun.\n\n"
             + "3) Puan: dış 50 → içe 100 / 200 / 400.\n\n"
             + "4) Rakibi vurup halkadan çıkar.\n    Nadiren BUZ veya MIKNATIS gelir.",
