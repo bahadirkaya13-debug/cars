@@ -14,8 +14,8 @@ public class car : MonoBehaviour
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
     const float CarRadius = 0.26f;
-    const float CarLen = 0.86f;
-    const float CarWide = 0.42f;
+    const float CarLen = 0.82f;
+    const float CarWide = 0.34f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int BaseCars = 4;
@@ -78,8 +78,8 @@ public class car : MonoBehaviour
     };
     string[] PlayerNames =
     {
-        "Mavi 74", "Alev Kırmızı", "Turuncu Sörf", "Şimşek Yeşil", "Mor Dokuz",
-        "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş 74", "Pembe Alev"
+        "Sarı Spor", "Kırmızı Pickup", "Sarı Sedan", "Kırmızı Sedan", "Altın Sedan",
+        "Turuncu", "Polis", "Siyah", "Mavi", "Neon Yeşil"
     };
 
     [System.Serializable]
@@ -1334,17 +1334,18 @@ public class car : MonoBehaviour
         {
             Stone stone = stones[i];
             if (stone.view == null) continue;
-            stone.view.transform.rotation = Quaternion.Euler(0f, 0f, stone.angle * Mathf.Rad2Deg);
+            // Sprite burun yukarı; angle 0 = +X olduğu için +90°
+            stone.view.transform.rotation = Quaternion.Euler(0f, 0f, (stone.angle + Mathf.PI * 0.5f) * Mathf.Rad2Deg);
             var sr = stone.view.GetComponent<SpriteRenderer>();
             Vector2 sz = sr != null && sr.sprite != null ? (Vector2)sr.sprite.bounds.size : Vector2.one;
             if (sz.x < 0.001f) sz.x = 1f;
             if (sz.y < 0.001f) sz.y = 1f;
             float sink = stone.fallen ? stone.sink : 0f;
-            float len = CarLen * 0.92f * (1f - sink * 0.55f);
-            float aspect = sz.y / Mathf.Max(0.001f, sz.x);
-            float wide = Mathf.Min(CarWide * 1.05f, len * Mathf.Min(aspect, 0.52f));
+            float len = CarLen * (1f - sink * 0.55f);
+            float aspect = sz.x / Mathf.Max(0.001f, sz.y);
+            float wide = Mathf.Min(CarWide, len * Mathf.Min(aspect, 0.48f));
             stone.view.transform.position = stone.pos + new Vector2(0f, -sink * 0.18f);
-            stone.view.transform.localScale = new Vector3(len / sz.x, wide / sz.y, 1f);
+            stone.view.transform.localScale = new Vector3(wide / sz.x, len / sz.y, 1f);
             if (sr != null)
             {
                 Color col = sr.color;

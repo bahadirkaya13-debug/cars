@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 45 · Doğru yön</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 46 · Üstten bakış</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -748,18 +748,18 @@
     const BODY_KEY = "halka-arabalari-body";
     const START_UNLOCK = 3;
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
-    const CAR_LEN = 132;
-    const CAR_WIDE = 54;
+    const CAR_LEN = 118;
+    const CAR_WIDE = 48;
     const carSheets = [null, null, null];
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#2f6dff", "#d62828", "#ff7a18", "#7ac943", "#7b3fe4", "#f0c42e", "#1f4b8f", "#7eb6e8", "#9aa3ad", "#e85a9a"];
-    let PLAYER_NAMES = ["Mavi 74", "Alev Kırmızı", "Turuncu Sörf", "Şimşek Yeşil", "Mor Dokuz", "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş 74", "Pembe Alev"];
+    let PLAYER_COLORS = ["#f0c42e", "#d62828", "#f4d03f", "#c0392b", "#e67e22", "#ff7a18", "#2c3e50", "#1a1a1a", "#2980b9", "#7ac943"];
+    let PLAYER_NAMES = ["Sarı Spor", "Kırmızı Pickup", "Sarı Sedan", "Kırmızı Sedan", "Altın Sedan", "Turuncu", "Polis", "Siyah", "Mavi", "Neon Yeşil"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=45";
+      return "cars/" + file + "?v=46";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=45";
+      im.src = src + "?v=46";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=45";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=46";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=45")
+    fetch("cars/atlas.json?v=46")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=45";
+        img.src = "cars/atlas.png?v=46";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -2334,28 +2334,29 @@
         const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
         const previewBoost = c.preview ? 1.18 : 1;
         const sink = c.fallen ? (c.sink || 0) : 0;
-        // Sprite burun +X; len X boyunca, wide Y boyunca — bot aynı yol
+        // Sprite burun YUKARI (sarı örnek); uzunluk görsel yükseklik
         const len = CAR_LEN * previewBoost * (1 - sink * 0.55);
-        const aspect = sh / Math.max(1, sw);
+        const aspect = sw / Math.max(1, sh);
         const wide = Math.min(CAR_WIDE, len * Math.min(aspect, 0.48));
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();
         ctx.globalAlpha = 1 - sink * 0.85;
         ctx.translate(c.x, c.y + sink * 18);
-        ctx.rotate(c.angle);
+        // angle 0 = +X; sprite UP olduğu için +90°
+        ctx.rotate(c.angle + Math.PI / 2);
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
-        ctx.ellipse(2, 8, halfL * 0.88, halfW * 0.55, 0, 0, Math.PI * 2);
+        ctx.ellipse(2, 8, halfW * 0.55, halfL * 0.88, 0, 0, Math.PI * 2);
         ctx.fill();
         if (sprite) {
-          ctx.drawImage(sprite, -halfL, -halfW, len, wide);
+          ctx.drawImage(sprite, -halfW, -halfL, wide, len);
         } else {
           const fw = cell.fw || cell.w;
           const fh = cell.fh || cell.h;
           const ox = cell.sx + Math.floor((cell.w - fw) / 2);
           const oy = cell.sy + Math.floor((cell.h - fh) / 2);
-          ctx.drawImage(atlasImg, ox, oy, fw, fh, -halfL, -halfW, len, wide);
+          ctx.drawImage(atlasImg, ox, oy, fw, fh, -halfW, -halfL, wide, len);
         }
         ctx.restore();
         ctx.globalAlpha = 1;
