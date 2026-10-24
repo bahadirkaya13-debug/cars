@@ -74,7 +74,8 @@ public class car : MonoBehaviour
     };
     string[] PlayerNames =
     {
-        "Bordo 1", "Lacivert 1", "Yeşil 1", "Gümüş 1", "Kızıl 1", "Lacivert 2"
+        "Kızıl Ok", "Turuncu Fırtına", "Sarı Kabuk", "Yeşil Yıldırım", "Beyaz Şerit",
+        "Bordo Gülle", "Mavi Okçu", "Gümüş Zırh", "Turuncu Tokmak", "Çelik Kasa"
     };
 
     [System.Serializable]
@@ -197,6 +198,8 @@ public class car : MonoBehaviour
     AudioSource music;
     AudioSource sfx;
     float lastHit;
+    float shake;
+    float blastFlash;
     GUIStyle popStyle;
     GUIStyle label;
     GUIStyle hintStyle;
@@ -286,7 +289,9 @@ public class car : MonoBehaviour
 
         cam.orthographicSize = 3.2f;
         float midY = 0f;
-        cam.transform.position = new Vector3(0f, midY, -10f);
+        float sx = shake > 0f ? (Random.value - 0.5f) * shake * 0.18f : 0f;
+        float sy = shake > 0f ? (Random.value - 0.5f) * shake * 0.18f : 0f;
+        cam.transform.position = new Vector3(sx, midY + sy, -10f);
         float viewH = cam.orthographicSize * 2f;
         float viewW = viewH * PhoneAspect;
         if (board != null)
@@ -413,6 +418,8 @@ public class car : MonoBehaviour
         stones.Clear();
         pops.Clear();
         bits.Clear();
+        shake = 0f;
+        blastFlash = 0f;
         HideDots();
         current = null;
         phase = Phase.Menu;
@@ -439,6 +446,8 @@ public class car : MonoBehaviour
         unlockFlash = "";
         pops.Clear();
         bits.Clear();
+        shake = 0f;
+        blastFlash = 0f;
         calm = 0f;
         pulling = false;
         pull = Vector2.zero;
@@ -559,6 +568,49 @@ public class car : MonoBehaviour
         activePower = Random.value < 0.5f ? PowerUp.Ice : PowerUp.Magnet;
         string msg = activePower == PowerUp.Ice ? "BUZ!  Daha kaygan" : "MIKNATIS!  Merkeze çeker";
         AddPop(msg, Spawn + Vector2.up * 0.55f, new Color(0.55f, 0.90f, 1f));
+    }
+
+    void TriggerImpact(Vector2 world, float power)
+    {
+        float p = Mathf.Clamp(power, 0.4f, 1.6f);
+        shake = Mathf.Max(shake, 0.42f + p * 0.48f);
+        blastFlash = Mathf.Max(blastFlash, 0.85f + p * 0.35f);
+        PlayAsmr("crash");
+        int n = Mathf.FloorToInt(90f + p * 70f);
+        for (int i = 0; i < n; i++)
+        {
+            float ang = Random.Range(0f, Mathf.PI * 2f);
+            float sp = Random.Range(2.2f, 2.2f + 7.5f * p);
+            bits.Add(new BurstBit
+            {
+                pos = world + new Vector2(Random.Range(-0.12f, 0.12f), Random.Range(-0.12f, 0.12f)),
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp + Vector2.up * 0.5f,
+                color = ConfettiColors[i % ConfettiColors.Length],
+                life = Random.Range(0.65f, 1.4f),
+                max = 1.4f,
+                paper = Random.value > 0.3f,
+                rot = Random.Range(0f, 6f),
+                spin = Random.Range(-16f, 16f),
+                w = Random.Range(10f, 28f),
+                h = Random.Range(10f, 28f)
+            });
+        }
+        for (int i = 0; i < 36; i++)
+        {
+            float ang = (i / 36f) * Mathf.PI * 2f + Random.Range(0f, 0.2f);
+            float sp = 4.2f + p * 3.8f;
+            bits.Add(new BurstBit
+            {
+                pos = world,
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp,
+                color = (i % 2 == 0) ? new Color(1f, 0.90f, 0.40f) : new Color(1f, 0.48f, 0.16f),
+                life = Random.Range(0.55f, 0.95f),
+                max = 0.95f,
+                paper = false,
+                w = 12f,
+                h = 12f
+            });
+        }
     }
 
     void AddPop(string text, Vector2 world, Color color, bool boom = false)
@@ -716,6 +768,9 @@ public class car : MonoBehaviour
             b.rot += b.spin * dt;
             if (b.life <= 0f) bits.RemoveAt(i);
         }
+
+        if (shake > 0f) shake = Mathf.Max(0f, shake - dt * 2.4f);
+        if (blastFlash > 0f) blastFlash = Mathf.Max(0f, blastFlash - dt * 1.8f);
 
         SyncStones();
         SyncDots();
@@ -1031,10 +1086,21 @@ public class car : MonoBehaviour
         b.vel += j * n;
         a.curl *= 0.35f;
         b.curl *= 0.35f;
-        if (rv < -0.22f && Time.time - lastHit > 0.07f)
+        if (rv < -0.22f && Time.time - lastHit > 0.09f)
         {
             lastHit = Time.time;
-            PlayAsmr("crash");
+            float power = Mathf.Clamp((-rv) / 2.6f, 0.55f, 1.5f);
+            Vector2 mid = (a.pos + b.pos) * 0.5f;
+            TriggerImpact(mid, power);
+            pops.Add(new Pop
+            {
+                text = "ÇARPIŞMA!",
+                world = mid + Vector2.up * 0.28f,
+                life = 0.9f,
+                max = 0.9f,
+                color = new Color(1f, 0.76f, 0.3f),
+                boom = true
+            });
         }
     }
 
@@ -1479,6 +1545,20 @@ public class car : MonoBehaviour
         else DrawBar();
         DrawWorldTexts();
         DrawPops();
+        DrawBlastFlash();
+    }
+
+    void DrawBlastFlash()
+    {
+        if (blastFlash <= 0f || pixel == null) return;
+        float a = Mathf.Clamp(blastFlash, 0f, 1.3f);
+        Color fill = new Color(1f, 0.96f, 0.78f, Mathf.Min(0.55f, a * 0.55f));
+        GUI.color = fill;
+        GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), pixel);
+        Color warm = new Color(1f, 0.45f, 0.12f, Mathf.Min(0.42f, a * 0.4f));
+        GUI.color = warm;
+        GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), pixel);
+        GUI.color = Color.white;
     }
 
     Rect TutorialCard()
@@ -1963,7 +2043,7 @@ public class car : MonoBehaviour
 
         float seconds =
             kind == "gas" || kind == "engine" || kind == "whoosh" || kind == "release" ? 0.55f :
-            kind == "crash" || kind == "wood" ? 0.16f :
+            kind == "crash" || kind == "wood" ? 0.38f :
             kind == "glass" || kind == "pop" || kind == "select" ? 0.18f : 0.08f;
         int n = Mathf.Max(64, (int)(rate * seconds));
         var data = new float[n];
@@ -2020,14 +2100,20 @@ public class car : MonoBehaviour
         }
         else if (kind == "wood" || kind == "crash")
         {
-            float b = 0f;
+            float b0 = 0f;
+            float b1 = 0f;
             for (int i = 0; i < n; i++)
             {
                 float w = Random.Range(-1f, 1f);
-                b = (b + 0.02f * w) / 1.02f;
-                float env = 1f - i / (float)n;
+                b0 = (b0 + 0.02f * w) / 1.02f;
+                b1 = 0.72f * b1 + 0.28f * w;
                 float tt = i / (float)rate;
-                data[i] = b * env * 0.38f + Mathf.Sin(tt * 110f * Mathf.PI * 2f) * 0.22f * env;
+                float u = i / (float)n;
+                float env = Mathf.Exp(-tt * 5.5f) * (1f - u * 0.35f);
+                float bass = Mathf.Sin(tt * 38f * Mathf.PI * 2f) * 0.42f
+                    + Mathf.Sin(tt * 62f * Mathf.PI * 2f) * 0.28f
+                    + Mathf.Sin(tt * 95f * Mathf.PI * 2f) * 0.16f;
+                data[i] = (b0 * 0.55f + b1 * 0.22f + bass) * env;
             }
         }
         else

@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 33 · Sessiz kayış</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 34 · Oyuncak & patlama</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -754,12 +754,12 @@
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#db2e2e", "#f27a1a", "#f5d11f", "#e64d73", "#8c33d9", "#26c76b"];
-    let PLAYER_NAMES = ["Bordo 1", "Lacivert 1", "Yeşil 1", "Gümüş 1", "Kızıl 1", "Lacivert 2"];
+    let PLAYER_COLORS = ["#e23a3a", "#f07820", "#f0d030", "#2db85a", "#f2f0ea", "#a02840", "#2a6ad8", "#9aa0a8", "#e86818", "#5a6870"];
+    let PLAYER_NAMES = ["Kızıl Ok", "Turuncu Fırtına", "Sarı Kabuk", "Yeşil Yıldırım", "Beyaz Şerit", "Bordo Gülle", "Mavi Okçu", "Gümüş Zırh", "Turuncu Tokmak", "Çelik Kasa"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=33";
+      return "cars/" + file + "?v=34";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=33";
+      im.src = src + "?v=34";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=33";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=34";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=33")
+    fetch("cars/atlas.json?v=34")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=33";
+        img.src = "cars/atlas.png?v=34";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1110,6 +1110,8 @@
       current = null;
       pops.length = 0;
       bits.length = 0;
+      shake = 0;
+      blastFlash = 0;
       menuEl.classList.remove("hidden");
       overEl.classList.add("hidden");
       hideAllPages();
@@ -1221,28 +1223,65 @@
       asmr("tap");
     }
 
-    const CONFETTI = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffe566", "#ffffff"];
+    const CONFETTI = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffe566", "#ffffff", "#ff7a28", "#fff4c2"];
+    let shake = 0;
+    let blastFlash = 0;
+
+    function triggerImpact(x, y, power) {
+      const p = clamp(power == null ? 1 : power, 0.4, 1.6);
+      shake = Math.max(shake, 0.42 + p * 0.48);
+      blastFlash = Math.max(blastFlash, 0.85 + p * 0.35);
+      asmr("crash");
+      // Ekranı kaplayan patlama parçacıkları
+      const n = Math.floor(90 + p * 70);
+      for (let i = 0; i < n; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const sp = 180 + Math.random() * (620 * p);
+        bits.push({
+          x: x + (Math.random() - 0.5) * 60,
+          y: y + (Math.random() - 0.5) * 60,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp - 40,
+          life: 0.65 + Math.random() * 0.85,
+          max: 1.4,
+          w: 10 + Math.random() * 22,
+          h: 10 + Math.random() * 22,
+          rot: Math.random() * 6,
+          spin: (Math.random() - 0.5) * 16,
+          color: CONFETTI[i % CONFETTI.length],
+          paper: Math.random() > 0.3,
+          blast: true,
+        });
+      }
+      for (let i = 0; i < 36; i++) {
+        const ang = (i / 36) * Math.PI * 2 + Math.random() * 0.2;
+        bits.push({
+          x, y,
+          vx: Math.cos(ang) * (360 + p * 320),
+          vy: Math.sin(ang) * (360 + p * 320),
+          life: 0.55 + Math.random() * 0.4,
+          max: 0.95,
+          w: 12, h: 12, rot: 0, spin: 0,
+          color: i % 2 ? "#ffe566" : "#ff7a28",
+          paper: false,
+          blast: true,
+        });
+      }
+    }
+
     function addPop(text, x, y, color, boom) {
       pops.push({ text, x, y, life: 1.15, max: 1.15, color: color || "#f0a202", boom: !!boom });
       if (!boom) return;
       asmr("pop");
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 22; i++) {
         const ang = Math.random() * Math.PI * 2;
-        const sp = 70 + Math.random() * 160;
+        const sp = 60 + Math.random() * 140;
         bits.push({
           x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 40,
-          life: 0.55 + Math.random() * 0.45, max: 1,
+          life: 0.5 + Math.random() * 0.4, max: 1,
           w: 5 + Math.random() * 7, h: 8 + Math.random() * 10,
           rot: Math.random() * 6, spin: (Math.random() - 0.5) * 10,
           color: CONFETTI[i % CONFETTI.length], paper: true
-        });
-      }
-      for (let i = 0; i < 14; i++) {
-        const ang = (i / 14) * Math.PI * 2;
-        bits.push({
-          x, y, vx: Math.cos(ang) * 180, vy: Math.sin(ang) * 180,
-          life: 0.35, max: 0.35, w: 6, h: 6, rot: 0, spin: 0,
-          color: "#ffe566", paper: false
         });
       }
     }
@@ -1347,10 +1386,14 @@
           return;
         }
         if (kind === "wood" || kind === "crash") {
-          // Çarpışma
-          noiseBurst(0.16, "brown", 520, 0.32);
-          tone(110, 0.12, 0.18, "triangle");
-          tone(70, 0.16, 0.12, "sine");
+          // Daha tok çarpışma / patlama
+          noiseBurst(0.42, "brown", 220, 0.62);
+          noiseBurst(0.28, "brown", 140, 0.38);
+          noiseBurst(0.2, "pink", 700, 0.28);
+          tone(38, 0.34, 0.42, "sine");
+          tone(62, 0.26, 0.3, "sine");
+          tone(95, 0.18, 0.22, "triangle");
+          tone(150, 0.1, 0.12, "sawtooth");
           return;
         }
         if (kind === "glass" || kind === "pop") {
@@ -1810,11 +1853,15 @@
       b.y += ny * overlap * 0.5;
       const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
       if (rv >= 0) return;
-      if (rv < -22) {
+      if (rv < -18) {
         const now = performance.now();
-        if (now - lastHit > 70) {
+        if (now - lastHit > 90) {
           lastHit = now;
-          asmr("crash");
+          const power = clamp((-rv) / 220, 0.55, 1.5);
+          const mx = (a.x + b.x) * 0.5;
+          const my = (a.y + b.y) * 0.5;
+          triggerImpact(mx, my, power);
+          pops.push({ text: "ÇARPIŞMA!", x: mx, y: my - 36, life: 0.9, max: 0.9, color: "#ffc14d", boom: true });
         }
       }
       const j = -(1 + 0.96) * rv / 2;
@@ -2566,6 +2613,10 @@
     }
 
     function draw() {
+      const sx = shake > 0 ? (Math.random() - 0.5) * shake * 42 : 0;
+      const sy = shake > 0 ? (Math.random() - 0.5) * shake * 42 : 0;
+      ctx.save();
+      ctx.translate(sx, sy);
       drawRink();
       drawHouse();
       if (state === "menu" || isPageState(state) || state === "howto") {
@@ -2587,6 +2638,24 @@
         for (const c of cars) drawCar(c);
         drawPops();
       }
+      ctx.restore();
+      if (blastFlash > 0) {
+        const a = clamp(blastFlash, 0, 1.3);
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.92, a * 0.95);
+        const g = ctx.createRadialGradient(W * 0.5, H * 0.5, 20, W * 0.5, H * 0.5, Math.max(W, H) * 0.95);
+        g.addColorStop(0, "rgba(255, 245, 180, 1)");
+        g.addColorStop(0.22, "rgba(255, 160, 40, 0.95)");
+        g.addColorStop(0.5, "rgba(220, 50, 20, 0.7)");
+        g.addColorStop(0.78, "rgba(80, 10, 5, 0.45)");
+        g.addColorStop(1, "rgba(10, 0, 0, 0.2)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = Math.min(0.55, a * 0.55);
+        ctx.fillStyle = "#fff8e0";
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
       syncHud();
     }
 
@@ -2594,6 +2663,8 @@
     function frame(now) {
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
+      if (shake > 0) shake = Math.max(0, shake - dt * 2.4);
+      if (blastFlash > 0) blastFlash = Math.max(0, blastFlash - dt * 1.8);
       update(dt);
       draw();
       requestAnimationFrame(frame);
