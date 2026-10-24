@@ -58,12 +58,16 @@ public class car : MonoBehaviour
     };
     Color[] PlayerColors =
     {
-        new Color(0.86f, 0.18f, 0.18f),
-        new Color(0.95f, 0.48f, 0.10f),
-        new Color(0.96f, 0.82f, 0.12f),
-        new Color(0.90f, 0.30f, 0.45f),
-        new Color(0.55f, 0.20f, 0.85f),
-        new Color(0.15f, 0.78f, 0.42f),
+        new Color(0.89f, 0.23f, 0.23f),
+        new Color(0.94f, 0.47f, 0.13f),
+        new Color(0.94f, 0.82f, 0.19f),
+        new Color(0.18f, 0.72f, 0.35f),
+        new Color(0.95f, 0.94f, 0.92f),
+        new Color(0.63f, 0.16f, 0.25f),
+        new Color(0.16f, 0.42f, 0.85f),
+        new Color(0.60f, 0.63f, 0.66f),
+        new Color(0.91f, 0.41f, 0.09f),
+        new Color(0.35f, 0.41f, 0.44f),
     };
     static readonly Color[] BotColors =
     {
