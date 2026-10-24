@@ -1340,8 +1340,9 @@ public class car : MonoBehaviour
             if (sz.x < 0.001f) sz.x = 1f;
             if (sz.y < 0.001f) sz.y = 1f;
             float sink = stone.fallen ? stone.sink : 0f;
-            float len = CarLen * (stone.body == 2 ? 1.18f : stone.body == 0 ? 1.08f : 1.02f) * (1f - sink * 0.55f);
-            float wide = len * (sz.y / sz.x);
+            float len = CarLen * 0.92f * (1f - sink * 0.55f);
+            float aspect = sz.y / Mathf.Max(0.001f, sz.x);
+            float wide = Mathf.Min(CarWide * 1.05f, len * Mathf.Min(aspect, 0.52f));
             stone.view.transform.position = stone.pos + new Vector2(0f, -sink * 0.18f);
             stone.view.transform.localScale = new Vector3(len / sz.x, wide / sz.y, 1f);
             if (sr != null)
