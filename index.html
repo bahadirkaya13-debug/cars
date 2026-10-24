@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 41 · Üstten bakış</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 42 · Aynı görsel</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -755,11 +755,11 @@
     let atlasImg = null;
     let carImages = [];
     let PLAYER_COLORS = ["#2f6dff", "#d62828", "#ff7a18", "#7ac943", "#7b3fe4", "#f0c42e", "#1f4b8f", "#7eb6e8", "#9aa3ad", "#e85a9a"];
-    let PLAYER_NAMES = ["Mavi 74", "Alev Kırmızı", "Turuncu Sörf", "Şimşek Yeşil", "Mor Dokuz", "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş Ok", "Pembe Mini"];
+    let PLAYER_NAMES = ["Mavi 74", "Alev Kırmızı", "Turuncu Sörf", "Şimşek Yeşil", "Mor Dokuz", "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş 74", "Pembe Alev"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=41";
+      return "cars/" + file + "?v=42";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=41";
+      im.src = src + "?v=42";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=41";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=42";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=41")
+    fetch("cars/atlas.json?v=42")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=41";
+        img.src = "cars/atlas.png?v=42";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });

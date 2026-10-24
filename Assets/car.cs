@@ -79,7 +79,7 @@ public class car : MonoBehaviour
     string[] PlayerNames =
     {
         "Mavi 74", "Alev Kırmızı", "Turuncu Sörf", "Şimşek Yeşil", "Mor Dokuz",
-        "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş Ok", "Pembe Mini"
+        "Sarı Ahşap", "Lacivert Jeep", "Buz 22", "Gümüş 74", "Pembe Alev"
     };
 
     [System.Serializable]
