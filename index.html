@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 34 · Oyuncak & patlama</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 35 · Şirin oyuncak</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -754,12 +754,12 @@
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#e23a3a", "#f07820", "#f0d030", "#2db85a", "#f2f0ea", "#a02840", "#2a6ad8", "#9aa0a8", "#e86818", "#5a6870"];
-    let PLAYER_NAMES = ["Kızıl Ok", "Turuncu Fırtına", "Sarı Kabuk", "Yeşil Yıldırım", "Beyaz Şerit", "Bordo Gülle", "Mavi Okçu", "Gümüş Zırh", "Turuncu Tokmak", "Çelik Kasa"];
+    let PLAYER_COLORS = ["#ff3b4a", "#ff8f3a", "#ffd23a", "#3fd67f", "#fff3e6", "#ff2f66", "#2f93ff", "#b08fff", "#ff6a28", "#8eb2c8"];
+    let PLAYER_NAMES = ["Kırmızı Minik", "Şeftali Top", "Limon Bonbon", "Nane Yeşili", "Süt Beyaz", "Kiraz Jöle", "Gök Mavisi", "Lavanta Metal", "Turuncu Şeker", "Buz Grisi"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=34";
+      return "cars/" + file + "?v=35";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=34";
+      im.src = src + "?v=35";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=34";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=35";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=34")
+    fetch("cars/atlas.json?v=35")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=34";
+        img.src = "cars/atlas.png?v=35";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });

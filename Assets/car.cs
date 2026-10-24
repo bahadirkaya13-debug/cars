@@ -58,16 +58,16 @@ public class car : MonoBehaviour
     };
     Color[] PlayerColors =
     {
-        new Color(0.89f, 0.23f, 0.23f),
-        new Color(0.94f, 0.47f, 0.13f),
-        new Color(0.94f, 0.82f, 0.19f),
-        new Color(0.18f, 0.72f, 0.35f),
-        new Color(0.95f, 0.94f, 0.92f),
-        new Color(0.63f, 0.16f, 0.25f),
-        new Color(0.16f, 0.42f, 0.85f),
-        new Color(0.60f, 0.63f, 0.66f),
-        new Color(0.91f, 0.41f, 0.09f),
-        new Color(0.35f, 0.41f, 0.44f),
+        new Color(1.00f, 0.23f, 0.29f),
+        new Color(1.00f, 0.56f, 0.23f),
+        new Color(1.00f, 0.82f, 0.23f),
+        new Color(0.25f, 0.84f, 0.50f),
+        new Color(1.00f, 0.95f, 0.90f),
+        new Color(1.00f, 0.18f, 0.40f),
+        new Color(0.18f, 0.58f, 1.00f),
+        new Color(0.69f, 0.56f, 1.00f),
+        new Color(1.00f, 0.42f, 0.16f),
+        new Color(0.56f, 0.70f, 0.78f),
     };
     static readonly Color[] BotColors =
     {
@@ -78,8 +78,8 @@ public class car : MonoBehaviour
     };
     string[] PlayerNames =
     {
-        "Kızıl Ok", "Turuncu Fırtına", "Sarı Kabuk", "Yeşil Yıldırım", "Beyaz Şerit",
-        "Bordo Gülle", "Mavi Okçu", "Gümüş Zırh", "Turuncu Tokmak", "Çelik Kasa"
+        "Kırmızı Minik", "Şeftali Top", "Limon Bonbon", "Nane Yeşili", "Süt Beyaz",
+        "Kiraz Jöle", "Gök Mavisi", "Lavanta Metal", "Turuncu Şeker", "Buz Grisi"
     };
 
     [System.Serializable]
