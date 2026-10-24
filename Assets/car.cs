@@ -58,16 +58,16 @@ public class car : MonoBehaviour
     };
     Color[] PlayerColors =
     {
-        new Color(1.00f, 0.23f, 0.29f),
-        new Color(1.00f, 0.56f, 0.23f),
-        new Color(1.00f, 0.82f, 0.23f),
-        new Color(0.25f, 0.84f, 0.50f),
-        new Color(1.00f, 0.95f, 0.90f),
-        new Color(1.00f, 0.18f, 0.40f),
-        new Color(0.18f, 0.58f, 1.00f),
-        new Color(0.69f, 0.56f, 1.00f),
-        new Color(1.00f, 0.42f, 0.16f),
-        new Color(0.56f, 0.70f, 0.78f),
+        new Color(0.53f, 0.25f, 0.23f),
+        new Color(0.65f, 0.40f, 0.26f),
+        new Color(0.75f, 0.67f, 0.38f),
+        new Color(0.25f, 0.42f, 0.25f),
+        new Color(0.70f, 0.69f, 0.67f),
+        new Color(0.48f, 0.22f, 0.20f),
+        new Color(0.15f, 0.29f, 0.46f),
+        new Color(0.55f, 0.53f, 0.51f),
+        new Color(0.56f, 0.34f, 0.21f),
+        new Color(0.38f, 0.40f, 0.40f),
     };
     static readonly Color[] BotColors =
     {
@@ -78,8 +78,8 @@ public class car : MonoBehaviour
     };
     string[] PlayerNames =
     {
-        "Kırmızı Minik", "Şeftali Top", "Limon Bonbon", "Nane Yeşili", "Süt Beyaz",
-        "Kiraz Jöle", "Gök Mavisi", "Lavanta Metal", "Turuncu Şeker", "Buz Grisi"
+        "Kızıl Kanat", "Turuncu 911", "Sarı Beetle", "Yeşil Coupe", "Beyaz Şerit",
+        "Kızıl Turbo", "Mavi Spor", "Gümüş Süper", "Turuncu Muscle", "Gümüş Kamyonet"
     };
 
     [System.Serializable]
@@ -293,8 +293,8 @@ public class car : MonoBehaviour
 
         cam.orthographicSize = 3.2f;
         float midY = 0f;
-        float sx = shake > 0f ? (Random.value - 0.5f) * shake * 0.18f : 0f;
-        float sy = shake > 0f ? (Random.value - 0.5f) * shake * 0.18f : 0f;
+        float sx = shake > 0f ? (Random.value - 0.5f) * shake * 0.08f : 0f;
+        float sy = shake > 0f ? (Random.value - 0.5f) * shake * 0.08f : 0f;
         cam.transform.position = new Vector3(sx, midY + sy, -10f);
         float viewH = cam.orthographicSize * 2f;
         float viewW = viewH * PhoneAspect;
@@ -577,42 +577,42 @@ public class car : MonoBehaviour
     void TriggerImpact(Vector2 world, float power)
     {
         float p = Mathf.Clamp(power, 0.4f, 1.6f);
-        shake = Mathf.Max(shake, 0.42f + p * 0.48f);
-        blastFlash = Mathf.Max(blastFlash, 0.85f + p * 0.35f);
+        shake = Mathf.Max(shake, 0.16f + p * 0.18f);
+        blastFlash = Mathf.Max(blastFlash, 0.22f + p * 0.14f);
         PlayAsmr("crash");
-        int n = Mathf.FloorToInt(90f + p * 70f);
+        int n = Mathf.FloorToInt(28f + p * 22f);
         for (int i = 0; i < n; i++)
         {
             float ang = Random.Range(0f, Mathf.PI * 2f);
-            float sp = Random.Range(2.2f, 2.2f + 7.5f * p);
+            float sp = Random.Range(1.0f, 1.0f + 3.2f * p);
             bits.Add(new BurstBit
             {
-                pos = world + new Vector2(Random.Range(-0.12f, 0.12f), Random.Range(-0.12f, 0.12f)),
-                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp + Vector2.up * 0.5f,
+                pos = world + new Vector2(Random.Range(-0.06f, 0.06f), Random.Range(-0.06f, 0.06f)),
+                vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp + Vector2.up * 0.3f,
                 color = ConfettiColors[i % ConfettiColors.Length],
-                life = Random.Range(0.65f, 1.4f),
-                max = 1.4f,
-                paper = Random.value > 0.3f,
+                life = Random.Range(0.4f, 0.85f),
+                max = 0.9f,
+                paper = Random.value > 0.35f,
                 rot = Random.Range(0f, 6f),
-                spin = Random.Range(-16f, 16f),
-                w = Random.Range(10f, 28f),
-                h = Random.Range(10f, 28f)
+                spin = Random.Range(-10f, 10f),
+                w = Random.Range(5f, 14f),
+                h = Random.Range(5f, 14f)
             });
         }
-        for (int i = 0; i < 36; i++)
+        for (int i = 0; i < 14; i++)
         {
-            float ang = (i / 36f) * Mathf.PI * 2f + Random.Range(0f, 0.2f);
-            float sp = 4.2f + p * 3.8f;
+            float ang = (i / 14f) * Mathf.PI * 2f + Random.Range(0f, 0.2f);
+            float sp = 1.8f + p * 1.6f;
             bits.Add(new BurstBit
             {
                 pos = world,
                 vel = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * sp,
                 color = (i % 2 == 0) ? new Color(1f, 0.90f, 0.40f) : new Color(1f, 0.48f, 0.16f),
-                life = Random.Range(0.55f, 0.95f),
-                max = 0.95f,
+                life = Random.Range(0.3f, 0.55f),
+                max = 0.55f,
                 paper = false,
-                w = 12f,
-                h = 12f
+                w = 7f,
+                h = 7f
             });
         }
     }
@@ -774,7 +774,7 @@ public class car : MonoBehaviour
         }
 
         if (shake > 0f) shake = Mathf.Max(0f, shake - dt * 2.4f);
-        if (blastFlash > 0f) blastFlash = Mathf.Max(0f, blastFlash - dt * 1.8f);
+        if (blastFlash > 0f) blastFlash = Mathf.Max(0f, blastFlash - dt * 2.8f);
 
         SyncStones();
         SyncDots();
@@ -1555,11 +1555,8 @@ public class car : MonoBehaviour
     void DrawBlastFlash()
     {
         if (blastFlash <= 0f || pixel == null) return;
-        float a = Mathf.Clamp(blastFlash, 0f, 1.3f);
-        Color fill = new Color(1f, 0.96f, 0.78f, Mathf.Min(0.55f, a * 0.55f));
-        GUI.color = fill;
-        GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), pixel);
-        Color warm = new Color(1f, 0.45f, 0.12f, Mathf.Min(0.42f, a * 0.4f));
+        float a = Mathf.Clamp01(blastFlash);
+        Color warm = new Color(1f, 0.55f, 0.18f, Mathf.Min(0.22f, a * 0.28f));
         GUI.color = warm;
         GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), pixel);
         GUI.color = Color.white;

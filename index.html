@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 35 · Şirin oyuncak</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 36 · Orijinal arabalar</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -754,12 +754,12 @@
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#ff3b4a", "#ff8f3a", "#ffd23a", "#3fd67f", "#fff3e6", "#ff2f66", "#2f93ff", "#b08fff", "#ff6a28", "#8eb2c8"];
-    let PLAYER_NAMES = ["Kırmızı Minik", "Şeftali Top", "Limon Bonbon", "Nane Yeşili", "Süt Beyaz", "Kiraz Jöle", "Gök Mavisi", "Lavanta Metal", "Turuncu Şeker", "Buz Grisi"];
+    let PLAYER_COLORS = ["#86403b", "#a56742", "#bfaa60", "#406c3f", "#b3b1ac", "#7a3734", "#264b75", "#8b8683", "#905736", "#606566"];
+    let PLAYER_NAMES = ["Kızıl Kanat", "Turuncu 911", "Sarı Beetle", "Yeşil Coupe", "Beyaz Şerit", "Kızıl Turbo", "Mavi Spor", "Gümüş Süper", "Turuncu Muscle", "Gümüş Kamyonet"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=35";
+      return "cars/" + file + "?v=36";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=35";
+      im.src = src + "?v=36";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=35";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=36";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=35")
+    fetch("cars/atlas.json?v=36")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=35";
+        img.src = "cars/atlas.png?v=36";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1229,39 +1229,39 @@
 
     function triggerImpact(x, y, power) {
       const p = clamp(power == null ? 1 : power, 0.4, 1.6);
-      shake = Math.max(shake, 0.42 + p * 0.48);
-      blastFlash = Math.max(blastFlash, 0.85 + p * 0.35);
+      shake = Math.max(shake, 0.16 + p * 0.18);
+      blastFlash = Math.max(blastFlash, 0.22 + p * 0.14);
       asmr("crash");
-      // Ekranı kaplayan patlama parçacıkları
-      const n = Math.floor(90 + p * 70);
+      // Orta güçte patlama — sahne görünür kalsın
+      const n = Math.floor(28 + p * 22);
       for (let i = 0; i < n; i++) {
         const ang = Math.random() * Math.PI * 2;
-        const sp = 180 + Math.random() * (620 * p);
+        const sp = 90 + Math.random() * (260 * p);
         bits.push({
-          x: x + (Math.random() - 0.5) * 60,
-          y: y + (Math.random() - 0.5) * 60,
+          x: x + (Math.random() - 0.5) * 30,
+          y: y + (Math.random() - 0.5) * 30,
           vx: Math.cos(ang) * sp,
-          vy: Math.sin(ang) * sp - 40,
-          life: 0.65 + Math.random() * 0.85,
-          max: 1.4,
-          w: 10 + Math.random() * 22,
-          h: 10 + Math.random() * 22,
+          vy: Math.sin(ang) * sp - 20,
+          life: 0.4 + Math.random() * 0.45,
+          max: 0.9,
+          w: 5 + Math.random() * 10,
+          h: 5 + Math.random() * 10,
           rot: Math.random() * 6,
-          spin: (Math.random() - 0.5) * 16,
+          spin: (Math.random() - 0.5) * 10,
           color: CONFETTI[i % CONFETTI.length],
-          paper: Math.random() > 0.3,
+          paper: Math.random() > 0.35,
           blast: true,
         });
       }
-      for (let i = 0; i < 36; i++) {
-        const ang = (i / 36) * Math.PI * 2 + Math.random() * 0.2;
+      for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 2 + Math.random() * 0.2;
         bits.push({
           x, y,
-          vx: Math.cos(ang) * (360 + p * 320),
-          vy: Math.sin(ang) * (360 + p * 320),
-          life: 0.55 + Math.random() * 0.4,
-          max: 0.95,
-          w: 12, h: 12, rot: 0, spin: 0,
+          vx: Math.cos(ang) * (160 + p * 140),
+          vy: Math.sin(ang) * (160 + p * 140),
+          life: 0.3 + Math.random() * 0.25,
+          max: 0.55,
+          w: 7, h: 7, rot: 0, spin: 0,
           color: i % 2 ? "#ffe566" : "#ff7a28",
           paper: false,
           blast: true,
@@ -2613,8 +2613,8 @@
     }
 
     function draw() {
-      const sx = shake > 0 ? (Math.random() - 0.5) * shake * 42 : 0;
-      const sy = shake > 0 ? (Math.random() - 0.5) * shake * 42 : 0;
+      const sx = shake > 0 ? (Math.random() - 0.5) * shake * 18 : 0;
+      const sy = shake > 0 ? (Math.random() - 0.5) * shake * 18 : 0;
       ctx.save();
       ctx.translate(sx, sy);
       drawRink();
@@ -2640,19 +2640,14 @@
       }
       ctx.restore();
       if (blastFlash > 0) {
-        const a = clamp(blastFlash, 0, 1.3);
+        const a = clamp(blastFlash, 0, 1);
         ctx.save();
-        ctx.globalAlpha = Math.min(0.92, a * 0.95);
-        const g = ctx.createRadialGradient(W * 0.5, H * 0.5, 20, W * 0.5, H * 0.5, Math.max(W, H) * 0.95);
-        g.addColorStop(0, "rgba(255, 245, 180, 1)");
-        g.addColorStop(0.22, "rgba(255, 160, 40, 0.95)");
-        g.addColorStop(0.5, "rgba(220, 50, 20, 0.7)");
-        g.addColorStop(0.78, "rgba(80, 10, 5, 0.45)");
-        g.addColorStop(1, "rgba(10, 0, 0, 0.2)");
+        ctx.globalAlpha = Math.min(0.28, a * 0.35);
+        const g = ctx.createRadialGradient(W * 0.5, H * 0.5, 30, W * 0.5, H * 0.5, Math.max(W, H) * 0.55);
+        g.addColorStop(0, "rgba(255, 220, 120, 0.9)");
+        g.addColorStop(0.45, "rgba(255, 120, 40, 0.45)");
+        g.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = g;
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalAlpha = Math.min(0.55, a * 0.55);
-        ctx.fillStyle = "#fff8e0";
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
       }
@@ -2664,7 +2659,7 @@
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
       if (shake > 0) shake = Math.max(0, shake - dt * 2.4);
-      if (blastFlash > 0) blastFlash = Math.max(0, blastFlash - dt * 1.8);
+      if (blastFlash > 0) blastFlash = Math.max(0, blastFlash - dt * 2.8);
       update(dt);
       draw();
       requestAnimationFrame(frame);
