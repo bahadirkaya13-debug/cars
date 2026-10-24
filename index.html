@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 38 · Mavi halka yok</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 39 · Halka kaldırıldı</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -759,7 +759,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=38";
+      return "cars/" + file + "?v=39";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=38";
+      im.src = src + "?v=39";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=38";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=39";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=38")
+    fetch("cars/atlas.json?v=39")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=38";
+        img.src = "cars/atlas.png?v=39";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -2348,14 +2348,6 @@
         ctx.fill();
         if (sprite) ctx.drawImage(sprite, -halfL, -halfW, len, wide);
         else ctx.drawImage(atlasImg, cell.sx, cell.sy, cell.w, cell.h, -halfL, -halfW, len, wide);
-        // Bot / 2. oyuncu: mavi kenar izi (hangi taraf olduğu belli olsun)
-        if (c.bot && !c.preview) {
-          ctx.strokeStyle = "rgba(80, 170, 255, 0.85)";
-          ctx.lineWidth = 2.5;
-          ctx.beginPath();
-          ctx.ellipse(0, 0, halfL * 0.92, halfW * 0.92, 0, 0, Math.PI * 2);
-          ctx.stroke();
-        }
         ctx.restore();
         ctx.globalAlpha = 1;
         if (c.preview) {
