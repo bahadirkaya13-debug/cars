@@ -596,7 +596,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 46 · Üstten bakış</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 47 · Geniş oran</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -748,18 +748,18 @@
     const BODY_KEY = "halka-arabalari-body";
     const START_UNLOCK = 3;
     const BOT_COLORS = ["#296bdb", "#4cd1d6", "#598cf2", "#2e9ecc"];
-    const CAR_LEN = 118;
-    const CAR_WIDE = 48;
+    const CAR_LEN = 112;
+    const CAR_WIDE = 58;
     const carSheets = [null, null, null];
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#f0c42e", "#d62828", "#f4d03f", "#c0392b", "#e67e22", "#ff7a18", "#2c3e50", "#1a1a1a", "#2980b9", "#7ac943"];
-    let PLAYER_NAMES = ["Sarı Spor", "Kırmızı Pickup", "Sarı Sedan", "Kırmızı Sedan", "Altın Sedan", "Turuncu", "Polis", "Siyah", "Mavi", "Neon Yeşil"];
+    let PLAYER_COLORS = ["#dfe6e9", "#b2bec3", "#f1c40f", "#2980b9", "#2c3e50", "#1a1a1a", "#ecf0f1", "#e74c3c", "#e74c3c", "#f5f6fa", "#dcdde1", "#111111"];
+    let PLAYER_NAMES = ["Beyaz Sedan", "Beyaz Tavan", "Sarı Taksi", "Mavi Polis", "Siyah Polis", "Siyah Sedan", "Beyaz Kamyonet", "Kırmızı Pickup", "Ambulans", "Beyaz Klasik", "Beyaz Taksi", "Gizli Polis"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=46";
+      return "cars/" + file + "?v=47";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -806,12 +806,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=46";
+      im.src = src + "?v=47";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=46";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=47";
         return im;
       });
     }
@@ -828,13 +828,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=46")
+    fetch("cars/atlas.json?v=47")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=46";
+        img.src = "cars/atlas.png?v=47";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -905,7 +905,7 @@
     let selectedSkin = 0;
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
     try {
-      unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK, 10);
+      unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK, CAR_COUNT);
     } catch (e) { unlockCount = START_UNLOCK; }
     try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
     function refreshMenuBest() {
@@ -2334,10 +2334,10 @@
         const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
         const previewBoost = c.preview ? 1.18 : 1;
         const sink = c.fallen ? (c.sink || 0) : 0;
-        // Sprite burun YUKARI (sarı örnek); uzunluk görsel yükseklik
+        // Sprite burun YUKARI; biraz daha geniş oran
         const len = CAR_LEN * previewBoost * (1 - sink * 0.55);
         const aspect = sw / Math.max(1, sh);
-        const wide = Math.min(CAR_WIDE, len * Math.min(aspect, 0.48));
+        const wide = Math.min(CAR_WIDE, len * Math.min(Math.max(aspect, 0.50), 0.58));
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();

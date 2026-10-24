@@ -14,8 +14,8 @@ public class car : MonoBehaviour
     const float StopSpeed = 0.08f;
     const float CurlPower = 0.70f;
     const float CarRadius = 0.26f;
-    const float CarLen = 0.82f;
-    const float CarWide = 0.34f;
+    const float CarLen = 0.78f;
+    const float CarWide = 0.42f;
     const int PowerSteps = 5;
     const float PhoneAspect = 9f / 16f;
     const int BaseCars = 4;
@@ -58,16 +58,18 @@ public class car : MonoBehaviour
     };
     Color[] PlayerColors =
     {
-        new Color(0.94f, 0.77f, 0.18f),
-        new Color(0.84f, 0.16f, 0.16f),
-        new Color(0.96f, 0.82f, 0.25f),
-        new Color(0.75f, 0.22f, 0.17f),
-        new Color(0.90f, 0.49f, 0.13f),
-        new Color(1.00f, 0.48f, 0.09f),
+        new Color(0.87f, 0.90f, 0.91f),
+        new Color(0.70f, 0.75f, 0.76f),
+        new Color(0.95f, 0.77f, 0.06f),
+        new Color(0.16f, 0.50f, 0.73f),
         new Color(0.17f, 0.24f, 0.31f),
         new Color(0.10f, 0.10f, 0.10f),
-        new Color(0.16f, 0.50f, 0.73f),
-        new Color(0.48f, 0.79f, 0.26f),
+        new Color(0.93f, 0.94f, 0.95f),
+        new Color(0.91f, 0.30f, 0.24f),
+        new Color(0.91f, 0.30f, 0.24f),
+        new Color(0.96f, 0.96f, 0.98f),
+        new Color(0.86f, 0.87f, 0.88f),
+        new Color(0.07f, 0.07f, 0.07f)
     };
     static readonly Color[] BotColors =
     {
@@ -78,8 +80,7 @@ public class car : MonoBehaviour
     };
     string[] PlayerNames =
     {
-        "Sarı Spor", "Kırmızı Pickup", "Sarı Sedan", "Kırmızı Sedan", "Altın Sedan",
-        "Turuncu", "Polis", "Siyah", "Mavi", "Neon Yeşil"
+        "Beyaz Sedan", "Beyaz Tavan", "Sarı Taksi", "Mavi Polis", "Siyah Polis", "Siyah Sedan", "Beyaz Kamyonet", "Kırmızı Pickup", "Ambulans", "Beyaz Klasik", "Beyaz Taksi", "Gizli Polis"
     };
 
     [System.Serializable]
@@ -1343,7 +1344,7 @@ public class car : MonoBehaviour
             float sink = stone.fallen ? stone.sink : 0f;
             float len = CarLen * (1f - sink * 0.55f);
             float aspect = sz.x / Mathf.Max(0.001f, sz.y);
-            float wide = Mathf.Min(CarWide, len * Mathf.Min(aspect, 0.48f));
+            float wide = Mathf.Min(CarWide, len * Mathf.Min(Mathf.Max(aspect, 0.50f), 0.58f));
             stone.view.transform.position = stone.pos + new Vector2(0f, -sink * 0.18f);
             stone.view.transform.localScale = new Vector3(wide / sz.x, len / sz.y, 1f);
             if (sr != null)
