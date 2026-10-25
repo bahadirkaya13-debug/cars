@@ -710,7 +710,7 @@
     const CURL = 70;
     const POWER_STEPS = 5;
     const BASE_CARS = 8;
-    const TRUCK_LIMIT = 3; // her taraf için tır hakkı
+    const TRUCK_LIMIT = 3; // bir maçta her taraf en fazla 3 tır seçimi; sonraki oyunda sıfırlanır
     const LEVELS = [
       { name: "Salon", theme: "salon", blurb: "Klasik ahşap salon", friction: 160, speed: 740, ring: 1, bot: 0.52, cars: 8 },
       { name: "Buz", theme: "ice", blurb: "Çok kaygan buz · sarkıtlar", friction: 52, speed: 860, ring: 1, bot: 0.68, cars: 8 },
@@ -742,7 +742,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=51";
+      return "cars/" + file + "?v=52";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -789,12 +789,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=51";
+      im.src = src + "?v=52";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=51";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=52";
         return im;
       });
     }
@@ -811,13 +811,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=51")
+    fetch("cars/atlas.json?v=52")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=51";
+        img.src = "cars/atlas.png?v=52";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -935,6 +935,11 @@
     function sideIndex(forBot) { return forBot ? 1 : 0; }
     function truckLeft(forBot) { return Math.max(0, TRUCK_LIMIT - truckUses[sideIndex(forBot)]); }
     function canUseTruck(forBot) { return truckLeft(forBot) > 0; }
+    function truckStatusText(forBot) {
+      const left = truckLeft(forBot);
+      if (left <= 0) return "Tır hakkı bitti · Sonraki oyunda yenilenir";
+      return "Tır " + left + "/" + TRUCK_LIMIT + " (bu oyun)";
+    }
 
     function pickAllowedSkin(skin, forBot) {
       let s = ((skin % unlockCount) + unlockCount) % unlockCount;
@@ -944,6 +949,24 @@
         }
       }
       return s;
+    }
+
+    function releaseTruckReserve(car) {
+      if (!car || !car.truckReserved) return;
+      const side = sideIndex(!!car.bot);
+      truckUses[side] = Math.max(0, truckUses[side] - 1);
+      car.truckReserved = false;
+    }
+
+    // Tır seçildiğinde hakkı düşer; atmadan önce vazgeçilirse iade edilir
+    function reserveTruckSelection(car) {
+      if (!car || !car.truck) return false;
+      if (car.truckReserved) return true;
+      const side = sideIndex(!!car.bot);
+      if (truckUses[side] >= TRUCK_LIMIT) return false;
+      truckUses[side] += 1;
+      car.truckReserved = true;
+      return true;
     }
 
     function playHorn() {
@@ -1077,26 +1100,41 @@
     }
 
     function configureCarSkin(car, skin, forBot) {
+      const wasTruck = !!car.truck && !!car.truckReserved;
       const s = pickAllowedSkin(skin, forBot);
       const truck = skinIsTruck(s);
       const police = skinIsPolice(s);
+      // Tırdan vazgeçildi → bu oyundaki hakkı iade
+      if (wasTruck && !truck) releaseTruckReserve(car);
       car.skin = s;
       car.truck = truck;
       car.police = police;
       car.r = truck ? 42 : 22;
       car.mass = truck ? 10 : 1;
-      car.frictionMul = truck ? 0.68 : (car.frictionMul && car.frictionMul !== 1 ? car.frictionMul : 1);
       if (!car.launched) car.frictionMul = truck ? 0.68 : 1;
       car.color = PLAYER_COLORS[s % PLAYER_COLORS.length] || BOT_COLORS[0];
-      return s;
+      if (truck && !car.launched) {
+        if (!reserveTruckSelection(car)) {
+          // hak yoksa normal arabaya düş
+          for (let i = 0; i < unlockCount; i++) {
+            if (!skinIsTruck(i)) {
+              car.skin = i; car.truck = false; car.police = skinIsPolice(i);
+              car.r = 22; car.mass = 1; car.frictionMul = 1;
+              car.color = PLAYER_COLORS[i % PLAYER_COLORS.length] || BOT_COLORS[0];
+              return i;
+            }
+          }
+        }
+      }
+      return car.skin;
     }
 
     function applySkinToCurrent() {
       if (!current || current.launched) return false;
       const forBot = !!current.bot;
       let skin = selectedSkin % unlockCount;
-      if (skinIsTruck(skin) && !canUseTruck(forBot)) {
-        addPop("Tır hakkı bitti (" + TRUCK_LIMIT + ")", SPAWN.x, SPAWN.y - 90, "#ff7a7a");
+      if (skinIsTruck(skin) && !canUseTruck(forBot) && !current.truckReserved) {
+        addPop("Tır hakkı bitti · Sonraki oyun", SPAWN.x, SPAWN.y - 90, "#ff7a7a");
         asmr("locked");
         skin = pickAllowedSkin(skin, forBot);
         selectedSkin = skin;
@@ -1158,7 +1196,7 @@
       pull.active = false;
       const left = truckLeft(forBot);
       const name = PLAYER_NAMES[current ? current.skin : selectedSkin] || "Araba";
-      addPop(name + (current && current.truck ? " · Tır " + left + "/" + TRUCK_LIMIT : ""), SPAWN.x, SPAWN.y - 70, "#f0a202");
+      addPop(name + " · " + truckStatusText(forBot), SPAWN.x, SPAWN.y - 70, "#f0a202");
       asmr("select");
     }
     refreshMenuBest();
@@ -1169,8 +1207,8 @@
       const forBotPick = !!(matchReturn && matchReturn.forBot);
       const tLeft = inMatchPick ? truckLeft(forBotPick) : TRUCK_LIMIT;
       collMeta.textContent = inMatchPick
-        ? (sideName(forBotPick) + " seçiyor · Tır hakkı " + tLeft + "/" + TRUCK_LIMIT)
-        : (unlockCount + "/" + CAR_COUNT + " araba açık · Botu yen, bir sonraki açılsın");
+        ? (sideName(forBotPick) + " seçiyor · " + truckStatusText(forBotPick))
+        : (unlockCount + "/" + CAR_COUNT + " araba açık · Maçta tır en fazla " + TRUCK_LIMIT + " kez");
       updateSelectedPreview();
       for (let i = 0; i < CAR_COUNT; i++) {
         const unlocked = i < unlockCount;
@@ -1205,7 +1243,7 @@
           });
         } else {
           btn.addEventListener("click", () => {
-            if (truckBlocked) collHint.textContent = "Bu tarafın tır hakkı bitti (" + TRUCK_LIMIT + "/" + TRUCK_LIMIT + ")";
+            if (truckBlocked) collHint.textContent = "Bu oyunda tır hakkın bitti · Sonraki oyunda yenilenir";
             else collHint.textContent = "Kilitli · Botu " + (i - unlockCount + 1) + " kez daha yenerek aç";
             asmr("locked");
           });
@@ -1214,7 +1252,7 @@
       }
       const sel = PLAYER_NAMES[selectedSkin] || "";
       collHint.textContent = inMatchPick
-        ? ("Seçili: " + sel + " · Tır " + tLeft + "/" + TRUCK_LIMIT + " — Seç ve atışa dön")
+        ? ("Seçili: " + sel + " · " + truckStatusText(forBotPick) + " — Seç ve atışa dön")
         : ("Seçili: " + sel + " — dokun, sonra Bu arabayla oyna.");
     }
 
@@ -1810,9 +1848,9 @@
       state = "aim";
       if (forBot) {
         botThinkAt = vsHuman ? 0 : performance.now() + 750;
-        addPop("Sıra " + sideName(true) + " · Tır " + truckLeft(true) + "/" + TRUCK_LIMIT, SPAWN.x, SPAWN.y - 70, "#6aa8ff");
+        addPop("Sıra " + sideName(true) + " · " + truckStatusText(true), SPAWN.x, SPAWN.y - 70, "#6aa8ff");
       } else if (playerThrown + botThrown > 0) {
-        addPop("Sıra " + sideName(false) + " · Tır " + truckLeft(false) + "/" + TRUCK_LIMIT, SPAWN.x, SPAWN.y - 70, "#ff7a7a");
+        addPop("Sıra " + sideName(false) + " · " + truckStatusText(false), SPAWN.x, SPAWN.y - 70, "#ff7a7a");
       }
     }
 
@@ -1847,9 +1885,9 @@
     }
 
     function noteTruckLaunch(car) {
+      // Seçimde rezerve edilmediyse (edge) atışta düş
       if (!car || !car.truck) return;
-      const side = sideIndex(!!car.bot);
-      if (truckUses[side] < TRUCK_LIMIT) truckUses[side] += 1;
+      reserveTruckSelection(car);
     }
 
     function showOver(reason, win) {
@@ -2930,8 +2968,8 @@
       else if (humanCanAim()) {
         const tLeft = truckLeft(!!botTurn);
         hint = vsHuman
-          ? (sideName(botTurn) + " · Araba butonuyla seç · Tır " + tLeft + "/" + TRUCK_LIMIT)
-          : ("Senin sıran · Araba seç · Tır " + tLeft + "/" + TRUCK_LIMIT);
+          ? (sideName(botTurn) + " · Araba seç · " + truckStatusText(!!botTurn))
+          : ("Senin sıran · Araba seç · " + truckStatusText(false));
       }
       hintEl.textContent = hint;
       const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
