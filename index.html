@@ -580,7 +580,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 51 · Tır hakkı · Siren</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 52 · Tır 3/oyun</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -1133,7 +1133,7 @@
       if (!current || current.launched) return false;
       const forBot = !!current.bot;
       let skin = selectedSkin % unlockCount;
-      if (skinIsTruck(skin) && !canUseTruck(forBot) && !current.truckReserved) {
+      if (skinIsTruck(skin) && !maySelectTruck(forBot)) {
         addPop("Tır hakkı bitti · Sonraki oyun", SPAWN.x, SPAWN.y - 90, "#ff7a7a");
         asmr("locked");
         skin = pickAllowedSkin(skin, forBot);
@@ -1212,7 +1212,7 @@
       updateSelectedPreview();
       for (let i = 0; i < CAR_COUNT; i++) {
         const unlocked = i < unlockCount;
-        const truckBlocked = unlocked && skinIsTruck(i) && inMatchPick && !canUseTruck(forBotPick);
+        const truckBlocked = unlocked && skinIsTruck(i) && inMatchPick && !maySelectTruck(forBotPick);
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "coll-item" + (unlocked && !truckBlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
