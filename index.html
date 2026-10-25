@@ -606,7 +606,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 53 · Usta yatay · Tır hakkı</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 54 · Usta uçurum ucu</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -742,7 +742,7 @@
       { name: "Buz", theme: "ice", blurb: "Çok kaygan buz · sarkıtlar", friction: 52, speed: 860, ring: 1, bot: 0.68, cars: 8 },
       { name: "Dar halka", theme: "narrow", blurb: "Dar koridor · sıkı halka", friction: 150, speed: 700, ring: 0.72, bot: 0.78, cars: 10 },
       { name: "Fırtına", theme: "storm", blurb: "Rüzgarlı karanlık pist", friction: 210, speed: 900, ring: 0.9, bot: 0.86, cars: 10 },
-      { name: "Usta", theme: "master", blurb: "Yatay hedef · uçta uçurum · en çok puan uçurum yanı", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 12 },
+      { name: "Usta", theme: "master", blurb: "Tahta ucunda uçurum · en yüksek puan uçurum yanı", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 12 },
     ];
     const LEVEL_KEY = "halka-arabalari-level";
     const RING_BASE = [168, 120, 78, 36];
@@ -768,7 +768,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=53";
+      return "cars/" + file + "?v=54";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -815,12 +815,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=53";
+      im.src = src + "?v=54";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=53";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=54";
         return im;
       });
     }
@@ -837,13 +837,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=53")
+    fetch("cars/atlas.json?v=54")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=53";
+        img.src = "cars/atlas.png?v=54";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1516,36 +1516,30 @@
       return !!(LEVELS[levelI] && LEVELS[levelI].theme === "master");
     }
 
-    // Usta: yatay hedef şeritleri; ucu (küçük y) uçurum, en yüksek puan uçurum yanında
+    // Usta: puan şeritleri tahta üzerinde; uçurum tahtanın en ucunda; lav çukuru yok
     function masterTarget() {
-      const halfW = 208;
-      const tipY = HOUSE.y - 78;
+      const pad = 8;
+      const tipY = INSET + pad; // tahtanın en ucu
+      const x0 = INSET + 4;
+      const w = W - INSET * 2 - 8;
       const specs = [
-        { points: 400, color: "#1a6bd1", h: 36 },
-        { points: 200, color: "#d12929", h: 42 },
-        { points: 100, color: "#b87538", h: 48 },
-        { points: 50, color: "#1f73db", h: 54 },
+        { points: 400, color: "rgba(26,107,209,0.78)", h: 44 },
+        { points: 200, color: "rgba(209,41,41,0.72)", h: 50 },
+        { points: 100, color: "rgba(184,117,56,0.68)", h: 56 },
+        { points: 50, color: "rgba(31,115,219,0.62)", h: 62 },
       ];
       let y = tipY;
       const bands = [];
       for (const s of specs) {
-        bands.push({
-          x: HOUSE.x - halfW,
-          y: y,
-          w: halfW * 2,
-          h: s.h,
-          points: s.points,
-          color: s.color,
-        });
+        bands.push({ x: x0, y: y, w: w, h: s.h, points: s.points, color: s.color });
         y += s.h;
       }
       return {
         tipY: tipY,
         endY: y,
-        halfW: halfW,
+        x0: x0,
+        w: w,
         bands: bands,
-        // Uçurum: hedefin en ucunda yatay lava
-        cliff: { x: HOUSE.x, y: tipY - 34, rx: halfW + 36, ry: 40 },
         bullseye: { x: HOUSE.x, y: tipY + specs[0].h * 0.55 },
       };
     }
@@ -1553,6 +1547,8 @@
     function pointsAt(x, y) {
       if (isMasterTheme()) {
         const mt = masterTarget();
+        // Uçurumun ötesinde puan yok
+        if (y < mt.tipY) return 0;
         for (let i = 0; i < mt.bands.length; i++) {
           const b = mt.bands[i];
           if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b.points;
@@ -1566,12 +1562,16 @@
       return 0;
     }
 
+    // Usta'da lav çukuru yok; diğer temalar için boş
     function lavaPits() {
-      if (!isMasterTheme()) return [];
-      return [masterTarget().cliff];
+      return [];
     }
 
     function inLava(x, y, r) {
+      // Usta: tahtanın ucundan (uçurum) düş — lav çukuru yok
+      if (isMasterTheme()) {
+        return (y - (r || 16) * 0.15) < masterTarget().tipY;
+      }
       const pads = lavaPits();
       for (let i = 0; i < pads.length; i++) {
         const p = pads[i];
@@ -2316,7 +2316,8 @@
       const b = boardLimits(c.r);
       if (c.x < b.left) { c.x = b.left; c.vx = 0; }
       if (c.x > b.right) { c.x = b.right; c.vx = 0; }
-      if (c.y < b.top) { c.y = b.top; c.vy = 0; }
+      // Usta: üst kenar uçurum — tahta ucundan düşebilsin
+      if (!isMasterTheme() && c.y < b.top) { c.y = b.top; c.vy = 0; }
       if (c.y > b.bot) { c.y = b.bot; c.vy = 0; }
     }
 
@@ -2693,7 +2694,7 @@
         gloss.addColorStop(1, "rgba(255,220,150,0)");
         ctx.fillStyle = gloss;
         ctx.fillRect(INSET, INSET, rw, rh);
-        drawLavaPits();
+        // Lav çukuru yok; uçurum drawHouse'ta tahta ucunda
       } else {
         const planks = 7;
         const plankW = rw / planks;
@@ -2767,56 +2768,52 @@
     function drawHouse() {
       if (isMasterTheme()) {
         const mt = masterTarget();
-        // Yatay hedef şeritleri (uç → 400, sonra 200/100/50)
+        // Puan şeritleri doğrudan tahta üzerinde (ortada ayrı tahta / lav çukuru yok)
         for (let i = mt.bands.length - 1; i >= 0; i--) {
           const b = mt.bands[i];
-          ctx.beginPath();
-          roundRect(b.x, b.y, b.w, b.h, i === 0 ? 10 : 6);
           ctx.fillStyle = b.color;
-          ctx.fill();
-          ctx.lineWidth = 2.5;
-          ctx.strokeStyle = "rgba(255,255,255,0.28)";
+          ctx.fillRect(b.x, b.y, b.w, b.h);
+          ctx.strokeStyle = "rgba(255,255,255,0.18)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(b.x, b.y + b.h);
+          ctx.lineTo(b.x + b.w, b.y + b.h);
           ctx.stroke();
         }
-        // Uçurum kenarı çizgisi
-        ctx.strokeStyle = "rgba(255, 180, 60, 0.85)";
+        // Uçurum: tahtanın en ucu
+        const abyss = ctx.createLinearGradient(0, Math.max(INSET, mt.tipY - 28), 0, mt.tipY + 8);
+        abyss.addColorStop(0, "rgba(4, 2, 8, 0.0)");
+        abyss.addColorStop(0.4, "rgba(12, 6, 4, 0.5)");
+        abyss.addColorStop(1, "rgba(8, 4, 2, 0.9)");
+        ctx.fillStyle = abyss;
+        ctx.fillRect(mt.x0, Math.max(INSET, mt.tipY - 26), mt.w, 34);
+        ctx.strokeStyle = "rgba(255, 170, 70, 0.92)";
         ctx.lineWidth = 3;
-        ctx.setLineDash([6, 6]);
         ctx.beginPath();
-        ctx.moveTo(HOUSE.x - mt.halfW - 8, mt.tipY);
-        ctx.lineTo(HOUSE.x + mt.halfW + 8, mt.tipY);
+        ctx.moveTo(mt.x0, mt.tipY);
+        const segs = 10;
+        for (let i = 1; i <= segs; i++) {
+          const px = mt.x0 + (mt.w * i) / segs;
+          const py = mt.tipY + ((i % 2) ? 3 : -2);
+          ctx.lineTo(px, py);
+        }
         ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.font = "800 13px Segoe UI, sans-serif";
+        ctx.font = "800 14px Segoe UI, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(255,210,120,0.95)";
-        ctx.fillText("UÇURUM", HOUSE.x, mt.tipY - 18);
+        ctx.fillStyle = "rgba(255,200,110,0.95)";
+        ctx.fillText("UÇURUM", HOUSE.x, mt.tipY + 16);
         for (const b of mt.bands) {
-          const dark = b.points >= 400;
           const tx = HOUSE.x;
-          const ty = b.y + b.h * 0.5;
-          ctx.font = "700 15px Segoe UI, sans-serif";
-          if (dark) {
-            ctx.fillStyle = "#1c2430";
-            ctx.fillText(String(b.points), tx, ty);
-          } else {
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "rgba(0,0,0,0.45)";
-            ctx.strokeText(String(b.points), tx, ty);
-            ctx.fillStyle = "#fff";
-            ctx.fillText(String(b.points), tx, ty);
-          }
+          const ty = b.y + b.h * 0.55;
+          ctx.font = "800 16px Segoe UI, sans-serif";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(0,0,0,0.5)";
+          ctx.strokeText(String(b.points), tx, ty);
+          ctx.fillStyle = b.points >= 400 ? "#ffe566" : "#fff";
+          ctx.fillText(String(b.points), tx, ty);
         }
         ctx.textBaseline = "alphabetic";
-        ctx.setLineDash([7, 10]);
-        ctx.strokeStyle = "rgba(255,255,255,0.16)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(HOUSE.x, mt.endY + 10);
-        ctx.lineTo(SPAWN.x, SPAWN.y - 28);
-        ctx.stroke();
-        ctx.setLineDash([]);
         return;
       }
       for (const ring of RINGS) {
