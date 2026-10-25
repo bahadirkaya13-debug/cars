@@ -1,9 +1,9 @@
 {
   "cols": 6,
-  "rows": 2,
+  "rows": 3,
   "cellW": 120,
-  "cellH": 190,
-  "count": 12,
+  "cellH": 220,
+  "count": 15,
   "facing": "up",
   "cars": [
     {
@@ -15,11 +15,12 @@
       "sx": 0,
       "sy": 0,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_00.png",
       "fw": 103,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 1,
@@ -30,11 +31,12 @@
       "sx": 120,
       "sy": 0,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_01.png",
       "fw": 92,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 2,
@@ -45,11 +47,12 @@
       "sx": 240,
       "sy": 0,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_02.png",
       "fw": 101,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 3,
@@ -60,11 +63,12 @@
       "sx": 360,
       "sy": 0,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_03.png",
       "fw": 91,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 4,
@@ -75,11 +79,12 @@
       "sx": 480,
       "sy": 0,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_04.png",
       "fw": 94,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 5,
@@ -90,11 +95,12 @@
       "sx": 600,
       "sy": 0,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_05.png",
       "fw": 101,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 6,
@@ -103,13 +109,14 @@
       "name": "Beyaz Kamyonet",
       "color": "#ecf0f1",
       "sx": 0,
-      "sy": 190,
+      "sy": 220,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_06.png",
       "fw": 103,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 7,
@@ -118,13 +125,14 @@
       "name": "Kırmızı Pickup",
       "color": "#e74c3c",
       "sx": 120,
-      "sy": 190,
+      "sy": 220,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_07.png",
       "fw": 98,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 8,
@@ -133,13 +141,14 @@
       "name": "Ambulans",
       "color": "#e74c3c",
       "sx": 240,
-      "sy": 190,
+      "sy": 220,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_08.png",
       "fw": 92,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 9,
@@ -148,13 +157,14 @@
       "name": "Beyaz Klasik",
       "color": "#f5f6fa",
       "sx": 360,
-      "sy": 190,
+      "sy": 220,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_09.png",
       "fw": 97,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 10,
@@ -163,13 +173,14 @@
       "name": "Beyaz Taksi",
       "color": "#dcdde1",
       "sx": 480,
-      "sy": 190,
+      "sy": 220,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_10.png",
       "fw": 99,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
     },
     {
       "i": 11,
@@ -178,13 +189,62 @@
       "name": "Gizli Polis",
       "color": "#111111",
       "sx": 600,
-      "sy": 190,
+      "sy": 220,
       "w": 120,
-      "h": 190,
+      "h": 220,
       "file": "car_11.png",
       "fw": 101,
       "fh": 168,
-      "facing": "up"
+      "facing": "up",
+      "truck": false
+    },
+    {
+      "i": 12,
+      "row": 2,
+      "col": 0,
+      "name": "Gri Tır",
+      "color": "#95a5a6",
+      "sx": 0,
+      "sy": 440,
+      "w": 120,
+      "h": 220,
+      "file": "car_12.png",
+      "fw": 115,
+      "fh": 200,
+      "facing": "up",
+      "truck": true
+    },
+    {
+      "i": 13,
+      "row": 2,
+      "col": 1,
+      "name": "Sarı Otobüs",
+      "color": "#f1c40f",
+      "sx": 120,
+      "sy": 440,
+      "w": 120,
+      "h": 220,
+      "file": "car_13.png",
+      "fw": 88,
+      "fh": 200,
+      "facing": "up",
+      "truck": true
+    },
+    {
+      "i": 14,
+      "row": 2,
+      "col": 2,
+      "name": "Beyaz Tır",
+      "color": "#ecf0f1",
+      "sx": 240,
+      "sy": 440,
+      "w": 120,
+      "h": 220,
+      "file": "car_14.png",
+      "fw": 115,
+      "fh": 144,
+      "facing": "up",
+      "truck": true
     }
   ]
 }
