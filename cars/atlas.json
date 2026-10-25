@@ -20,7 +20,8 @@
       "fw": 103,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 1,
@@ -36,7 +37,8 @@
       "fw": 92,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 2,
@@ -52,7 +54,8 @@
       "fw": 101,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 3,
@@ -68,7 +71,8 @@
       "fw": 91,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": true
     },
     {
       "i": 4,
@@ -84,7 +88,8 @@
       "fw": 94,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": true
     },
     {
       "i": 5,
@@ -100,7 +105,8 @@
       "fw": 101,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 6,
@@ -116,7 +122,8 @@
       "fw": 103,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 7,
@@ -132,7 +139,8 @@
       "fw": 98,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 8,
@@ -148,7 +156,8 @@
       "fw": 92,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 9,
@@ -164,7 +173,8 @@
       "fw": 97,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 10,
@@ -180,7 +190,8 @@
       "fw": 99,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": false
     },
     {
       "i": 11,
@@ -196,7 +207,8 @@
       "fw": 101,
       "fh": 168,
       "facing": "up",
-      "truck": false
+      "truck": false,
+      "police": true
     },
     {
       "i": 12,
@@ -212,7 +224,8 @@
       "fw": 87,
       "fh": 227,
       "facing": "up",
-      "truck": true
+      "truck": true,
+      "police": false
     },
     {
       "i": 13,
@@ -228,7 +241,8 @@
       "fw": 80,
       "fh": 227,
       "facing": "up",
-      "truck": true
+      "truck": true,
+      "police": false
     },
     {
       "i": 14,
@@ -244,7 +258,8 @@
       "fw": 82,
       "fh": 227,
       "facing": "up",
-      "truck": true
+      "truck": true,
+      "police": false
     }
   ]
 }
