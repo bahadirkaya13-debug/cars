@@ -935,15 +935,21 @@
     function sideIndex(forBot) { return forBot ? 1 : 0; }
     function truckLeft(forBot) { return Math.max(0, TRUCK_LIMIT - truckUses[sideIndex(forBot)]); }
     function canUseTruck(forBot) { return truckLeft(forBot) > 0; }
+    // Bu atış için tır rezerve edildiyse başka tıra geçmeye izin ver
+    function maySelectTruck(forBot) {
+      if (canUseTruck(forBot)) return true;
+      return !!(current && !current.launched && !!current.bot === !!forBot && current.truckReserved);
+    }
     function truckStatusText(forBot) {
       const left = truckLeft(forBot);
-      if (left <= 0) return "Tır hakkı bitti · Sonraki oyunda yenilenir";
+      if (left <= 0 && !maySelectTruck(forBot)) return "Tır hakkı bitti · Sonraki oyunda yenilenir";
+      if (left <= 0 && maySelectTruck(forBot)) return "Tır bu atışta · Sonraki için yeni oyun";
       return "Tır " + left + "/" + TRUCK_LIMIT + " (bu oyun)";
     }
 
     function pickAllowedSkin(skin, forBot) {
       let s = ((skin % unlockCount) + unlockCount) % unlockCount;
-      if (skinIsTruck(s) && !canUseTruck(forBot)) {
+      if (skinIsTruck(s) && !maySelectTruck(forBot)) {
         for (let i = 0; i < unlockCount; i++) {
           if (!skinIsTruck(i)) { s = i; break; }
         }
