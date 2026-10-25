@@ -571,7 +571,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 48 · Tır + korna</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 49 · Güçlü tır</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -726,12 +726,12 @@
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#dfe6e9", "#b2bec3", "#f1c40f", "#2980b9", "#2c3e50", "#1a1a1a", "#ecf0f1", "#e74c3c", "#e74c3c", "#f5f6fa", "#dcdde1", "#111111", "#95a5a6", "#f1c40f", "#ecf0f1"];
-    let PLAYER_NAMES = ["Beyaz Sedan", "Beyaz Tavan", "Sarı Taksi", "Mavi Polis", "Siyah Polis", "Siyah Sedan", "Beyaz Kamyonet", "Kırmızı Pickup", "Ambulans", "Beyaz Klasik", "Beyaz Taksi", "Gizli Polis", "Gri Tır", "Sarı Otobüs", "Beyaz Tır"];
+    let PLAYER_COLORS = ["#dfe6e9", "#b2bec3", "#f1c40f", "#2980b9", "#2c3e50", "#1a1a1a", "#ecf0f1", "#e74c3c", "#e74c3c", "#f5f6fa", "#dcdde1", "#111111", "#f1c40f", "#e67e22", "#3498db"];
+    let PLAYER_NAMES = ["Beyaz Sedan", "Beyaz Tavan", "Sarı Taksi", "Mavi Polis", "Siyah Polis", "Siyah Sedan", "Beyaz Kamyonet", "Kırmızı Pickup", "Ambulans", "Beyaz Klasik", "Beyaz Taksi", "Gizli Polis", "Sarı Tır", "Sarı Line Tır", "Mavi Tır"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=48";
+      return "cars/" + file + "?v=49";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -778,12 +778,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=48";
+      im.src = src + "?v=49";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=48";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=49";
         return im;
       });
     }
@@ -800,13 +800,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=48")
+    fetch("cars/atlas.json?v=49")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=48";
+        img.src = "cars/atlas.png?v=49";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1523,18 +1523,19 @@
         homeY: SPAWN.y,
         vx: 0,
         vy: 0,
-        r: truck ? 34 : 22,
-        mass: truck ? 4.2 : 1,
+        r: truck ? 38 : 22,
+        mass: truck ? 7.5 : 1,
         truck: truck,
         color: PLAYER_COLORS[skin % PLAYER_COLORS.length] || BOT_COLORS[0],
         angle: -Math.PI / 2,
         curl: 0,
         launched: false,
         bot: !!forBot,
-        frictionMul: 1,
+        frictionMul: truck ? 0.82 : 1,
         magnet: false,
         fallen: false,
         sink: 0,
+        reachedHouse: false,
         body: forBot ? 1 : bodyStyle,
         skin: skin,
       };
@@ -1609,20 +1610,28 @@
       if (win) asmr("glass"); else asmr("tap");
     }
 
+    function markHouseHits() {
+      for (const c of cars) {
+        if (!c.launched || c.fallen) continue;
+        if (pointsAt(c.x, c.y) > 0) c.reachedHouse = true;
+      }
+    }
+
     function removeOutCars() {
+      markHouseHits();
       let removed = 0;
       for (let i = cars.length - 1; i >= 0; i--) {
         const c = cars[i];
         if (!c.launched) continue;
-        // Hedefe varan (puan alan) arabalar asla silinmez
-        if (pointsAt(c.x, c.y) > 0 && !c.fallen) continue;
+        // Bir kez hedefe değen araba (çıksa bile) asla silinmez
+        if (c.reachedHouse) continue;
         if (c.fallen) {
           cars.splice(i, 1);
           removed++;
           continue;
         }
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
-        // Hedefe varamayan durmuş arabalar kaybolur
+        // Hedefe hiç değmeyen durmuş arabalar kaybolur
         cars.splice(i, 1);
         removed++;
       }
@@ -1887,22 +1896,23 @@
           });
         }
       }
-      const e = (a.truck || b.truck) ? 1.15 : 0.96;
+      const e = (a.truck || b.truck) ? 1.28 : 0.96;
       const j = -(1 + e) * rv / (1 / ma + 1 / mb);
       a.vx -= (j / ma) * nx;
       a.vy -= (j / ma) * ny;
       b.vx += (j / mb) * nx;
       b.vy += (j / mb) * ny;
-      // Tır vurunca rakibi hedeften dışarı savur
-      if (a.truck !== b.truck && Math.abs(rv) > 40) {
+      // Tır güçlü: rakibi hedeften dışarı savur
+      if (a.truck !== b.truck && Math.abs(rv) > 28) {
         const truck = a.truck ? a : b;
         const other = a.truck ? b : a;
         const hx = other.x - HOUSE.x;
         const hy = other.y - HOUSE.y;
         const hl = Math.hypot(hx, hy) || 1;
-        const shove = clamp((-rv) * 0.55, 80, 320);
-        other.vx += (hx / hl) * shove * (truck.mass / (other.mass || 1)) * 0.35;
-        other.vy += (hy / hl) * shove * (truck.mass / (other.mass || 1)) * 0.35;
+        const shove = clamp((-rv) * 0.85, 120, 480);
+        const mul = (truck.mass / (other.mass || 1)) * 0.55;
+        other.vx += (hx / hl) * shove * mul;
+        other.vy += (hy / hl) * shove * mul;
         other.curl = 0;
       }
       a.curl *= 0.35;
@@ -2001,6 +2011,7 @@
       else if (humanCanAim()) applyAim();
       else if (state === "slide") {
         stepPhysics(dt);
+        markHouseHits();
         for (const c of cars) {
           if (c.fallen && c.sink < 1) c.sink = Math.min(1, c.sink + dt * 1.6);
         }
@@ -2362,11 +2373,11 @@
         const previewBoost = c.preview ? 1.18 : 1;
         const sink = c.fallen ? (c.sink || 0) : 0;
         // Sprite burun YUKARI; tır daha büyük
-        const truckBoost = c.truck ? 1.55 : 1;
+        const truckBoost = c.truck ? 1.85 : 1;
         const len = CAR_LEN * truckBoost * previewBoost * (1 - sink * 0.55);
         const aspect = sw / Math.max(1, sh);
-        const wideCap = c.truck ? CAR_WIDE * 1.35 : CAR_WIDE;
-        const wide = Math.min(wideCap, len * Math.min(Math.max(aspect, 0.50), c.truck ? 0.62 : 0.58));
+        const wideCap = c.truck ? CAR_WIDE * 1.25 : CAR_WIDE;
+        const wide = Math.min(wideCap, len * Math.min(Math.max(aspect, 0.42), c.truck ? 0.48 : 0.58));
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();
