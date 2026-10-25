@@ -53,7 +53,7 @@
       font-size: 14px;
       font-weight: 700;
     }
-    .hud-back, .hud-sound {
+    .hud-back, .hud-sound, .hud-garage {
       position: absolute;
       top: 48px;
       left: auto;
@@ -71,8 +71,17 @@
       background: #f0a202;
       color: #1a1203;
     }
+    .hud-garage {
+      right: 92px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      background: rgba(8, 12, 18, 0.82);
+      color: #f0a202;
+      border: 1px solid rgba(240, 162, 2, 0.55);
+    }
     .hud-sound {
-      right: 96px;
+      right: 168px;
       width: 36px;
       height: 36px;
       padding: 0;
@@ -92,8 +101,7 @@
     .hud-sound.off { color: #9aa3ad; }
     .hud-sound.off .ico-on { display: none; }
     .hud-sound.off .ico-off { display: block; }
-    .hud-back[hidden], .hud-sound[hidden] { display: none; }
-    .hud-sound[hidden] { display: none; }
+    .hud-back[hidden], .hud-sound[hidden], .hud-garage[hidden] { display: none; }
     .bottom {
       bottom: 14px;
       flex-direction: column;
@@ -561,6 +569,7 @@
       <svg class="ico-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zm-2.5-8.9v2.1a6.5 6.5 0 0 1 0 13.6v2.1a8.5 8.5 0 0 0 0-17.8z"/></svg>
       <svg class="ico-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12a4.5 4.5 0 0 0-2.5-4v2.2l2.5 2.5V12zm2.5 0c0 .9-.2 1.7-.5 2.5l1.5 1.5A8.3 8.3 0 0 0 21 12a8.5 8.5 0 0 0-4.5-7.4v2.1c1.5 1 2.5 2.7 2.5 4.3zM4.3 3 3 4.3 7.7 9H3v6h4l5 4v-6.7l4.7 4.7.8-.1v2.1l1.7 1.7 1.3-1.3L4.3 3zM14 3.2v2.1l-2 2V5l-2.1-1.7L14 3.2z"/></svg>
     </button>
+    <button id="to-garage" class="hud-garage" type="button" hidden>Araba</button>
     <button id="to-menu" class="hud-back" type="button" hidden>Menü</button>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
@@ -571,7 +580,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 49 · Güçlü tır</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 50 · Araba değiştir</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -624,6 +633,7 @@
         <div class="btn-row">
           <button id="coll-play" type="button">Bu arabayla oyna</button>
           <button id="coll-back" class="ghost" type="button">Geri</button>
+          <button id="coll-resume" class="ghost" type="button" hidden>Maça dön</button>
         </div>
       </div>
     </section>
@@ -731,7 +741,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=49";
+      return "cars/" + file + "?v=50";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -778,12 +788,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=49";
+      im.src = src + "?v=50";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=49";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=50";
         return im;
       });
     }
@@ -800,13 +810,13 @@
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=49")
+    fetch("cars/atlas.json?v=50")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=49";
+        img.src = "cars/atlas.png?v=50";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -909,13 +919,15 @@
       return !!(cell && cell.truck);
     }
 
+    let hornLoop = null;
+    let matchReturn = null; // maç içinden arabaya gidince geri dönüş
+
     function playHorn() {
       try {
         if (!soundEnabled) return;
         const ctx = ensureAudio();
         if (!ctx) return;
         const t = ctx.currentTime;
-        // Çift tonlu tır kornası
         for (const [f0, f1, delay] of [[140, 165, 0], [175, 200, 0.04]]) {
           const o = ctx.createOscillator();
           const g = ctx.createGain();
@@ -931,6 +943,136 @@
         }
         tone(95, 0.4, 0.12, "square");
       } catch (e) { /* sessiz */ }
+    }
+
+    function stopTruckHorn() {
+      if (!hornLoop) return;
+      try {
+        if (hornLoop.timer) clearTimeout(hornLoop.timer);
+        const t = (hornLoop.ctx && hornLoop.ctx.currentTime) || 0;
+        if (hornLoop.gain) {
+          hornLoop.gain.gain.cancelScheduledValues(t);
+          hornLoop.gain.gain.setValueAtTime(Math.max(0.0001, hornLoop.gain.gain.value || 0.0001), t);
+          hornLoop.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        }
+        for (const o of hornLoop.oscs || []) {
+          try { o.stop(t + 0.1); } catch (e) { /* yoksay */ }
+        }
+      } catch (e) { /* yoksay */ }
+      hornLoop = null;
+    }
+
+    function startTruckHorn() {
+      try {
+        if (!soundEnabled) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        stopTruckHorn();
+        const t = ctx.currentTime;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, t);
+        master.gain.exponentialRampToValueAtTime(0.2, t + 0.06);
+        master.connect(ctx.destination);
+        const oscs = [];
+        for (const [freq, type, vol] of [[148, "sawtooth", 0.55], [186, "square", 0.28], [98, "triangle", 0.35]]) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = type;
+          o.frequency.setValueAtTime(freq, t);
+          g.gain.setValueAtTime(vol, t);
+          o.connect(g); g.connect(master);
+          o.start(t);
+          oscs.push(o);
+        }
+        // Nabız: durana kadar boğumlu korna
+        // Nabız zamanlaması beat() içinde
+        let next = t;
+        const beat = () => {
+          if (!hornLoop || hornLoop.ctx !== ctx) return;
+          const now = ctx.currentTime;
+          master.gain.cancelScheduledValues(now);
+          master.gain.setValueAtTime(0.12, now);
+          master.gain.linearRampToValueAtTime(0.24, now + 0.12);
+          master.gain.linearRampToValueAtTime(0.14, now + 0.32);
+          hornLoop.timer = setTimeout(beat, 380);
+        };
+        hornLoop = { ctx, gain: master, oscs, timer: null };
+        beat();
+      } catch (e) { /* sessiz */ }
+    }
+
+    function syncTruckHorn() {
+      const movingTruck = state === "slide" && current && current.truck && current.launched
+        && !current.fallen && Math.hypot(current.vx, current.vy) > STOP_SPEED;
+      if (movingTruck) {
+        if (!hornLoop) startTruckHorn();
+      } else if (hornLoop) {
+        stopTruckHorn();
+      }
+    }
+
+    function applySkinToCurrent() {
+      if (!current || current.launched) return;
+      const skin = selectedSkin % unlockCount;
+      const truck = skinIsTruck(skin);
+      current.skin = skin;
+      current.truck = truck;
+      current.r = truck ? 42 : 22;
+      current.mass = truck ? 10 : 1;
+      current.frictionMul = truck ? 0.68 : 1;
+      current.color = PLAYER_COLORS[skin % PLAYER_COLORS.length] || BOT_COLORS[0];
+      current.angle = -Math.PI / 2;
+      current.x = current.homeX;
+      current.y = current.homeY;
+    }
+
+    function openGarageFromMatch() {
+      if (!(state === "aim" || state === "slide")) return;
+      // Kayarken araba değiştirmeye izin verme — nişanda olsun
+      if (state === "slide") {
+        addPop("Durunca araba seç", HOUSE.x, HOUSE.y - 40, "#ffc14d");
+        asmr("locked");
+        return;
+      }
+      if (botTurn && !vsHuman) {
+        addPop("Bot sırası", SPAWN.x, SPAWN.y - 80, "#6aa8ff");
+        return;
+      }
+      pull.active = false;
+      pull.x = 0;
+      pull.y = 0;
+      matchReturn = { resume: true };
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      hideAllPages();
+      collectionEl.classList.remove("hidden");
+      state = "collection";
+      const resumeBtn = document.getElementById("coll-resume");
+      const playBtn = document.getElementById("coll-play");
+      if (resumeBtn) resumeBtn.hidden = false;
+      if (playBtn) playBtn.textContent = "Seç ve maça dön";
+      renderCollection();
+      uiClick();
+    }
+
+    function resumeMatchFromGarage() {
+      if (!matchReturn) {
+        startRound();
+        return;
+      }
+      matchReturn = null;
+      hideAllPages();
+      menuEl.classList.add("hidden");
+      overEl.classList.add("hidden");
+      const resumeBtn = document.getElementById("coll-resume");
+      const playBtn = document.getElementById("coll-play");
+      if (resumeBtn) resumeBtn.hidden = true;
+      if (playBtn) playBtn.textContent = "Bu arabayla oyna";
+      applySkinToCurrent();
+      state = "aim";
+      pull.active = false;
+      addPop(PLAYER_NAMES[selectedSkin] || "Araba", SPAWN.x, SPAWN.y - 70, "#f0a202");
+      asmr("select");
     }
     refreshMenuBest();
 
@@ -981,11 +1123,16 @@
     }
 
     function showCollection() {
+      matchReturn = null;
       menuEl.classList.add("hidden");
       overEl.classList.add("hidden");
       hideAllPages();
       collectionEl.classList.remove("hidden");
       state = "collection";
+      const resumeBtn = document.getElementById("coll-resume");
+      const playBtn = document.getElementById("coll-play");
+      if (resumeBtn) resumeBtn.hidden = true;
+      if (playBtn) playBtn.textContent = "Bu arabayla oyna";
       renderCollection();
       uiClick();
     }
@@ -1093,6 +1240,10 @@
     }
 
     function hideCollectionToMenu() {
+      if (matchReturn) {
+        resumeMatchFromGarage();
+        return;
+      }
       hideAllPages();
       menuEl.classList.remove("hidden");
       state = "menu";
@@ -1101,6 +1252,8 @@
     }
 
     function goMenu() {
+      stopTruckHorn();
+      matchReturn = null;
       pull.active = false;
       pull.x = 0;
       pull.y = 0;
@@ -1115,6 +1268,10 @@
       overEl.classList.add("hidden");
       hideAllPages();
       howtoEl.classList.add("hidden");
+      const resumeBtn = document.getElementById("coll-resume");
+      const playBtn = document.getElementById("coll-play");
+      if (resumeBtn) resumeBtn.hidden = true;
+      if (playBtn) playBtn.textContent = "Bu arabayla oyna";
       if (turnBanner) turnBanner.hidden = true;
       refreshMenuBest();
       stopMusic();
@@ -1523,15 +1680,15 @@
         homeY: SPAWN.y,
         vx: 0,
         vy: 0,
-        r: truck ? 38 : 22,
-        mass: truck ? 7.5 : 1,
+        r: truck ? 42 : 22,
+        mass: truck ? 10 : 1,
         truck: truck,
         color: PLAYER_COLORS[skin % PLAYER_COLORS.length] || BOT_COLORS[0],
         angle: -Math.PI / 2,
         curl: 0,
         launched: false,
         bot: !!forBot,
-        frictionMul: truck ? 0.82 : 1,
+        frictionMul: truck ? 0.68 : 1,
         magnet: false,
         fallen: false,
         sink: 0,
@@ -1729,7 +1886,8 @@
       current.frictionMul = 1;
       current.magnet = false;
       current.launched = true;
-      if (current.truck) playHorn();
+      if (current.truck) startTruckHorn();
+      else stopTruckHorn();
       state = "slide";
       calm = 0;
       pull.active = false;
@@ -1756,7 +1914,7 @@
       pull.sy = p.y;
       pull.x = 0;
       pull.y = 0;
-      if (current && current.truck) playHorn();
+      if (current && current.truck) playHorn(); // kısa uyarı; asıl korna kayarken
     }
 
     function onMove(e) {
@@ -1787,8 +1945,11 @@
       current.frictionMul = activePower === "ice" ? 0.55 : 1;
       current.magnet = activePower === "magnet";
       current.launched = true;
-      if (current.truck) playHorn();
-      else asmr("whoosh");
+      if (current.truck) startTruckHorn();
+      else {
+        stopTruckHorn();
+        asmr("whoosh");
+      }
       pull.x = 0;
       pull.y = 0;
       state = "slide";
@@ -1825,7 +1986,17 @@
     document.getElementById("open-trophies").addEventListener("click", showTrophies);
     document.getElementById("over-collection").addEventListener("click", showCollection);
     document.getElementById("coll-back").addEventListener("click", hideCollectionToMenu);
-    document.getElementById("coll-play").addEventListener("click", () => { uiClick(); startRound(); });
+    document.getElementById("coll-play").addEventListener("click", () => {
+      uiClick();
+      if (matchReturn) resumeMatchFromGarage();
+      else startRound();
+    });
+    const collResume = document.getElementById("coll-resume");
+    if (collResume) collResume.addEventListener("click", () => { uiClick(); resumeMatchFromGarage(); });
+    document.getElementById("to-garage").addEventListener("click", (e) => {
+      e.stopPropagation();
+      openGarageFromMatch();
+    });
     document.getElementById("track-back").addEventListener("click", hideCollectionToMenu);
     document.getElementById("track-play").addEventListener("click", () => { uiClick(); startRound(); });
     document.getElementById("trophy-back").addEventListener("click", hideCollectionToMenu);
@@ -1909,8 +2080,8 @@
         const hx = other.x - HOUSE.x;
         const hy = other.y - HOUSE.y;
         const hl = Math.hypot(hx, hy) || 1;
-        const shove = clamp((-rv) * 0.85, 120, 480);
-        const mul = (truck.mass / (other.mass || 1)) * 0.55;
+        const shove = clamp((-rv) * 1.15, 160, 620);
+        const mul = (truck.mass / (other.mass || 1)) * 0.7;
         other.vx += (hx / hl) * shove * mul;
         other.vy += (hy / hl) * shove * mul;
         other.curl = 0;
@@ -2012,6 +2183,7 @@
       else if (state === "slide") {
         stepPhysics(dt);
         markHouseHits();
+        syncTruckHorn();
         for (const c of cars) {
           if (c.fallen && c.sink < 1) c.sink = Math.min(1, c.sink + dt * 1.6);
         }
@@ -2019,8 +2191,13 @@
         if (moving) calm = 0;
         else {
           calm += dt;
-          if (calm >= 0.18) settle();
+          if (calm >= 0.18) {
+            stopTruckHorn();
+            settle();
+          }
         }
+      } else {
+        stopTruckHorn();
       }
       for (let i = pops.length - 1; i >= 0; i--) {
         pops[i].life -= dt;
@@ -2373,11 +2550,11 @@
         const previewBoost = c.preview ? 1.18 : 1;
         const sink = c.fallen ? (c.sink || 0) : 0;
         // Sprite burun YUKARI; tır daha büyük
-        const truckBoost = c.truck ? 1.85 : 1;
+        const truckBoost = c.truck ? 2.05 : 1;
         const len = CAR_LEN * truckBoost * previewBoost * (1 - sink * 0.55);
         const aspect = sw / Math.max(1, sh);
-        const wideCap = c.truck ? CAR_WIDE * 1.25 : CAR_WIDE;
-        const wide = Math.min(wideCap, len * Math.min(Math.max(aspect, 0.42), c.truck ? 0.48 : 0.58));
+        const wideCap = c.truck ? CAR_WIDE * 1.3 : CAR_WIDE;
+        const wide = Math.min(wideCap, len * Math.min(Math.max(aspect, 0.40), c.truck ? 0.46 : 0.58));
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();
@@ -2642,9 +2819,13 @@
       bottomEl.hidden = state === "menu" || state === "over" || isPageState(state) || state === "howto";
       const hideChrome = state === "menu" || isPageState(state) || state === "howto";
       document.getElementById("to-menu").hidden = hideChrome;
+      const garageHud = document.getElementById("to-garage");
+      if (garageHud) {
+        // Nişan sırasında araba değiştir
+        garageHud.hidden = !(state === "aim" && (!botTurn || vsHuman));
+      }
       const soundHud = document.getElementById("toggle-sound");
       if (soundHud) {
-        // Oyunda / bitiş ekranında küçük ses simgesi
         soundHud.hidden = state === "menu" || isPageState(state) || state === "howto";
         soundHud.classList.toggle("off", !soundEnabled);
       }
