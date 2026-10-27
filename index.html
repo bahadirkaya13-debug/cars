@@ -579,6 +579,29 @@
     }
     .howto ol { margin: 8px 0 14px; }
     .howto li { margin: 6px 0; }
+
+    .gold-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(180deg, #ffe08a, #f0a202);
+      color: #2a1a02;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 900;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .gold-chip .coin {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #fff6c8, #d4a017 55%, #8a6a00);
+      box-shadow: inset 0 0 0 1px rgba(90,60,0,0.35);
+    }
+    .coll-item .tag.price {
+      color: #f0a202;
+      font-weight: 800;
+    }
+    .coll-item .tag.owned-free { color: #7dff9a; }
   </style>
 </head>
 <body>
@@ -606,9 +629,10 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 56 · İtfaiye + Tank açık</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 57 · Altın ile aç</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
+        <p style="margin:0 0 10px;"><span id="menu-gold" class="gold-chip"><span class="coin" aria-hidden="true"></span><span id="menu-gold-val">0</span> Altın</span></p>
         <p class="section-lab">Oyun modu</p>
         <div class="mode-row" id="mode-row">
           <button type="button" class="mode-btn sel" id="mode-bot" data-mode="bot">
@@ -653,6 +677,7 @@
       <div class="card wide garage-page">
         <h1>Arabalar</h1>
         <p class="coll-meta" id="coll-meta">0/10 araba</p>
+        <p style="margin:0 0 8px;"><span id="coll-gold" class="gold-chip"><span class="coin" aria-hidden="true"></span><span id="coll-gold-val">0</span> Altın</span></p>
         <p id="coll-sel-name" class="coll-meta" style="margin:0 0 10px;color:#f0a202;font-weight:800;">Seçili araba</p>
         <div class="coll-grid" id="coll-grid"></div>
         <p id="coll-hint">Açık arabaya dokunarak seç; oyunda tam görünür.</p>
@@ -709,6 +734,7 @@
           <li>Arabayı <b>geri çek, bırak</b>. Güç ortada dursun.</li>
           <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>.</li>
           <li>Rakibi vurup halkadan çıkar; nadiren <b>BUZ</b> veya <b>MIKNATIS</b> gelir.</li>
+          <li>Maçta <b>altın</b> kazan; Arabalar menüsünden altınla araç kilidi aç.</li>
         </ol>
         <button id="howto-ok" type="button">Anladım, başla</button>
       </div>
@@ -768,7 +794,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=56";
+      return "cars/" + file + "?v=57";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -815,17 +841,19 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=56";
+      im.src = src + "?v=57";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=56";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=57";
         return im;
       });
     }
     const CONTENT_KEY = "halka-arabalari-content-v";
-    const CONTENT_VER = 56; // itfaiye + tank eklendi — yeni arabaları aç
+    const CONTENT_VER = 57; // altın ile araba açma
+    const GOLD_KEY = "halka-arabalari-gold";
+    const OWNED_KEY = "halka-arabalari-owned";
     function applyAtlas(meta, img) {
       ATLAS = meta;
       atlasImg = img;
@@ -833,30 +861,19 @@
       PLAYER_COLORS = meta.cars.map((c) => c.color);
       PLAYER_NAMES = meta.cars.map((c) => c.name);
       loadCarImages(meta);
-      let contentVer = 0;
-      try { contentVer = Number(localStorage.getItem(CONTENT_KEY)) || 0; } catch (e) { contentVer = 0; }
-      if (contentVer < CONTENT_VER) {
-        // Yeni eklenen arabalar (İtfaiye, Tank) hemen seçilebilir
-        unlockCount = CAR_COUNT;
-        try {
-          localStorage.setItem(CONTENT_KEY, String(CONTENT_VER));
-          localStorage.setItem(UNLOCK_KEY, String(unlockCount));
-        } catch (e) { /* yoksay */ }
-      } else {
-        unlockCount = clamp(Math.min(unlockCount, CAR_COUNT), START_UNLOCK, CAR_COUNT);
-      }
-      selectedSkin = clamp(selectedSkin, 0, Math.max(0, unlockCount - 1));
-      try { localStorage.setItem(UNLOCK_KEY, String(unlockCount)); } catch (e) { /* yoksay */ }
+      migrateOwnership();
+      selectedSkin = clampOwnedSkin(selectedSkin);
       refreshMenuBest();
       if (state === "collection") renderCollection();
+      if (state === "trophies") renderTrophies();
     }
-    fetch("cars/atlas.json?v=56")
+    fetch("cars/atlas.json?v=57")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=56";
+        img.src = "cars/atlas.png?v=57";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -924,23 +941,145 @@
     function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
     let best = 0;
-    let unlockCount = START_UNLOCK;
+    let unlockCount = START_UNLOCK; // owned.size ile senkron
     let selectedSkin = 0;
+    let gold = 0;
+    let owned = new Set();
     try { best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { best = 0; }
+    try { gold = Math.max(0, Number(localStorage.getItem(GOLD_KEY)) || 0); } catch (e) { gold = 0; }
     try {
-      unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK, CAR_COUNT);
+      unlockCount = clamp(Number(localStorage.getItem(UNLOCK_KEY)) || START_UNLOCK, START_UNLOCK, 99);
     } catch (e) { unlockCount = START_UNLOCK; }
-    try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, unlockCount - 1); } catch (e) { selectedSkin = 0; }
+    try { selectedSkin = clamp(Number(localStorage.getItem(SKIN_KEY)) || 0, 0, 99); } catch (e) { selectedSkin = 0; }
+
+    function saveGold() {
+      try { localStorage.setItem(GOLD_KEY, String(gold | 0)); } catch (e) { /* yoksay */ }
+    }
+    function saveOwned() {
+      try {
+        const arr = [...owned].filter((i) => i >= 0 && i < CAR_COUNT).sort((a, b) => a - b);
+        localStorage.setItem(OWNED_KEY, JSON.stringify(arr));
+        unlockCount = arr.length;
+        localStorage.setItem(UNLOCK_KEY, String(unlockCount));
+      } catch (e) { /* yoksay */ }
+    }
+    function syncUnlockCount() {
+      unlockCount = owned.size;
+    }
+    function isOwned(i) {
+      return owned.has(((i % Math.max(1, CAR_COUNT)) + Math.max(1, CAR_COUNT)) % Math.max(1, CAR_COUNT));
+    }
+    function ownedList() {
+      return [...owned].filter((i) => i >= 0 && i < CAR_COUNT).sort((a, b) => a - b);
+    }
+    function clampOwnedSkin(s) {
+      s = ((s % Math.max(1, CAR_COUNT)) + Math.max(1, CAR_COUNT)) % Math.max(1, CAR_COUNT);
+      if (isOwned(s)) return s;
+      const list = ownedList();
+      return list.length ? list[0] : 0;
+    }
+    function ensureStarters() {
+      for (let i = 0; i < START_UNLOCK && i < CAR_COUNT; i++) owned.add(i);
+    }
+    function carPrice(i) {
+      if (i < 0 || i >= CAR_COUNT) return 9999;
+      if (i < START_UNLOCK) return 0;
+      const cell = ATLAS && ATLAS.cars && ATLAS.cars[i];
+      if (cell && cell.price != null) return Math.max(0, Number(cell.price) || 0);
+      if (skinIsTank(i)) return 500;
+      if (skinIsFire(i)) return 360;
+      if (skinIsTruck(i)) return 280;
+      if (skinIsPolice(i)) return 160;
+      return 50 + i * 20;
+    }
+    function migrateOwnership() {
+      let contentVer = 0;
+      try { contentVer = Number(localStorage.getItem(CONTENT_KEY)) || 0; } catch (e) { contentVer = 0; }
+      owned = new Set();
+      let loaded = false;
+      try {
+        const raw = localStorage.getItem(OWNED_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            for (const n of arr) {
+              const i = Number(n);
+              if (Number.isFinite(i) && i >= 0 && i < CAR_COUNT) owned.add(i | 0);
+            }
+            loaded = owned.size > 0;
+          }
+        }
+      } catch (e) { loaded = false; }
+      if (!loaded) {
+        // Eski unlockCount → 0..N-1 açık
+        const n = clamp(Number(unlockCount) || START_UNLOCK, START_UNLOCK, CAR_COUNT);
+        for (let i = 0; i < n; i++) owned.add(i);
+      }
+      ensureStarters();
+      // İlk altın sistemi: hiç altın yoksa başlangıç hediyesi
+      if (contentVer < CONTENT_VER) {
+        if (gold <= 0) gold = 80;
+        try { localStorage.setItem(CONTENT_KEY, String(CONTENT_VER)); } catch (e) { /* yoksay */ }
+        saveGold();
+      }
+      syncUnlockCount();
+      saveOwned();
+    }
+    function addGold(amount, reason) {
+      const g = Math.max(0, amount | 0);
+      if (!g) return 0;
+      gold += g;
+      saveGold();
+      refreshGoldUI();
+      return g;
+    }
+    function matchGoldReward(playerScore, won) {
+      let g = 12 + Math.floor(Math.max(0, playerScore) / 10);
+      g += Math.floor(Math.max(0, playerBonus) / 25);
+      if (won) g += vsHuman ? 18 : 30;
+      else g += 6;
+      return Math.max(8, g);
+    }
+    function tryBuyCar(i) {
+      i = i | 0;
+      if (i < 0 || i >= CAR_COUNT) return false;
+      if (isOwned(i)) return false;
+      const price = carPrice(i);
+      if (gold < price) {
+        if (collHint) collHint.textContent = "Yetersiz altın · " + gold + " / " + price + " Altın";
+        asmr("locked");
+        return false;
+      }
+      gold -= price;
+      owned.add(i);
+      saveGold();
+      saveOwned();
+      selectedSkin = i;
+      try { localStorage.setItem(SKIN_KEY, String(selectedSkin)); } catch (e) { /* yoksay */ }
+      addPop("-" + price + " Altın · " + (PLAYER_NAMES[i] || "Araba"), SPAWN.x, SPAWN.y - 80, "#ffe566", true);
+      asmr("glass");
+      refreshMenuBest();
+      return true;
+    }
+    function refreshGoldUI() {
+      const mg = document.getElementById("menu-gold-val");
+      const cg = document.getElementById("coll-gold-val");
+      if (mg) mg.textContent = String(gold | 0);
+      if (cg) cg.textContent = String(gold | 0);
+    }
     function refreshMenuBest() {
+      selectedSkin = clampOwnedSkin(selectedSkin);
       const name = PLAYER_NAMES[selectedSkin] || ("Araba " + (selectedSkin + 1));
       const track = LEVELS[levelI] ? LEVELS[levelI].name : "Salon";
+      syncUnlockCount();
       menuBestEl.textContent = best > 0
-        ? ("Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT + " · " + name)
-        : ("Arabalar " + unlockCount + "/" + CAR_COUNT + " · Seçili: " + name);
+        ? ("Rekor " + best + " · " + unlockCount + "/" + CAR_COUNT + " araba · " + name)
+        : (unlockCount + "/" + CAR_COUNT + " araba · Seçili: " + name);
       const trackSub = document.getElementById("menu-track-sub");
       if (trackSub) trackSub.textContent = track + " · " + LEVELS.length + " pist";
       const trophySub = document.getElementById("menu-trophy-sub");
-      if (trophySub) trophySub.textContent = unlockCount + "/" + CAR_COUNT + " araba · Rekor " + best;
+      if (trophySub) trophySub.textContent = gold + " Altın · " + unlockCount + "/" + CAR_COUNT + " araba";
+      refreshGoldUI();
       updateSelectedPreview();
     }
 
@@ -950,9 +1089,9 @@
       const menuImg = document.getElementById("menu-car-img");
       const menuSub = document.getElementById("menu-car-sub");
       if (menuImg) menuImg.src = url;
-      if (menuSub) menuSub.textContent = unlockCount + "/" + CAR_COUNT + " açık · " + name;
+      if (menuSub) menuSub.textContent = gold + " Altın · " + unlockCount + "/" + CAR_COUNT + " · " + name;
       const cName = document.getElementById("coll-sel-name");
-      if (cName) cName.textContent = "Seçili: " + name;
+      if (cName) cName.textContent = "Seçili: " + name + " · " + gold + " Altın";
     }
 
     function skinIsTruck(skin) {
@@ -1023,9 +1162,11 @@
     }
 
     function pickAllowedSkin(skin, forBot) {
-      let s = ((skin % unlockCount) + unlockCount) % unlockCount;
+      const list = ownedList();
+      const pool = list.length ? list : [0];
+      let s = pool.includes(skin) ? skin : pool[0];
       if (skinIsTruck(s) && !maySelectTruck(forBot)) {
-        for (let i = 0; i < unlockCount; i++) {
+        for (const i of pool) {
           if (!skinIsTruck(i)) { s = i; break; }
         }
       }
@@ -1222,7 +1363,7 @@
       if (truck && !car.launched) {
         if (!reserveTruckSelection(car)) {
           // hak yoksa normal arabaya düş
-          for (let i = 0; i < unlockCount; i++) {
+          for (const i of ownedList()) {
             if (!skinIsTruck(i)) {
               car.skin = i;
               car.truck = false;
@@ -1260,7 +1401,7 @@
     function applySkinToCurrent() {
       if (!current || current.launched) return false;
       const forBot = !!current.bot;
-      let skin = selectedSkin % unlockCount;
+      let skin = clampOwnedSkin(selectedSkin);
       if (skinIsTruck(skin) && !maySelectTruck(forBot)) {
         addPop("TIR HAKKI KALDIRILDI · Sonraki oyun", SPAWN.x, SPAWN.y - 90, "#ff6a4a", true);
         asmr("locked");
@@ -1290,7 +1431,7 @@
       pull.x = 0;
       pull.y = 0;
       const forBot = !!(current && current.bot);
-      selectedSkin = sideSkins[sideIndex(forBot)] % unlockCount;
+      selectedSkin = clampOwnedSkin(sideSkins[sideIndex(forBot)]);
       matchReturn = { resume: true, forBot: forBot };
       menuEl.classList.add("hidden");
       overEl.classList.add("hidden");
@@ -1333,26 +1474,29 @@
       collGrid.innerHTML = "";
       const inMatchPick = !!matchReturn;
       const forBotPick = !!(matchReturn && matchReturn.forBot);
-      const tLeft = inMatchPick ? truckLeft(forBotPick) : TRUCK_LIMIT;
       const truckGone = inMatchPick && !maySelectTruck(forBotPick) && truckLeft(forBotPick) <= 0;
+      syncUnlockCount();
+      refreshGoldUI();
       collMeta.textContent = inMatchPick
         ? (sideName(forBotPick) + " seçiyor · " + truckStatusText(forBotPick))
-        : (unlockCount + "/" + CAR_COUNT + " araba açık · Maçta tır hakkı " + TRUCK_LIMIT + "/taraf");
+        : (unlockCount + "/" + CAR_COUNT + " araba · " + gold + " Altın · Tır " + TRUCK_LIMIT + "/maç");
       if (truckGone) collMeta.style.color = "#ff7a7a";
       else collMeta.style.color = "";
       updateSelectedPreview();
       for (let i = 0; i < CAR_COUNT; i++) {
-        const unlocked = i < unlockCount;
+        const unlocked = isOwned(i);
+        const price = carPrice(i);
         const truckBlocked = unlocked && skinIsTruck(i) && inMatchPick && !maySelectTruck(forBotPick);
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "coll-item" + (unlocked && !truckBlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
-        const name = unlocked ? (PLAYER_NAMES[i] || ("#" + (i + 1))) : "???";
+        const name = unlocked ? (PLAYER_NAMES[i] || ("#" + (i + 1))) : (PLAYER_NAMES[i] || ("#" + (i + 1)));
         const img = document.createElement("img");
         img.className = "car-full";
         img.alt = name;
         img.src = carFileUrl(i);
         img.draggable = false;
+        if (!unlocked) img.style.opacity = "0.45";
         btn.appendChild(img);
         const nameEl = document.createElement("span");
         nameEl.className = "name";
@@ -1360,13 +1504,26 @@
         btn.appendChild(nameEl);
         const tag = document.createElement("span");
         tag.className = "tag";
-        tag.textContent = !unlocked ? "Kilitli"
-          : (truckBlocked ? "HAK BİTTİ"
-            : (i === selectedSkin ? "Seçili"
-              : (skinIsTruck(i) ? ("Tır · " + (inMatchPick ? truckLeft(forBotPick) : TRUCK_LIMIT) + "/" + TRUCK_LIMIT)
-                : (skinIsFire(i) ? "İtfaiye · Siren"
-                  : (skinIsTank(i) ? "Tank · Dışarı atar" : "Açık")))));
-        if (truckBlocked) tag.style.color = "#ff8a7a";
+        if (!unlocked) {
+          tag.className = "tag price";
+          tag.textContent = price + " Altın";
+        } else if (truckBlocked) {
+          tag.textContent = "HAK BİTTİ";
+          tag.style.color = "#ff8a7a";
+        } else if (i === selectedSkin) {
+          tag.textContent = "Seçili";
+        } else if (skinIsTruck(i)) {
+          tag.textContent = "Tır · " + (inMatchPick ? truckLeft(forBotPick) : TRUCK_LIMIT) + "/" + TRUCK_LIMIT;
+        } else if (skinIsFire(i)) {
+          tag.textContent = "İtfaiye · Siren";
+        } else if (skinIsTank(i)) {
+          tag.textContent = "Tank · Dışarı atar";
+        } else if (price === 0) {
+          tag.className = "tag owned-free";
+          tag.textContent = "Ücretsiz";
+        } else {
+          tag.textContent = "Açık";
+        }
         btn.appendChild(tag);
         if (unlocked && !truckBlocked) {
           btn.addEventListener("click", () => {
@@ -1377,10 +1534,19 @@
             collHint.textContent = PLAYER_NAMES[i] + " seçildi" + (inMatchPick ? " — atışa dön." : " — oyunda tam görünür.");
             asmr("select");
           });
+        } else if (!unlocked && !inMatchPick) {
+          btn.addEventListener("click", () => {
+            if (tryBuyCar(i)) {
+              renderCollection();
+              collHint.textContent = (PLAYER_NAMES[i] || "Araba") + " açıldı! · Kalan " + gold + " Altın";
+            } else {
+              collHint.textContent = "Yetersiz altın · " + gold + " / " + price + " Altın · Maç oynayarak kazan";
+            }
+          });
         } else {
           btn.addEventListener("click", () => {
             if (truckBlocked) collHint.textContent = "Tır hakkı kaldırıldı (" + TRUCK_LIMIT + "/" + TRUCK_LIMIT + ") · Sonraki oyunda yenilenir";
-            else collHint.textContent = "Kilitli · Botu " + (i - unlockCount + 1) + " kez daha yenerek aç";
+            else if (!unlocked) collHint.textContent = "Maç dışında altınla aç · " + price + " Altın";
             asmr("locked");
           });
         }
@@ -1391,7 +1557,7 @@
         ? (truckGone
           ? ("Tır hakkı kaldırıldı · Seçili: " + sel + " — Seç ve atışa dön")
           : ("Seçili: " + sel + " · " + truckStatusText(forBotPick) + " — Seç ve atışa dön"))
-        : ("Seçili: " + sel + " — dokun, sonra Bu arabayla oyna.");
+        : ("Seçili: " + sel + " · Kilitli arabaya dokunup altınla aç");
     }
 
     function showCollection() {
@@ -1456,35 +1622,39 @@
       const stats = document.getElementById("trophy-stats");
       const grid = document.getElementById("trophy-grid");
       const meta = document.getElementById("trophy-meta");
-      if (meta) meta.textContent = "Botu yen, koleksiyonu büyüt";
+      syncUnlockCount();
+      refreshGoldUI();
+      if (meta) meta.textContent = "Altın biriktir, arabaları aç";
       if (stats) {
         stats.innerHTML =
+          "<div><b>" + gold + "</b><span>Altın</span></div>" +
           "<div><b>" + unlockCount + "/" + CAR_COUNT + "</b><span>Açık araba</span></div>" +
           "<div><b>" + best + "</b><span>Rekor puan</span></div>" +
-          "<div><b>" + LEVELS[levelI].name + "</b><span>Aktif pist</span></div>" +
           "<div><b>" + (PLAYER_NAMES[selectedSkin] || "-") + "</b><span>Seçili araba</span></div>";
       }
       if (!grid) return;
       grid.innerHTML = "";
       for (let i = 0; i < CAR_COUNT; i++) {
-        const unlocked = i < unlockCount;
+        const unlocked = isOwned(i);
+        const price = carPrice(i);
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "coll-item" + (unlocked ? "" : " locked") + (i === selectedSkin ? " selected" : "");
-        const name = unlocked ? (PLAYER_NAMES[i] || ("#" + (i + 1))) : "???";
+        const name = PLAYER_NAMES[i] || ("#" + (i + 1));
         const img = document.createElement("img");
         img.className = "car-full";
         img.alt = name;
         img.src = carFileUrl(i);
         img.draggable = false;
+        if (!unlocked) img.style.opacity = "0.45";
         btn.appendChild(img);
         const nameEl = document.createElement("span");
         nameEl.className = "name";
         nameEl.textContent = name;
         btn.appendChild(nameEl);
         const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = unlocked ? (i === selectedSkin ? "Seçili" : "Koleksiyonda") : "Kilitli";
+        tag.className = unlocked ? "tag" : "tag price";
+        tag.textContent = unlocked ? (i === selectedSkin ? "Seçili" : "Koleksiyonda") : (price + " Altın");
         btn.appendChild(tag);
         if (unlocked) {
           btn.addEventListener("click", () => {
@@ -1495,7 +1665,10 @@
             asmr("select");
           });
         } else {
-          btn.addEventListener("click", () => asmr("locked"));
+          btn.addEventListener("click", () => {
+            if (tryBuyCar(i)) renderTrophies();
+            else asmr("locked");
+          });
         }
         grid.appendChild(btn);
       }
@@ -1990,7 +2163,7 @@
       // Bot stratejisi: ara sıra tır kullan (hakkı varsa)
       if (forBot && !vsHuman && canUseTruck(true) && Math.random() < 0.28) {
         const trucks = [];
-        for (let i = 0; i < unlockCount; i++) if (skinIsTruck(i)) trucks.push(i);
+        for (const i of ownedList()) if (skinIsTruck(i)) trucks.push(i);
         if (trucks.length) want = trucks[botThrown % trucks.length];
       }
       const skin = pickAllowedSkin(want, !!forBot);
@@ -2053,8 +2226,9 @@
       pull.x = 0;
       pull.y = 0;
       truckUses = [0, 0];
-      sideSkins[0] = pickAllowedSkin(selectedSkin % unlockCount, false);
-      sideSkins[1] = pickAllowedSkin(Math.min(1, unlockCount - 1), true);
+      sideSkins[0] = pickAllowedSkin(clampOwnedSkin(selectedSkin), false);
+      const ownedArr = ownedList();
+      sideSkins[1] = pickAllowedSkin(ownedArr.length > 1 ? ownedArr[1] : ownedArr[0] || 0, true);
       selectedSkin = sideSkins[0];
       stopVehicleSounds();
       menuEl.classList.add("hidden");
@@ -2082,26 +2256,19 @@
         best = s;
         try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* yoksay */ }
       }
-      unlockFlash = "";
-      if (win && !vsHuman && unlockCount < CAR_COUNT) {
-        unlockCount++;
-        selectedSkin = unlockCount - 1;
-        try {
-          localStorage.setItem(UNLOCK_KEY, String(unlockCount));
-          localStorage.setItem(SKIN_KEY, String(selectedSkin));
-        } catch (e) { /* yoksay */ }
-        const fresh = PLAYER_NAMES[selectedSkin] || ("#" + unlockCount);
-        unlockFlash = "Yeni araba: " + fresh + " (" + unlockCount + "/" + CAR_COUNT + ")";
-        addPop("YENİ ARABA!", HOUSE.x, HOUSE.y, "#ffd76a");
-      } else {
-        try { localStorage.setItem(SKIN_KEY, String(selectedSkin % unlockCount)); } catch (e) { /* yoksay */ }
-      }
-      reasonEl.textContent = reason + (unlockFlash ? "  " + unlockFlash : "");
+      const gained = addGold(matchGoldReward(s, !!win));
+      unlockFlash = "+" + gained + " Altın";
+      addPop("+" + gained + " ALTIN", HOUSE.x, HOUSE.y - 30, "#ffe566", true);
+      try { localStorage.setItem(SKIN_KEY, String(clampOwnedSkin(selectedSkin))); } catch (e) { /* yoksay */ }
+      selectedSkin = clampOwnedSkin(selectedSkin);
+      syncUnlockCount();
+      refreshMenuBest();
+      reasonEl.textContent = reason + "  " + unlockFlash;
       finalEl.textContent = sideName(false) + " " + s + "   " + sideName(true) + " " + b;
       const bonusLine = vsHuman
         ? ("Bonus " + playerBonus + "/" + p2Bonus)
         : ("Bonus " + playerBonus);
-      bestOutEl.textContent = bonusLine + " · Rekor " + best + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
+      bestOutEl.textContent = bonusLine + " · +" + gained + " Altın · Toplam " + gold + " · Arabalar " + unlockCount + "/" + CAR_COUNT;
       overEl.classList.remove("hidden");
       if (win) asmr("glass"); else asmr("tap");
     }
