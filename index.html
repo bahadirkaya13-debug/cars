@@ -661,7 +661,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 66 · Takım bayrağı</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 67 · Bayrak kontrast</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p style="margin:0 0 10px;"><span id="menu-gold" class="gold-chip"><span class="coin" aria-hidden="true"></span><span id="menu-gold-val">0</span> Altın</span></p>
@@ -827,7 +827,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=66";
+      return "cars/" + file + "?v=67";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -874,12 +874,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=66";
+      im.src = src + "?v=67";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=66";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=67";
         return im;
       });
     }
@@ -900,13 +900,13 @@
       if (state === "collection") renderCollection();
       if (state === "trophies") renderTrophies();
     }
-    fetch("cars/atlas.json?v=66")
+    fetch("cars/atlas.json?v=67")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=66";
+        img.src = "cars/atlas.png?v=67";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -3231,53 +3231,81 @@
       ctx.setLineDash([]);
     }
 
-    // Takım bayrağı: sadece DURUNCA arabanın yanında (giderken yok)
+    // Takım bayrağı: durunca yanında; halka renklerinde kaybolmasın diye kalın beyaz çerçeve
     function drawTeamFlag(c, halfL, halfW) {
       if (c.preview || c.fallen) return;
       if (Math.hypot(c.vx || 0, c.vy || 0) > STOP_SPEED) return;
       const isP2 = !!c.bot;
-      const col = isP2 ? "#3b82f6" : "#ef4444";
-      const colDeep = isP2 ? "#1e40af" : "#991b1b";
+      const col = isP2 ? "#2563eb" : "#dc2626";
+      const colDeep = isP2 ? "#1e3a8a" : "#7f1d1d";
       const active = current === c && state === "aim";
-      const wave = Math.sin(performance.now() * 0.006 + c.x * 0.02) * (active ? 2.4 : 1.4);
-      const side = (halfW || 18) + 11;
-      const back = (halfL || 28) * 0.12;
+      const wave = Math.sin(performance.now() * 0.006 + c.x * 0.02) * (active ? 2.8 : 1.6);
+      const side = (halfW || 18) + 14;
+      const back = (halfL || 28) * 0.08;
       const px = c.x + Math.cos(c.angle + Math.PI / 2) * side - Math.cos(c.angle) * back;
       const py = c.y + Math.sin(c.angle + Math.PI / 2) * side - Math.sin(c.angle) * back;
-      const poleH = 24;
-      const fw = 15;
-      const fh = 11;
+      const poleH = 36;
+      const fw = 20;
+      const fh = 14;
+      function flagPath() {
+        ctx.beginPath();
+        ctx.moveTo(1, -poleH + 1);
+        ctx.quadraticCurveTo(fw * 0.42 + wave, -poleH + fh * 0.32, fw + wave * 0.4, -poleH + fh * 0.52);
+        ctx.quadraticCurveTo(fw * 0.5 + wave * 0.2, -poleH + fh * 0.88, 1, -poleH + fh);
+        ctx.closePath();
+      }
       ctx.save();
       ctx.translate(px, py);
-      ctx.strokeStyle = "rgba(0,0,0,0.28)";
-      ctx.lineWidth = 2.2;
+      // Zemin gölgesi — halkadan ayırır
       ctx.beginPath();
-      ctx.moveTo(1.2, 2);
-      ctx.lineTo(1.2, -poleH + 2);
-      ctx.stroke();
-      ctx.strokeStyle = "#d6d3d1";
-      ctx.lineWidth = 1.8;
+      ctx.ellipse(2, 4, 7, 3.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fill();
+      // Direk (koyu + açık)
+      ctx.strokeStyle = "rgba(0,0,0,0.45)";
+      ctx.lineWidth = 3.2;
       ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(0, 2);
+      ctx.moveTo(1.4, 3);
+      ctx.lineTo(1.4, -poleH + 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#f5f5f4";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(0, 3);
       ctx.lineTo(0, -poleH);
       ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0.6, -poleH + 1);
-      ctx.quadraticCurveTo(fw * 0.45 + wave, -poleH + fh * 0.35, fw + wave * 0.35, -poleH + fh * 0.55);
-      ctx.quadraticCurveTo(fw * 0.55 + wave * 0.2, -poleH + fh * 0.85, 0.6, -poleH + fh);
-      ctx.closePath();
+      // Kumaş: siyah dış + kalın beyaz çerçeve + renk (halka kırmızı/mavisinde kaybolmaz)
+      flagPath();
+      ctx.strokeStyle = "rgba(0,0,0,0.75)";
+      ctx.lineWidth = 5.5;
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      flagPath();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3.4;
+      ctx.stroke();
+      flagPath();
       const g = ctx.createLinearGradient(0, -poleH, fw, -poleH + fh);
       g.addColorStop(0, col);
       g.addColorStop(1, colDeep);
       ctx.fillStyle = g;
       ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.28)";
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
+      // İç parlak şerit
       ctx.beginPath();
-      ctx.arc(0, -poleH, 2.1, 0, Math.PI * 2);
-      ctx.fillStyle = active ? "#fbbf24" : "#e7e5e4";
+      ctx.moveTo(3, -poleH + 3);
+      ctx.quadraticCurveTo(fw * 0.35 + wave * 0.3, -poleH + fh * 0.28, fw * 0.72 + wave * 0.2, -poleH + fh * 0.45);
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      // Direk topu
+      ctx.beginPath();
+      ctx.arc(0, -poleH, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#111827";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, -poleH, 2.3, 0, Math.PI * 2);
+      ctx.fillStyle = active ? "#fbbf24" : "#ffffff";
       ctx.fill();
       ctx.restore();
     }
