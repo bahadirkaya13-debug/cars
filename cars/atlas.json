@@ -84,7 +84,7 @@
       "police": true,
       "fire": false,
       "tank": false,
-      "price": 160
+      "price": 150
     },
     {
       "i": 4,
@@ -104,7 +104,7 @@
       "police": true,
       "fire": false,
       "tank": false,
-      "price": 160
+      "price": 170
     },
     {
       "i": 5,
@@ -244,7 +244,7 @@
       "police": true,
       "fire": false,
       "tank": false,
-      "price": 160
+      "price": 310
     },
     {
       "i": 12,
@@ -264,7 +264,7 @@
       "police": false,
       "fire": false,
       "tank": false,
-      "price": 280
+      "price": 1160
     },
     {
       "i": 13,
@@ -284,7 +284,7 @@
       "police": false,
       "fire": false,
       "tank": false,
-      "price": 280
+      "price": 1240
     },
     {
       "i": 14,
@@ -304,7 +304,7 @@
       "police": false,
       "fire": false,
       "tank": false,
-      "price": 280
+      "price": 1320
     },
     {
       "i": 15,
@@ -324,7 +324,7 @@
       "police": false,
       "fire": true,
       "tank": false,
-      "price": 360
+      "price": 875
     },
     {
       "i": 16,
@@ -344,7 +344,7 @@
       "police": false,
       "fire": false,
       "tank": true,
-      "price": 500
+      "price": 1680
     }
   ]
 }

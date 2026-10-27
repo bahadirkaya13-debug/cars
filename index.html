@@ -629,7 +629,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 57 · Altın ile aç</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 58 · Tır 4× fiyat</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p style="margin:0 0 10px;"><span id="menu-gold" class="gold-chip"><span class="coin" aria-hidden="true"></span><span id="menu-gold-val">0</span> Altın</span></p>
@@ -794,7 +794,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=57";
+      return "cars/" + file + "?v=58";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -841,12 +841,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=57";
+      im.src = src + "?v=58";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=57";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=58";
         return im;
       });
     }
@@ -867,13 +867,13 @@
       if (state === "collection") renderCollection();
       if (state === "trophies") renderTrophies();
     }
-    fetch("cars/atlas.json?v=57")
+    fetch("cars/atlas.json?v=58")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=57";
+        img.src = "cars/atlas.png?v=58";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -981,16 +981,23 @@
     function ensureStarters() {
       for (let i = 0; i < START_UNLOCK && i < CAR_COUNT; i++) owned.add(i);
     }
+    function normalCarPrice(i) {
+      // Normal araç taban ücreti
+      return 50 + i * 20;
+    }
     function carPrice(i) {
       if (i < 0 || i >= CAR_COUNT) return 9999;
       if (i < START_UNLOCK) return 0;
       const cell = ATLAS && ATLAS.cars && ATLAS.cars[i];
       if (cell && cell.price != null) return Math.max(0, Number(cell.price) || 0);
-      if (skinIsTank(i)) return 500;
-      if (skinIsFire(i)) return 360;
-      if (skinIsTruck(i)) return 280;
-      if (skinIsPolice(i)) return 160;
-      return 50 + i * 20;
+      const base = normalCarPrice(i);
+      // Kamyon / tır: normalin 4 katı
+      if (skinIsTruck(i)) return base * 4;
+      // Tank en pahalı (tırların üzerinde)
+      if (skinIsTank(i)) return Math.max(base * 4 + 200, normalCarPrice(14) * 4 + 200);
+      if (skinIsFire(i)) return Math.floor(base * 2.5);
+      if (skinIsPolice(i)) return base + 40;
+      return base;
     }
     function migrateOwnership() {
       let contentVer = 0;
