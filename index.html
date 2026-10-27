@@ -661,7 +661,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 59 · Altın HUD</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 60 · Takım etiketleri</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p style="margin:0 0 10px;"><span id="menu-gold" class="gold-chip"><span class="coin" aria-hidden="true"></span><span id="menu-gold-val">0</span> Altın</span></p>
@@ -767,6 +767,7 @@
           <li>Puan: dış <b>50</b> → içe <b>100 / 200 / 400</b>.</li>
           <li>Rakibi vurup halkadan çıkar; nadiren <b>BUZ</b> veya <b>MIKNATIS</b> gelir.</li>
           <li>Maçta <b>altın</b> kazan; Arabalar menüsünden altınla araç kilidi aç.</li>
+          <li>Pistteki arabalar: <b>SEN</b> kırmızı halka, <b>BOT / 2. oyuncu</b> mavi halka.</li>
         </ol>
         <button id="howto-ok" type="button">Anladım, başla</button>
       </div>
@@ -826,7 +827,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=59";
+      return "cars/" + file + "?v=60";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -873,12 +874,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=59";
+      im.src = src + "?v=60";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=59";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=60";
         return im;
       });
     }
@@ -899,13 +900,13 @@
       if (state === "collection") renderCollection();
       if (state === "trophies") renderTrophies();
     }
-    fetch("cars/atlas.json?v=59")
+    fetch("cars/atlas.json?v=60")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=59";
+        img.src = "cars/atlas.png?v=60";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -1925,6 +1926,19 @@
     function sideName(isP2) {
       if (vsHuman) return isP2 ? "2. Oyuncu" : "1. Oyuncu";
       return isP2 ? "Bot" : "Sen";
+    }
+
+    function sideShort(isP2) {
+      if (vsHuman) return isP2 ? "2P" : "1P";
+      return isP2 ? "BOT" : "SEN";
+    }
+
+    function sideColor(isP2) {
+      return isP2 ? "#4d8fff" : "#ff5a5a";
+    }
+
+    function sideSoft(isP2) {
+      return isP2 ? "rgba(77,143,255,0.88)" : "rgba(255,90,90,0.88)";
     }
 
     function humanCanAim() {
@@ -3217,17 +3231,63 @@
       ctx.setLineDash([]);
     }
 
+    function drawTeamMarker(c, halfW) {
+      if (c.preview || c.fallen) return;
+      const isP2 = !!c.bot;
+      const col = sideColor(isP2);
+      const soft = sideSoft(isP2);
+      const r = Math.max(18, (halfW || 22) + 10);
+      const active = current === c && state === "aim";
+      // Zemin halkası: kırmızı = sen/1P, mavi = bot/2P
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y + 10, r * 0.92, r * 0.42, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = soft;
+      ctx.lineWidth = active ? 5 : 3.2;
+      ctx.stroke();
+      if (active) {
+        const pulse = 0.55 + 0.45 * Math.sin(performance.now() * 0.008);
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y + 10, r * (1.05 + pulse * 0.08), r * (0.48 + pulse * 0.04), 0, 0, Math.PI * 2);
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.35 + pulse * 0.35;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // Sahip etiketi
+      const tag = sideShort(isP2);
+      ctx.font = "800 12px Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const tw = Math.max(28, ctx.measureText(tag).width + 14);
+      const th = 18;
+      const tx = c.x;
+      const ty = c.y - r - 8;
+      ctx.fillStyle = isP2 ? "rgba(20, 48, 110, 0.92)" : "rgba(120, 28, 28, 0.92)";
+      roundRect(tx - tw / 2, ty - th / 2, tw, th, 8);
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.fillText(tag, tx, ty + 0.5);
+      ctx.restore();
+    }
+
     function drawCarScore(c) {
       if (c.fallen) return;
       if (!(c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED)) return;
       const pts = pointsAt(c.x, c.y);
+      const col = sideColor(!!c.bot);
       ctx.font = "700 13px Segoe UI, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
       ctx.lineWidth = 3;
       ctx.strokeStyle = "rgba(0,0,0,0.65)";
       ctx.strokeText(String(pts), c.x, c.y - 22);
-      ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
+      ctx.fillStyle = pts ? col : "#ffb4c0";
       ctx.fillText(String(pts), c.x, c.y - 22);
     }
 
@@ -3272,6 +3332,7 @@
         }
         ctx.restore();
         ctx.globalAlpha = 1;
+        if (!c.preview) drawTeamMarker(c, halfW);
         if (c.preview) {
           ctx.font = "800 15px Segoe UI, sans-serif";
           ctx.textAlign = "center";
@@ -3304,6 +3365,7 @@
         ctx.drawImage(sheet, -halfL, -halfW, len, wide);
         ctx.restore();
         ctx.globalAlpha = 1;
+        if (!c.preview) drawTeamMarker(c, halfW);
         drawCarScore(c);
         return;
       }
@@ -3501,8 +3563,8 @@
       else if (band > 0) hint = bandHints[band];
       else if (humanCanAim()) {
         hint = vsHuman
-          ? (sideName(botTurn) + " · Araba seç · " + truckStatusText(!!botTurn))
-          : ("Senin sıran · " + truckStatusText(false));
+          ? (sideName(botTurn) + " · 1P kırmızı / 2P mavi · " + truckStatusText(!!botTurn))
+          : ("Senin sıran · SEN kırmızı · BOT mavi · " + truckStatusText(false));
       }
       hintEl.textContent = hint;
       const inMatchHud = state === "aim" || state === "slide";
