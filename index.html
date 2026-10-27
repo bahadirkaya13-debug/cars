@@ -3462,18 +3462,8 @@
       }
       ctx.restore();
       ctx.globalAlpha = 1;
-
-      if (c.launched && Math.hypot(c.vx, c.vy) <= STOP_SPEED) {
-        const pts = pointsAt(c.x, c.y);
-        ctx.font = "700 13px Segoe UI, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "alphabetic";
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(0,0,0,0.65)";
-        ctx.strokeText(String(pts), c.x, c.y - 22);
-        ctx.fillStyle = pts ? "#ffffff" : "#ffb4c0";
-        ctx.fillText(String(pts), c.x, c.y - 22);
-      }
+      if (!c.preview) drawTeamMarker(c, halfW);
+      drawCarScore(c);
     }
 
     function drawAim() {
