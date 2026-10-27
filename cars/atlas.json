@@ -3,7 +3,7 @@
   "rows": 3,
   "cellW": 120,
   "cellH": 240,
-  "count": 15,
+  "count": 17,
   "facing": "up",
   "cars": [
     {
@@ -17,11 +17,13 @@
       "w": 120,
       "h": 240,
       "file": "car_00.png",
-      "fw": 103,
-      "fh": 168,
+      "fw": 116,
+      "fh": 189,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 1,
@@ -34,11 +36,13 @@
       "w": 120,
       "h": 240,
       "file": "car_01.png",
-      "fw": 92,
-      "fh": 168,
+      "fw": 116,
+      "fh": 211,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 2,
@@ -51,11 +55,13 @@
       "w": 120,
       "h": 240,
       "file": "car_02.png",
-      "fw": 101,
-      "fh": 168,
+      "fw": 115,
+      "fh": 192,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 3,
@@ -68,11 +74,13 @@
       "w": 120,
       "h": 240,
       "file": "car_03.png",
-      "fw": 91,
-      "fh": 168,
+      "fw": 115,
+      "fh": 214,
       "facing": "up",
       "truck": false,
-      "police": true
+      "police": true,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 4,
@@ -85,11 +93,13 @@
       "w": 120,
       "h": 240,
       "file": "car_04.png",
-      "fw": 94,
-      "fh": 168,
+      "fw": 116,
+      "fh": 207,
       "facing": "up",
       "truck": false,
-      "police": true
+      "police": true,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 5,
@@ -102,11 +112,13 @@
       "w": 120,
       "h": 240,
       "file": "car_05.png",
-      "fw": 101,
-      "fh": 168,
+      "fw": 115,
+      "fh": 192,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 6,
@@ -119,11 +131,13 @@
       "w": 120,
       "h": 240,
       "file": "car_06.png",
-      "fw": 103,
-      "fh": 168,
+      "fw": 116,
+      "fh": 189,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 7,
@@ -136,11 +150,13 @@
       "w": 120,
       "h": 240,
       "file": "car_07.png",
-      "fw": 98,
-      "fh": 168,
+      "fw": 116,
+      "fh": 198,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 8,
@@ -153,11 +169,13 @@
       "w": 120,
       "h": 240,
       "file": "car_08.png",
-      "fw": 92,
-      "fh": 168,
+      "fw": 116,
+      "fh": 211,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 9,
@@ -170,11 +188,13 @@
       "w": 120,
       "h": 240,
       "file": "car_09.png",
-      "fw": 97,
-      "fh": 168,
+      "fw": 116,
+      "fh": 200,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 10,
@@ -187,11 +207,13 @@
       "w": 120,
       "h": 240,
       "file": "car_10.png",
-      "fw": 99,
-      "fh": 168,
+      "fw": 116,
+      "fh": 196,
       "facing": "up",
       "truck": false,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 11,
@@ -204,11 +226,13 @@
       "w": 120,
       "h": 240,
       "file": "car_11.png",
-      "fw": 101,
-      "fh": 168,
+      "fw": 115,
+      "fh": 192,
       "facing": "up",
       "truck": false,
-      "police": true
+      "police": true,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 12,
@@ -221,11 +245,13 @@
       "w": 120,
       "h": 240,
       "file": "car_12.png",
-      "fw": 87,
-      "fh": 227,
+      "fw": 90,
+      "fh": 236,
       "facing": "up",
       "truck": true,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 13,
@@ -238,11 +264,13 @@
       "w": 120,
       "h": 240,
       "file": "car_13.png",
-      "fw": 80,
-      "fh": 227,
+      "fw": 83,
+      "fh": 236,
       "facing": "up",
       "truck": true,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
     },
     {
       "i": 14,
@@ -255,11 +283,51 @@
       "w": 120,
       "h": 240,
       "file": "car_14.png",
-      "fw": 82,
-      "fh": 227,
+      "fw": 85,
+      "fh": 236,
       "facing": "up",
       "truck": true,
-      "police": false
+      "police": false,
+      "fire": false,
+      "tank": false
+    },
+    {
+      "i": 15,
+      "row": 2,
+      "col": 3,
+      "name": "Kırmızı İtfaiye",
+      "color": "#e74c3c",
+      "sx": 360,
+      "sy": 480,
+      "w": 120,
+      "h": 240,
+      "file": "car_15.png",
+      "fw": 82,
+      "fh": 236,
+      "facing": "up",
+      "truck": false,
+      "police": false,
+      "fire": true,
+      "tank": false
+    },
+    {
+      "i": 16,
+      "row": 2,
+      "col": 4,
+      "name": "Tank",
+      "color": "#c4a574",
+      "sx": 480,
+      "sy": 480,
+      "w": 120,
+      "h": 240,
+      "file": "car_16.png",
+      "fw": 102,
+      "fh": 236,
+      "facing": "up",
+      "truck": false,
+      "police": false,
+      "fire": false,
+      "tank": true
     }
   ]
 }

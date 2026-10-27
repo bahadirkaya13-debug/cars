@@ -102,6 +102,31 @@
     .hud-sound.off .ico-on { display: none; }
     .hud-sound.off .ico-off { display: block; }
     .hud-back[hidden], .hud-sound[hidden], .hud-garage[hidden] { display: none; }
+    .truck-hud {
+      position: absolute;
+      top: 48px;
+      left: 14px;
+      z-index: 6;
+      pointer-events: none;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      background: rgba(8, 12, 18, 0.82);
+      color: #f0a202;
+      border: 1px solid rgba(240, 162, 2, 0.55);
+    }
+    .truck-hud.low {
+      color: #ffc14d;
+      border-color: rgba(255, 140, 60, 0.7);
+    }
+    .truck-hud.done {
+      color: #fff4f0;
+      background: rgba(150, 28, 28, 0.92);
+      border-color: rgba(255, 120, 90, 0.85);
+    }
+    .truck-hud[hidden] { display: none; }
     .bottom {
       bottom: 14px;
       flex-direction: column;
@@ -571,6 +596,7 @@
     </button>
     <button id="to-garage" class="hud-garage" type="button" hidden>Araba</button>
     <button id="to-menu" class="hud-back" type="button" hidden>Menü</button>
+    <span id="truck-hud" class="truck-hud" hidden>Tır 3/3</span>
     <footer class="bottom" id="bottom" hidden>
       <div class="power" id="power" aria-hidden="true">
         <span></span><span></span><span></span><span></span><span></span>
@@ -580,7 +606,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 52 · Tır 3/oyun</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 56 · İtfaiye + Tank açık</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p class="section-lab">Oyun modu</p>
@@ -716,7 +742,7 @@
       { name: "Buz", theme: "ice", blurb: "Çok kaygan buz · sarkıtlar", friction: 52, speed: 860, ring: 1, bot: 0.68, cars: 8 },
       { name: "Dar halka", theme: "narrow", blurb: "Dar koridor · sıkı halka", friction: 150, speed: 700, ring: 0.72, bot: 0.78, cars: 10 },
       { name: "Fırtına", theme: "storm", blurb: "Rüzgarlı karanlık pist", friction: 210, speed: 900, ring: 0.9, bot: 0.86, cars: 10 },
-      { name: "Usta", theme: "master", blurb: "Halka yanı lava · dikkat", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 12 },
+      { name: "Usta", theme: "master", blurb: "Tahta ucunda uçurum · en yüksek puan uçurum yanı", friction: 125, speed: 780, ring: 0.62, bot: 0.94, cars: 12 },
     ];
     const LEVEL_KEY = "halka-arabalari-level";
     const RING_BASE = [168, 120, 78, 36];
@@ -737,12 +763,12 @@
     let ATLAS = null;
     let atlasImg = null;
     let carImages = [];
-    let PLAYER_COLORS = ["#dfe6e9", "#b2bec3", "#f1c40f", "#2980b9", "#2c3e50", "#1a1a1a", "#ecf0f1", "#e74c3c", "#e74c3c", "#f5f6fa", "#dcdde1", "#111111", "#f1c40f", "#e67e22", "#3498db"];
-    let PLAYER_NAMES = ["Beyaz Sedan", "Beyaz Tavan", "Sarı Taksi", "Mavi Polis", "Siyah Polis", "Siyah Sedan", "Beyaz Kamyonet", "Kırmızı Pickup", "Ambulans", "Beyaz Klasik", "Beyaz Taksi", "Gizli Polis", "Sarı Tır", "Sarı Line Tır", "Mavi Tır"];
+    let PLAYER_COLORS = ["#dfe6e9", "#b2bec3", "#f1c40f", "#2980b9", "#2c3e50", "#1a1a1a", "#ecf0f1", "#e74c3c", "#e74c3c", "#f5f6fa", "#dcdde1", "#111111", "#f1c40f", "#e67e22", "#3498db", "#e74c3c", "#c4a574"];
+    let PLAYER_NAMES = ["Beyaz Sedan", "Beyaz Tavan", "Sarı Taksi", "Mavi Polis", "Siyah Polis", "Siyah Sedan", "Beyaz Kamyonet", "Kırmızı Pickup", "Ambulans", "Beyaz Klasik", "Beyaz Taksi", "Gizli Polis", "Sarı Tır", "Sarı Line Tır", "Mavi Tır", "Kırmızı İtfaiye", "Tank"];
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=52";
+      return "cars/" + file + "?v=56";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -789,15 +815,17 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=52";
+      im.src = src + "?v=56";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=52";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=56";
         return im;
       });
     }
+    const CONTENT_KEY = "halka-arabalari-content-v";
+    const CONTENT_VER = 56; // itfaiye + tank eklendi — yeni arabaları aç
     function applyAtlas(meta, img) {
       ATLAS = meta;
       atlasImg = img;
@@ -805,19 +833,30 @@
       PLAYER_COLORS = meta.cars.map((c) => c.color);
       PLAYER_NAMES = meta.cars.map((c) => c.name);
       loadCarImages(meta);
-      unlockCount = clamp(Math.min(unlockCount, CAR_COUNT), START_UNLOCK, CAR_COUNT);
-      selectedSkin = clamp(selectedSkin, 0, unlockCount - 1);
+      let contentVer = 0;
+      try { contentVer = Number(localStorage.getItem(CONTENT_KEY)) || 0; } catch (e) { contentVer = 0; }
+      if (contentVer < CONTENT_VER) {
+        // Yeni eklenen arabalar (İtfaiye, Tank) hemen seçilebilir
+        unlockCount = CAR_COUNT;
+        try {
+          localStorage.setItem(CONTENT_KEY, String(CONTENT_VER));
+          localStorage.setItem(UNLOCK_KEY, String(unlockCount));
+        } catch (e) { /* yoksay */ }
+      } else {
+        unlockCount = clamp(Math.min(unlockCount, CAR_COUNT), START_UNLOCK, CAR_COUNT);
+      }
+      selectedSkin = clamp(selectedSkin, 0, Math.max(0, unlockCount - 1));
       try { localStorage.setItem(UNLOCK_KEY, String(unlockCount)); } catch (e) { /* yoksay */ }
       refreshMenuBest();
       if (state === "collection") renderCollection();
     }
-    fetch("cars/atlas.json?v=52")
+    fetch("cars/atlas.json?v=56")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=52";
+        img.src = "cars/atlas.png?v=56";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -846,6 +885,7 @@
     const scoreEl = document.getElementById("score");
     const youEl = document.getElementById("you");
     const carEl = document.getElementById("car");
+    const truckHudEl = document.getElementById("truck-hud");
     const reasonEl = document.getElementById("reason");
     const finalEl = document.getElementById("final");
     const bestOutEl = document.getElementById("best-out");
@@ -925,6 +965,21 @@
       const name = PLAYER_NAMES[skin] || "";
       return /polis/i.test(name);
     }
+    function skinIsFire(skin) {
+      const cell = ATLAS && ATLAS.cars && ATLAS.cars[skin];
+      if (cell && cell.fire != null) return !!cell.fire;
+      const name = PLAYER_NAMES[skin] || "";
+      return /itfaiye/i.test(name);
+    }
+    function skinIsTank(skin) {
+      const cell = ATLAS && ATLAS.cars && ATLAS.cars[skin];
+      if (cell && cell.tank != null) return !!cell.tank;
+      const name = PLAYER_NAMES[skin] || "";
+      return /tank/i.test(name);
+    }
+    function skinHasSiren(skin) {
+      return skinIsPolice(skin) || skinIsFire(skin);
+    }
 
     let hornLoop = null;
     let sirenLoop = null;
@@ -942,9 +997,29 @@
     }
     function truckStatusText(forBot) {
       const left = truckLeft(forBot);
-      if (left <= 0 && !maySelectTruck(forBot)) return "Tır hakkı bitti · Sonraki oyunda yenilenir";
-      if (left <= 0 && maySelectTruck(forBot)) return "Tır bu atışta · Sonraki için yeni oyun";
-      return "Tır " + left + "/" + TRUCK_LIMIT + " (bu oyun)";
+      const used = TRUCK_LIMIT - left;
+      if (left <= 0 && !maySelectTruck(forBot)) return "Tır hakkı KALDIRILDI (" + used + "/" + TRUCK_LIMIT + ") · Sonraki oyun";
+      if (left <= 0 && maySelectTruck(forBot)) return "Son tır bu atışta (" + TRUCK_LIMIT + "/" + TRUCK_LIMIT + ")";
+      return "Tır hakkı " + left + "/" + TRUCK_LIMIT + " kaldı";
+    }
+
+    function truckHudLabel(forBot) {
+      const left = truckLeft(forBot);
+      const used = TRUCK_LIMIT - left;
+      if (left <= 0 && !maySelectTruck(forBot)) return "Tır BİTTİ " + used + "/" + TRUCK_LIMIT;
+      if (left <= 0 && maySelectTruck(forBot)) return "Tır SON " + TRUCK_LIMIT + "/" + TRUCK_LIMIT;
+      return "Tır " + left + "/" + TRUCK_LIMIT;
+    }
+
+    function announceTruckQuota(forBot, justExhausted) {
+      if (justExhausted) {
+        addPop("TIR HAKKI KALDIRILDI · 0/" + TRUCK_LIMIT, SPAWN.x, SPAWN.y - 110, "#ff6a4a", true);
+        asmr("locked");
+        return;
+      }
+      const left = truckLeft(forBot);
+      // Sadece son hak kalınca uyar; bitince yukarıdaki mesaj çıkar
+      if (left === 1) addPop("Son 1 tır hakkı · Sonra kalkar", SPAWN.x, SPAWN.y - 100, "#ffc14d");
     }
 
     function pickAllowedSkin(skin, forBot) {
@@ -972,6 +1047,9 @@
       if (truckUses[side] >= TRUCK_LIMIT) return false;
       truckUses[side] += 1;
       car.truckReserved = true;
+      const left = TRUCK_LIMIT - truckUses[side];
+      if (left <= 0) announceTruckQuota(!!car.bot, true);
+      else announceTruckQuota(!!car.bot, false);
       return true;
     }
 
@@ -1097,11 +1175,31 @@
       if (moving && current.truck) {
         stopSiren();
         if (!hornLoop) startTruckHorn();
-      } else if (moving && current.police) {
+      } else if (moving && (current.police || current.fire)) {
         stopTruckHorn();
         if (!sirenLoop) startSiren();
       } else {
         stopVehicleSounds();
+      }
+    }
+
+    function applyBodyStats(car) {
+      if (car.tank) {
+        car.r = 46;
+        car.mass = 16;
+        if (!car.launched) car.frictionMul = 0.78;
+      } else if (car.truck) {
+        car.r = 42;
+        car.mass = 10;
+        if (!car.launched) car.frictionMul = 0.68;
+      } else if (car.fire) {
+        car.r = 36;
+        car.mass = 7;
+        if (!car.launched) car.frictionMul = 0.78;
+      } else {
+        car.r = 22;
+        car.mass = 1;
+        if (!car.launched) car.frictionMul = 1;
       }
     }
 
@@ -1110,22 +1208,28 @@
       const s = pickAllowedSkin(skin, forBot);
       const truck = skinIsTruck(s);
       const police = skinIsPolice(s);
+      const fire = skinIsFire(s);
+      const tank = skinIsTank(s);
       // Tırdan vazgeçildi → bu oyundaki hakkı iade
       if (wasTruck && !truck) releaseTruckReserve(car);
       car.skin = s;
       car.truck = truck;
       car.police = police;
-      car.r = truck ? 42 : 22;
-      car.mass = truck ? 10 : 1;
-      if (!car.launched) car.frictionMul = truck ? 0.68 : 1;
+      car.fire = fire;
+      car.tank = tank;
+      applyBodyStats(car);
       car.color = PLAYER_COLORS[s % PLAYER_COLORS.length] || BOT_COLORS[0];
       if (truck && !car.launched) {
         if (!reserveTruckSelection(car)) {
           // hak yoksa normal arabaya düş
           for (let i = 0; i < unlockCount; i++) {
             if (!skinIsTruck(i)) {
-              car.skin = i; car.truck = false; car.police = skinIsPolice(i);
-              car.r = 22; car.mass = 1; car.frictionMul = 1;
+              car.skin = i;
+              car.truck = false;
+              car.police = skinIsPolice(i);
+              car.fire = skinIsFire(i);
+              car.tank = skinIsTank(i);
+              applyBodyStats(car);
               car.color = PLAYER_COLORS[i % PLAYER_COLORS.length] || BOT_COLORS[0];
               return i;
             }
@@ -1135,12 +1239,30 @@
       return car.skin;
     }
 
+    // Tank çarpınca rakibi anında pistten dışarı fırlatır
+    function tankEject(victim, tank) {
+      if (!victim || victim.fallen || victim === tank || victim.tankEjected) return;
+      if (victim.tank) return; // tank tanka karşı normal çarpışma
+      const dx = victim.x - (tank ? tank.x : HOUSE.x);
+      const dy = victim.y - (tank ? tank.y : HOUSE.y);
+      const L = Math.hypot(dx, dy) || 1;
+      const side = victim.x < W * 0.5 ? -1 : 1;
+      victim.vx = (dx / L) * 380 + side * 1050;
+      victim.vy = (dy / L) * 380 - 160;
+      victim.curl = 0;
+      victim.tankEjected = true;
+      victim.reachedHouse = false;
+      addPop("TANK!", victim.x, victim.y - 28, "#c4a574", true);
+      asmr("wood");
+      triggerImpact(victim.x, victim.y, 1.8);
+    }
+
     function applySkinToCurrent() {
       if (!current || current.launched) return false;
       const forBot = !!current.bot;
       let skin = selectedSkin % unlockCount;
       if (skinIsTruck(skin) && !maySelectTruck(forBot)) {
-        addPop("Tır hakkı bitti · Sonraki oyun", SPAWN.x, SPAWN.y - 90, "#ff7a7a");
+        addPop("TIR HAKKI KALDIRILDI · Sonraki oyun", SPAWN.x, SPAWN.y - 90, "#ff6a4a", true);
         asmr("locked");
         skin = pickAllowedSkin(skin, forBot);
         selectedSkin = skin;
@@ -1212,9 +1334,12 @@
       const inMatchPick = !!matchReturn;
       const forBotPick = !!(matchReturn && matchReturn.forBot);
       const tLeft = inMatchPick ? truckLeft(forBotPick) : TRUCK_LIMIT;
+      const truckGone = inMatchPick && !maySelectTruck(forBotPick) && truckLeft(forBotPick) <= 0;
       collMeta.textContent = inMatchPick
         ? (sideName(forBotPick) + " seçiyor · " + truckStatusText(forBotPick))
-        : (unlockCount + "/" + CAR_COUNT + " araba açık · Maçta tır en fazla " + TRUCK_LIMIT + " kez");
+        : (unlockCount + "/" + CAR_COUNT + " araba açık · Maçta tır hakkı " + TRUCK_LIMIT + "/taraf");
+      if (truckGone) collMeta.style.color = "#ff7a7a";
+      else collMeta.style.color = "";
       updateSelectedPreview();
       for (let i = 0; i < CAR_COUNT; i++) {
         const unlocked = i < unlockCount;
@@ -1236,7 +1361,12 @@
         const tag = document.createElement("span");
         tag.className = "tag";
         tag.textContent = !unlocked ? "Kilitli"
-          : (truckBlocked ? "Tır yok" : (i === selectedSkin ? "Seçili" : (skinIsTruck(i) ? "Tır" : "Açık")));
+          : (truckBlocked ? "HAK BİTTİ"
+            : (i === selectedSkin ? "Seçili"
+              : (skinIsTruck(i) ? ("Tır · " + (inMatchPick ? truckLeft(forBotPick) : TRUCK_LIMIT) + "/" + TRUCK_LIMIT)
+                : (skinIsFire(i) ? "İtfaiye · Siren"
+                  : (skinIsTank(i) ? "Tank · Dışarı atar" : "Açık")))));
+        if (truckBlocked) tag.style.color = "#ff8a7a";
         btn.appendChild(tag);
         if (unlocked && !truckBlocked) {
           btn.addEventListener("click", () => {
@@ -1249,7 +1379,7 @@
           });
         } else {
           btn.addEventListener("click", () => {
-            if (truckBlocked) collHint.textContent = "Bu oyunda tır hakkın bitti · Sonraki oyunda yenilenir";
+            if (truckBlocked) collHint.textContent = "Tır hakkı kaldırıldı (" + TRUCK_LIMIT + "/" + TRUCK_LIMIT + ") · Sonraki oyunda yenilenir";
             else collHint.textContent = "Kilitli · Botu " + (i - unlockCount + 1) + " kez daha yenerek aç";
             asmr("locked");
           });
@@ -1258,7 +1388,9 @@
       }
       const sel = PLAYER_NAMES[selectedSkin] || "";
       collHint.textContent = inMatchPick
-        ? ("Seçili: " + sel + " · " + truckStatusText(forBotPick) + " — Seç ve atışa dön")
+        ? (truckGone
+          ? ("Tır hakkı kaldırıldı · Seçili: " + sel + " — Seç ve atışa dön")
+          : ("Seçili: " + sel + " · " + truckStatusText(forBotPick) + " — Seç ve atışa dön"))
         : ("Seçili: " + sel + " — dokun, sonra Bu arabayla oyna.");
     }
 
@@ -1456,7 +1588,49 @@
     refreshMenuBest();
     const pull = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
 
+    function isMasterTheme() {
+      return !!(LEVELS[levelI] && LEVELS[levelI].theme === "master");
+    }
+
+    // Usta: puan şeritleri tahta üzerinde; uçurum tahtanın en ucunda; lav çukuru yok
+    function masterTarget() {
+      const pad = 8;
+      const tipY = INSET + pad; // tahtanın en ucu
+      const x0 = INSET + 4;
+      const w = W - INSET * 2 - 8;
+      const specs = [
+        { points: 400, color: "rgba(26,107,209,0.78)", h: 44 },
+        { points: 200, color: "rgba(209,41,41,0.72)", h: 50 },
+        { points: 100, color: "rgba(184,117,56,0.68)", h: 56 },
+        { points: 50, color: "rgba(31,115,219,0.62)", h: 62 },
+      ];
+      let y = tipY;
+      const bands = [];
+      for (const s of specs) {
+        bands.push({ x: x0, y: y, w: w, h: s.h, points: s.points, color: s.color });
+        y += s.h;
+      }
+      return {
+        tipY: tipY,
+        endY: y,
+        x0: x0,
+        w: w,
+        bands: bands,
+        bullseye: { x: HOUSE.x, y: tipY + specs[0].h * 0.55 },
+      };
+    }
+
     function pointsAt(x, y) {
+      if (isMasterTheme()) {
+        const mt = masterTarget();
+        // Uçurumun ötesinde puan yok
+        if (y < mt.tipY) return 0;
+        for (let i = 0; i < mt.bands.length; i++) {
+          const b = mt.bands[i];
+          if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b.points;
+        }
+        return 0;
+      }
       const d = Math.hypot(x - HOUSE.x, y - HOUSE.y);
       for (let i = RINGS.length - 1; i >= 0; i--) {
         if (d <= RINGS[i].r) return RINGS[i].points;
@@ -1464,16 +1638,16 @@
       return 0;
     }
 
+    // Usta'da lav çukuru yok; diğer temalar için boş
     function lavaPits() {
-      if (!(LEVELS[levelI] && LEVELS[levelI].theme === "master")) return [];
-      const outer = RINGS[0].r;
-      return [
-        { x: HOUSE.x - outer - 72, y: HOUSE.y + 6, rx: 70, ry: Math.max(78, outer * 0.92) },
-        { x: HOUSE.x + outer + 72, y: HOUSE.y + 6, rx: 70, ry: Math.max(78, outer * 0.92) },
-      ];
+      return [];
     }
 
     function inLava(x, y, r) {
+      // Usta: tahtanın ucundan (uçurum) düş — lav çukuru yok
+      if (isMasterTheme()) {
+        return (y - (r || 16) * 0.15) < masterTarget().tipY;
+      }
       const pads = lavaPits();
       for (let i = 0; i < pads.length; i++) {
         const p = pads[i];
@@ -1487,7 +1661,7 @@
     function teamScore(isBot) {
       let s = 0;
       for (const c of cars) {
-        if (!c.launched || c.bot !== isBot || c.fallen) continue;
+        if (!c.launched || c.bot !== isBot || c.fallen || c.tankEjected) continue;
         if (Math.hypot(c.vx, c.vy) > STOP_SPEED) continue;
         s += pointsAt(c.x, c.y);
       }
@@ -1834,6 +2008,8 @@
         mass: 1,
         truck: false,
         police: false,
+        fire: false,
+        tank: false,
         color: PLAYER_COLORS[skin % PLAYER_COLORS.length] || BOT_COLORS[0],
         angle: -Math.PI / 2,
         curl: 0,
@@ -1932,7 +2108,7 @@
 
     function markHouseHits() {
       for (const c of cars) {
-        if (!c.launched || c.fallen) continue;
+        if (!c.launched || c.fallen || c.tankEjected) continue;
         if (pointsAt(c.x, c.y) > 0) c.reachedHouse = true;
       }
     }
@@ -2019,19 +2195,40 @@
     function botShoot() {
       if (vsHuman || !current || state !== "aim" || !botTurn) return;
       const scatter = (1.15 - botSkill) * 90;
-      let target = { x: HOUSE.x + (Math.random() - 0.5) * scatter, y: HOUSE.y + (Math.random() - 0.5) * scatter };
+      let target;
+      if (isMasterTheme()) {
+        const mt = masterTarget();
+        // En çok puan uçurum yanında — biraz geride nişanla, uçuruma düşme
+        target = {
+          x: mt.bullseye.x + (Math.random() - 0.5) * scatter * 0.85,
+          y: mt.bullseye.y + 8 + (Math.random() - 0.5) * scatter * 0.35,
+        };
+      } else {
+        target = { x: HOUSE.x + (Math.random() - 0.5) * scatter, y: HOUSE.y + (Math.random() - 0.5) * scatter };
+      }
       let hit = null;
       let bestD = 1e9;
       for (const c of cars) {
         if (c.bot || !c.launched || c === current) continue;
-        const d = Math.hypot(c.x - HOUSE.x, c.y - HOUSE.y);
-        if (d <= RINGS[0].r && d < bestD) { bestD = d; hit = c; }
+        if (isMasterTheme()) {
+          const pts = pointsAt(c.x, c.y);
+          if (pts <= 0) continue;
+          const d = Math.hypot(c.x - HOUSE.x, c.y - HOUSE.y);
+          if (d < bestD) { bestD = d; hit = c; }
+        } else {
+          const d = Math.hypot(c.x - HOUSE.x, c.y - HOUSE.y);
+          if (d <= RINGS[0].r && d < bestD) { bestD = d; hit = c; }
+        }
       }
       if (hit && Math.random() < botSkill) {
-        let ox = hit.x - HOUSE.x;
-        let oy = hit.y - HOUSE.y;
-        const ol = Math.hypot(ox, oy) || 1;
-        target = { x: hit.x + (ox / ol) * 10, y: hit.y + (oy / ol) * 10 };
+        if (isMasterTheme()) {
+          target = { x: hit.x + (Math.random() - 0.5) * 12, y: hit.y + 14 };
+        } else {
+          let ox = hit.x - HOUSE.x;
+          let oy = hit.y - HOUSE.y;
+          const ol = Math.hypot(ox, oy) || 1;
+          target = { x: hit.x + (ox / ol) * 10, y: hit.y + (oy / ol) * 10 };
+        }
       }
       const dx = target.x - current.homeX;
       const dy = target.y - current.homeY;
@@ -2046,12 +2243,12 @@
       current.vy = shot.vy;
       current.curl = shot.curl;
       current.angle = Math.atan2(current.vy, current.vx);
-      current.frictionMul = current.truck ? 0.68 : 1;
+      applyBodyStats(current);
       current.magnet = false;
       current.launched = true;
       noteTruckLaunch(current);
       if (current.truck) startTruckHorn();
-      else if (current.police) startSiren();
+      else if (current.police || current.fire) startSiren();
       else stopVehicleSounds();
       state = "slide";
       calm = 0;
@@ -2080,6 +2277,7 @@
       pull.x = 0;
       pull.y = 0;
       if (current && current.truck) playHorn(); // kısa uyarı; asıl korna kayarken
+      else if (current && (current.police || current.fire)) { /* siren kayarken */ }
     }
 
     function onMove(e) {
@@ -2107,12 +2305,13 @@
       current.vy = shot.vy;
       current.curl = shot.curl;
       current.angle = Math.atan2(current.vy, current.vx);
-      current.frictionMul = activePower === "ice" ? 0.55 : (current.truck ? 0.68 : 1);
+      applyBodyStats(current);
+      if (activePower === "ice") current.frictionMul = 0.55;
       current.magnet = activePower === "magnet";
       current.launched = true;
       noteTruckLaunch(current);
       if (current.truck) startTruckHorn();
-      else if (current.police) startSiren();
+      else if (current.police || current.fire) startSiren();
       else {
         stopVehicleSounds();
         asmr("whoosh");
@@ -2194,10 +2393,21 @@
     }
 
     function stopAtBoard(c) {
+      // Tank fırlattıysa kenara takılma; pist dışına çıkınca düş
+      if (c.tankEjected) {
+        if (c.x < -40 || c.x > W + 40 || c.y < -40 || c.y > H + 40) {
+          c.fallen = true;
+          c.sink = 0;
+          c.vx = 0;
+          c.vy = 0;
+        }
+        return;
+      }
       const b = boardLimits(c.r);
       if (c.x < b.left) { c.x = b.left; c.vx = 0; }
       if (c.x > b.right) { c.x = b.right; c.vx = 0; }
-      if (c.y < b.top) { c.y = b.top; c.vy = 0; }
+      // Usta: üst kenar uçurum — tahta ucundan düşebilsin
+      if (!isMasterTheme() && c.y < b.top) { c.y = b.top; c.vy = 0; }
       if (c.y > b.bot) { c.y = b.bot; c.vy = 0; }
     }
 
@@ -2220,6 +2430,15 @@
       b.y += ny * overlap * (ma * inv);
       const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
       if (rv >= 0) return;
+      // Tank: çarptığı her şeyi anında pistten dışarı atar
+      if ((a.tank || b.tank) && !(a.tank && b.tank)) {
+        const tank = a.tank ? a : b;
+        const other = a.tank ? b : a;
+        tankEject(other, tank);
+        a.curl *= 0.2;
+        b.curl *= 0.2;
+        return;
+      }
       if (rv < -18) {
         const now = performance.now();
         if (now - lastHit > 90) {
@@ -2227,14 +2446,15 @@
           const power = clamp((-rv) / 220, 0.55, 1.8);
           const mx = (a.x + b.x) * 0.5;
           const my = (a.y + b.y) * 0.5;
-          triggerImpact(mx, my, power * ((a.truck || b.truck) ? 1.35 : 1));
+          const heavy = a.truck || b.truck || a.tank || b.tank;
+          triggerImpact(mx, my, power * (heavy ? 1.35 : 1));
           pops.push({
             text: (a.truck || b.truck) ? "TIR VURDU!" : "ÇARPIŞMA!",
             x: mx, y: my - 36, life: 0.9, max: 0.9, color: "#ffc14d", boom: true
           });
         }
       }
-      const e = (a.truck || b.truck) ? 1.28 : 0.96;
+      const e = (a.truck || b.truck || a.tank || b.tank) ? 1.28 : 0.96;
       const j = -(1 + e) * rv / (1 / ma + 1 / mb);
       a.vx -= (j / ma) * nx;
       a.vy -= (j / ma) * ny;
@@ -2244,14 +2464,16 @@
       if (a.truck !== b.truck && Math.abs(rv) > 28) {
         const truck = a.truck ? a : b;
         const other = a.truck ? b : a;
-        const hx = other.x - HOUSE.x;
-        const hy = other.y - HOUSE.y;
-        const hl = Math.hypot(hx, hy) || 1;
-        const shove = clamp((-rv) * 1.15, 160, 620);
-        const mul = (truck.mass / (other.mass || 1)) * 0.7;
-        other.vx += (hx / hl) * shove * mul;
-        other.vy += (hy / hl) * shove * mul;
-        other.curl = 0;
+        if (!other.tank) {
+          const hx = other.x - HOUSE.x;
+          const hy = other.y - HOUSE.y;
+          const hl = Math.hypot(hx, hy) || 1;
+          const shove = clamp((-rv) * 1.15, 160, 620);
+          const mul = (truck.mass / (other.mass || 1)) * 0.7;
+          other.vx += (hx / hl) * shove * mul;
+          other.vy += (hy / hl) * shove * mul;
+          other.curl = 0;
+        }
       }
       a.curl *= 0.35;
       b.curl *= 0.35;
@@ -2285,8 +2507,9 @@
       }
       body.angle = Math.atan2(body.vy, body.vx);
       if (body.magnet) {
-        const dx = HOUSE.x - body.x;
-        const dy = HOUSE.y - body.y;
+        const aim = isMasterTheme() ? masterTarget().bullseye : HOUSE;
+        const dx = aim.x - body.x;
+        const dy = aim.y - body.y;
         const d = Math.hypot(dx, dy) || 1;
         body.vx += (dx / d) * 135 * dt;
         body.vy += (dy / d) * 135 * dt;
@@ -2315,9 +2538,12 @@
         body.vx = 0;
         body.vy = 0;
         body.sink = 0;
-        addPop("LAVA!", body.x, body.y - 20, "#ff6a2a", true);
+        addPop(isMasterTheme() ? "UÇURUM!" : "LAVA!", body.x, body.y - 20, "#ff6a2a", true);
         asmr("wood");
         return false;
+      }
+      if (body.tankEjected) {
+        return Math.hypot(body.vx, body.vy) > STOP_SPEED;
       }
       const b = boardLimits(body.r || 16);
       let blocked = false;
@@ -2337,6 +2563,7 @@
         for (let i = 0; i < cars.length; i++) {
           for (let j = i + 1; j < cars.length; j++) {
             if (!cars[i].launched || !cars[j].launched || cars[i].fallen || cars[j].fallen) continue;
+            if (cars[i].tankEjected || cars[j].tankEjected) continue;
             resolve(cars[i], cars[j]);
           }
         }
@@ -2573,7 +2800,7 @@
         gloss.addColorStop(1, "rgba(255,220,150,0)");
         ctx.fillStyle = gloss;
         ctx.fillRect(INSET, INSET, rw, rh);
-        drawLavaPits();
+        // Lav çukuru yok; uçurum drawHouse'ta tahta ucunda
       } else {
         const planks = 7;
         const plankW = rw / planks;
@@ -2645,6 +2872,56 @@
     }
 
     function drawHouse() {
+      if (isMasterTheme()) {
+        const mt = masterTarget();
+        // Puan şeritleri doğrudan tahta üzerinde (ortada ayrı tahta / lav çukuru yok)
+        for (let i = mt.bands.length - 1; i >= 0; i--) {
+          const b = mt.bands[i];
+          ctx.fillStyle = b.color;
+          ctx.fillRect(b.x, b.y, b.w, b.h);
+          ctx.strokeStyle = "rgba(255,255,255,0.18)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(b.x, b.y + b.h);
+          ctx.lineTo(b.x + b.w, b.y + b.h);
+          ctx.stroke();
+        }
+        // Uçurum: tahtanın en ucu
+        const abyss = ctx.createLinearGradient(0, Math.max(INSET, mt.tipY - 28), 0, mt.tipY + 8);
+        abyss.addColorStop(0, "rgba(4, 2, 8, 0.0)");
+        abyss.addColorStop(0.4, "rgba(12, 6, 4, 0.5)");
+        abyss.addColorStop(1, "rgba(8, 4, 2, 0.9)");
+        ctx.fillStyle = abyss;
+        ctx.fillRect(mt.x0, Math.max(INSET, mt.tipY - 26), mt.w, 34);
+        ctx.strokeStyle = "rgba(255, 170, 70, 0.92)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(mt.x0, mt.tipY);
+        const segs = 10;
+        for (let i = 1; i <= segs; i++) {
+          const px = mt.x0 + (mt.w * i) / segs;
+          const py = mt.tipY + ((i % 2) ? 3 : -2);
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.font = "800 14px Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(255,200,110,0.95)";
+        ctx.fillText("UÇURUM", HOUSE.x, mt.tipY + 16);
+        for (const b of mt.bands) {
+          const tx = HOUSE.x;
+          const ty = b.y + b.h * 0.55;
+          ctx.font = "800 16px Segoe UI, sans-serif";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(0,0,0,0.5)";
+          ctx.strokeText(String(b.points), tx, ty);
+          ctx.fillStyle = b.points >= 400 ? "#ffe566" : "#fff";
+          ctx.fillText(String(b.points), tx, ty);
+        }
+        ctx.textBaseline = "alphabetic";
+        return;
+      }
       for (const ring of RINGS) {
         ctx.beginPath();
         ctx.arc(HOUSE.x, HOUSE.y, ring.r, 0, Math.PI * 2);
@@ -2716,12 +2993,13 @@
         const sh = sprite ? sprite.naturalHeight : (cell.fh || cell.h);
         const previewBoost = c.preview ? 1.18 : 1;
         const sink = c.fallen ? (c.sink || 0) : 0;
-        // Sprite burun YUKARI; tır daha büyük
-        const truckBoost = c.truck ? 2.05 : 1;
-        const len = CAR_LEN * truckBoost * previewBoost * (1 - sink * 0.55);
+        // Sprite burun YUKARI; tır / itfaiye / tank daha büyük
+        const sizeBoost = c.tank ? 1.85 : c.truck ? 2.05 : c.fire ? 1.72 : 1;
+        const len = CAR_LEN * sizeBoost * previewBoost * (1 - sink * 0.55);
         const aspect = sw / Math.max(1, sh);
-        const wideCap = c.truck ? CAR_WIDE * 1.3 : CAR_WIDE;
-        const wide = Math.min(wideCap, len * Math.min(Math.max(aspect, 0.40), c.truck ? 0.46 : 0.58));
+        const wideCap = c.tank ? CAR_WIDE * 1.55 : c.truck ? CAR_WIDE * 1.3 : c.fire ? CAR_WIDE * 1.15 : CAR_WIDE;
+        const aspectCap = c.tank ? 0.62 : c.truck ? 0.46 : c.fire ? 0.48 : 0.58;
+        const wide = Math.min(wideCap, len * Math.min(Math.max(aspect, 0.40), aspectCap));
         const halfL = len * 0.5;
         const halfW = wide * 0.5;
         ctx.save();
@@ -2972,12 +3250,24 @@
       else if (activePower === "magnet" && humanCanAim()) hint = "MIKNATIS hazır — çek bırak";
       else if (band > 0) hint = bandHints[band];
       else if (humanCanAim()) {
-        const tLeft = truckLeft(!!botTurn);
         hint = vsHuman
           ? (sideName(botTurn) + " · Araba seç · " + truckStatusText(!!botTurn))
-          : ("Senin sıran · Araba seç · " + truckStatusText(false));
+          : ("Senin sıran · " + truckStatusText(false));
       }
       hintEl.textContent = hint;
+      const inMatchHud = state === "aim" || state === "slide";
+      if (truckHudEl) {
+        if (!inMatchHud) {
+          truckHudEl.hidden = true;
+        } else {
+          const forHud = !!botTurn;
+          const left = truckLeft(forHud);
+          truckHudEl.hidden = false;
+          truckHudEl.textContent = truckHudLabel(forHud);
+          truckHudEl.classList.toggle("done", left <= 0 && !maySelectTruck(forHud));
+          truckHudEl.classList.toggle("low", left === 1 || (left <= 0 && maySelectTruck(forHud)));
+        }
+      }
       const colors = ["#59d173", "#7ed34a", "#f4d35e", "#ee9b4d", "#ee6c4d"];
       for (let i = 0; i < powerCells.length; i++) {
         const on = i < band;
