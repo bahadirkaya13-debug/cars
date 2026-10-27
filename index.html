@@ -661,7 +661,7 @@
     <section class="panel" id="menu">
       <div class="card">
         <h1>Halka Arabaları</h1>
-        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 61 · Takım oku</p>
+        <p id="build-tag" style="margin:0 0 8px;font-size:13px;font-weight:800;color:#f0a202;">Sürüm 62 · Rakip ok belirgin</p>
         <p style="margin:0 0 8px;font-size:14px;">Çek-bırak, halkaya dur. Aynı telefonda iki kişi de oynayabilir.</p>
         <p id="menu-best"></p>
         <p style="margin:0 0 10px;"><span id="menu-gold" class="gold-chip"><span class="coin" aria-hidden="true"></span><span id="menu-gold-val">0</span> Altın</span></p>
@@ -827,7 +827,7 @@
     let CAR_COUNT = PLAYER_COLORS.length;
     function carFileUrl(i) {
       const file = (ATLAS && ATLAS.cars[i] && ATLAS.cars[i].file) ? ATLAS.cars[i].file : ("car_" + String(i).padStart(2, "0") + ".png");
-      return "cars/" + file + "?v=61";
+      return "cars/" + file + "?v=62";
     }
     function punchCrop(img) {
       const w = img.naturalWidth;
@@ -874,12 +874,12 @@
         carSheets[i] = sheet;
         if (i === 0) carSheets[2] = sheet;
       };
-      im.src = src + "?v=61";
+      im.src = src + "?v=62";
     });
     function loadCarImages(meta) {
       carImages = meta.cars.map((c, i) => {
         const im = new Image();
-        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=61";
+        im.src = "cars/" + (c.file || ("car_" + String(i).padStart(2, "0") + ".png")) + "?v=62";
         return im;
       });
     }
@@ -900,13 +900,13 @@
       if (state === "collection") renderCollection();
       if (state === "trophies") renderTrophies();
     }
-    fetch("cars/atlas.json?v=61")
+    fetch("cars/atlas.json?v=62")
       .then((r) => r.json())
       .then((meta) => new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ meta, img });
         img.onerror = reject;
-        img.src = "cars/atlas.png?v=61";
+        img.src = "cars/atlas.png?v=62";
       }))
       .then(({ meta, img }) => applyAtlas(meta, img))
       .catch(() => { /* atlas yoksa renk yedekleri kalır */ });
@@ -3236,12 +3236,14 @@
       if (c.preview || c.fallen) return;
       const isP2 = !!c.bot;
       const active = current === c && state === "aim";
-      const fill = isP2 ? "rgba(77,143,255,0.32)" : "rgba(255,90,90,0.32)";
-      const stroke = isP2 ? "rgba(77,143,255,0.55)" : "rgba(255,90,90,0.55)";
+      // Senin okun hafif kalsın; rakip oku daha belirgin
+      const fill = isP2 ? "rgba(77,143,255,0.72)" : "rgba(255,90,90,0.32)";
+      const stroke = isP2 ? "rgba(180,210,255,0.95)" : "rgba(255,90,90,0.55)";
       const hl = Math.max(36, halfL || 40);
       const hw = Math.max(16, (halfW || 22) * 0.75);
-      const len = Math.max(26, hl * 0.48);
-      const wid = Math.max(12, hw * 0.85);
+      const sizeMul = isP2 ? 1.22 : 1;
+      const len = Math.max(26, hl * 0.48) * sizeMul;
+      const wid = Math.max(12, hw * 0.85) * sizeMul;
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
@@ -3249,7 +3251,7 @@
       ctx.translate(-(hl + len * 0.15), 0);
       if (active) {
         const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
-        ctx.globalAlpha = 0.28 + pulse * 0.2;
+        ctx.globalAlpha = isP2 ? (0.75 + pulse * 0.2) : (0.28 + pulse * 0.2);
       } else {
         ctx.globalAlpha = 1;
       }
@@ -3266,7 +3268,7 @@
       ctx.fillStyle = fill;
       ctx.fill();
       ctx.strokeStyle = stroke;
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = isP2 ? 2.4 : 1.4;
       ctx.stroke();
       ctx.restore();
     }
